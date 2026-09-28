@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=80";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=80";
-import * as License from "./license.js?v=80";
-import * as Custom from "./custom-designs.js?v=80";
-import * as Update from "./update.js?v=80";
-import * as Crm from "./crm-ui.js?v=80";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=81";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=81";
+import * as License from "./license.js?v=81";
+import * as Custom from "./custom-designs.js?v=81";
+import * as Update from "./update.js?v=81";
+import * as Crm from "./crm-ui.js?v=81";
 
-const BUILD = "80";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "81";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -421,6 +421,21 @@ function unmountSimulator() {
 // 모바일 재배치가 켜지면 iframe 은 한 화면에 고정되므로 높이 신호를 무시한다.
 let frameHeightLocked = false;
 
+/**
+ * 이 메시지가 편집 화면(sim-frame)에서 왔는지.
+ *
+ * 사파리(WebKit)는 srcdoc iframe 이 window.parent.postMessage 로 보낸 신호의
+ * e.source 를 **앱 본체 창(window)** 으로 알려 준다. 크롬처럼 iframe 창과
+ * 비교하면 늘 '다른 창' 이 된다. 그래서 본체 창으로 찍힌 것도 받는다 —
+ * 이전 iframe 의 늦은 신호는 mount 번호(gen)로 따로 걸러낸다.
+ */
+function fromSimFrame(e) {
+    const frame = $("sim-frame");
+    if (!e.source || e.source === window) return true;
+    if (e.source === frame.contentWindow) return true;
+    try { return e.source.frameElement === frame; } catch (err) { return false; }
+}
+
 window.addEventListener("message", (e) => {
     const d = e.data;
     if (!d) return;
@@ -433,7 +448,10 @@ window.addEventListener("message", (e) => {
         // 전체화면 모드가 켜져 위쪽 단계가 전부 숨겨지고, 정작 캔버스는
         // 이미 숨겨진 뒤라 화면에 아무것도 남지 않았다(암전).
         if (!state.mountedKind) return;
-        if (e.source && e.source !== $("sim-frame").contentWindow) return;
+        // 보낸 창이 지금 편집 화면인지 본다. 사파리(아이폰)는 e.source 가 iframe 창이
+        // 아니라 본체 창으로 나와서, 예전 비교로는 준비 완료가 늘 버려지고 편집 화면이
+        // 영영 안 열렸다(2026-09-29). fromSimFrame 참고. 이전 iframe 은 아래 번호가 거른다.
+        if (!fromSimFrame(e)) return;
         // srcdoc 을 갈아 끼워도 창 객체는 그대로라 위 검사만으로는 이전
         // iframe 의 신호를 걸러내지 못한다. 띄울 때 심어 둔 번호로 확인한다.
         if (d.gen !== mountGen) return;
