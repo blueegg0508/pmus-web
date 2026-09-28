@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=81";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=81";
-import * as License from "./license.js?v=81";
-import * as Custom from "./custom-designs.js?v=81";
-import * as Update from "./update.js?v=81";
-import * as Crm from "./crm-ui.js?v=81";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=82";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=82";
+import * as License from "./license.js?v=82";
+import * as Custom from "./custom-designs.js?v=82";
+import * as Update from "./update.js?v=82";
+import * as Crm from "./crm-ui.js?v=82";
 
-const BUILD = "81";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "82";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -297,7 +297,6 @@ async function mountSimulator(kind, cfg) {
     let doc = `<!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<style>:root{--sa-top:${sa.top}px;--sa-bottom:${sa.bottom}px;--sa-left:${sa.left}px;--sa-right:${sa.right}px}</style>
 <script>(function(){
 function s(k,m){try{window.parent.postMessage({type:"mui:err",kind:k,msg:String(m).slice(0,240)},"*")}catch(e){}}
 window.addEventListener("error",function(e){var t=e.target;
@@ -306,7 +305,10 @@ s("오류",(e.message||"")+" @"+(e.lineno||0))},true);
 window.addEventListener("unhandledrejection",function(e){var r=e.reason;s("미처리",(r&&r.message)||r)});
 window.__blReport=s;})();<\/script>
 <style>${css}</style>
-<style>${muiCss}</style></head>
+<style>${muiCss}</style>
+<!-- 상태표시줄·홈 표시줄 높이. mobile-ui.css 가 기본값 0 을 두므로 **그 뒤에** 넣어야 이긴다.
+     앞에 두었더니 0 으로 덮여서 아이폰(노치)에서 맨 위 버튼이 상태표시줄 밑에 깔렸다(2026-09-29). -->
+<style>:root{--sa-top:${sa.top}px;--sa-bottom:${sa.bottom}px;--sa-left:${sa.left}px;--sa-right:${sa.right}px}</style></head>
 <body>
 ${fillTemplate(markup, cfg)}
 <script>window.CFG = ${JSON.stringify(cfg)};<\/script>
