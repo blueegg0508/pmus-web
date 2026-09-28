@@ -1,0 +1,346 @@
+<div class="after-layout-wrapper" id="container">
+        
+        <div class="after-flex-container">
+            <!-- 1. 📷 시술 전 (Before) 독립 열 -->
+            <div class="col-item col-before">
+                <div class="column-title">📷 시술 전 (Before)</div>
+                <div class="drag-info">👤 시술 전 눈썹 형태와 대칭 상태를 비교해보세요!</div>
+                <img src="{{bg_b64}}" class="customer-photo" alt="시술 전 원본 사진">
+                <button type="button" class="btn-col-download btn-download-secondary" id="btnDownloadComp">
+                    🖼️ Before / After 2분할 비교 저장 (PNG)
+                </button>
+            </div>
+
+            <!-- 2. ✨ 예상 디자인 (After) 독립 열 -->
+            <div class="col-item col-after">
+                <div class="column-title">✨ 예상 디자인 (After)</div>
+                <div class="drag-info">🖱️ 좌클릭: 눈썹 이동 | 우클릭 드래그: 사진 이동 | 휠/핀치: 줌 | 더블클릭: 원본 크기 복원</div>
+                <canvas id="dragCanvas" width="{{img_w}}" height="{{img_h}}"></canvas>
+                <button type="button" class="btn-col-download btn-download-primary" id="btnDownloadAfter">
+                    📥 변형된 예상 디자인 고화질 저장 (PNG)
+                </button>
+            </div>
+
+            <!-- 3. 🎛️ 디자인 세부 조절 & 편집 독립 열 -->
+            <div class="col-item col-control">
+                <div class="column-title">🎛️ 디자인 세부 조절 & 편집</div>
+                <div class="drag-info info-ctrl">⚙️ 색상, 치수 및 사진 보정을 실시간 조절하세요!</div>
+                
+                <div class="side-control-panel" id="controlPanel">
+                    <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+                        <div class="panel-title">🎛️ 직관 조절 & 편집 툴</div>
+                        <div style="display:flex; gap:5px; align-items:center;">
+                            <button type="button" class="btn-undo" id="btnUndo" disabled title="이전 작업으로 되돌리기 (Ctrl+Z)">↩️ 실행취소</button>
+                            <button type="button" class="btn-redo" id="btnRedo" disabled title="되돌린 작업 다시 실행 (Ctrl+Y)">↪️ 다시실행</button>
+                            <button type="button" class="btn-reset" id="btnReset">🔄 전체 초기화</button>
+                        </div>
+                    </div>
+            
+            <!-- 탭 전환 버튼 -->
+            <div class="tab-bar">
+                <button type="button" class="tab-btn active" id="tabBtn1">✏️ 눈썹 세부 조절</button>
+                <button type="button" class="tab-btn" id="tabBtn2">🖼️ 고객 사진 편집</button>
+            </div>
+
+            <!-- 탭 1: 눈썹 세부 조절 -->
+            <div id="tabContent1">
+                <!-- 📍 [눈썹 이동 대상 선택 & 분리 이동 모드] -->
+                <div style="background:#1E1A17; padding:7px 9px; border-radius:8px; margin-bottom:10px; border:1px solid #3A3026;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                        <span style="font-size:0.80rem; font-weight:800; color:#FFE066;">✥ 눈썹 이동 대상 선택</span>
+                        <span style="font-size:0.70rem; color:#4ADE80; font-weight:700;">✨ 좌/우 분리 이동 가능</span>
+                    </div>
+                    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:4px;">
+                        <button type="button" class="brow-move-target-btn active" data-target="both" id="btnBrowMoveBoth">🔗 전체 함께</button>
+                        <button type="button" class="brow-move-target-btn" data-target="auto" id="btnBrowMoveAuto">✨ 자동 감지</button>
+                        <button type="button" class="brow-move-target-btn" data-target="left" id="btnBrowMoveLeft">👈 왼쪽 눈썹</button>
+                        <button type="button" class="brow-move-target-btn" data-target="right" id="btnBrowMoveRight">👉 오른쪽 눈썹</button>
+                    </div>
+                </div>
+
+                <!-- 🎨 색상 선택 & 프리셋 섹션 -->
+                <div class="color-preset-card">
+                    <div class="color-header">
+                        <span class="color-title">🎨 색상 선택</span>
+                        <label class="btn-custom-color" for="inputColorPicker">
+                            🎨 임의 색상 선택
+                            <input type="color" id="inputColorPicker" value="{{cur_hex}}" style="position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none;">
+                        </label>
+                    </div>
+                    
+                    <div class="color-ctrl-grid">
+                        <div class="color-select-col">
+                            <label>색상 프리셋</label>
+                            <select id="selectColorPreset" class="color-dropdown">
+                                <option value="#000000">리얼블랙</option>
+                                <option value="#262626">내추럴블랙</option>
+                                <option value="#3D2B1F">다크브라운</option>
+                                <option value="#5C4033">내추럴브라운</option>
+                                <option value="#4E4B46">애쉬브라운</option>
+                                <option value="#8B5A2B">라이트브라운</option>
+                                <option value="custom">사용자 선택</option>
+                            </select>
+                        </div>
+                        
+                        <div class="color-swatch-box">
+                            <div class="color-preview-chip" id="colorChip" style="background-color: {{cur_hex}};"></div>
+                            <div class="color-info-text">
+                                <div class="hex-val" id="colorHexText">{{cur_hex}}</div>
+                                <div class="rgb-val" id="colorRgbText">RGB({{cur_r}}, {{cur_g}}, {{cur_b}})</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ctrl-grid-2">
+                    <div class="ctrl-row">
+                        <label>📐 전체 크기 <span id="valScale">100%</span></label>
+                        <input type="range" id="rngScale" min="50" max="180" value="100">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>↔️ 눈썹 기장 <span id="valWidth">100%</span></label>
+                        <input type="range" id="rngWidth" min="50" max="150" value="100">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>↕️ 세로 두께 <span id="valHeight">100%</span></label>
+                        <input type="range" id="rngHeight" min="50" max="150" value="100">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>↗️ 꼬리 높이 <span id="valRot">0°</span></label>
+                        <input type="range" id="rngRot" min="-30" max="30" value="0" step="0.5">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>↔️ 눈썹 간격 <span id="valSpacing">0px</span></label>
+                        <input type="range" id="rngSpacing" min="-150" max="150" value="0">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>↕️ 위아래 위치 <span id="valVert">0px</span></label>
+                        <input type="range" id="rngVert" min="-150" max="150" value="0">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>👁️ 눈썹 투명도 <span id="valOpacity">85%</span></label>
+                        <input type="range" id="rngOpacity" min="10" max="100" value="85">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>🔅 기존 눈썹 진하기 <span id="valNatBrow">100%</span></label>
+                        <input type="range" id="rngNatBrow" min="0" max="100" value="100">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>🌙 꼬리 상단 두께 <span id="valRound">0%</span></label>
+                        <input type="range" id="rngRound" min="0" max="100" value="0" step="5">
+                    </div>
+                </div>
+
+                <details style="background:#1E1A17; padding:7px 9px; border-radius:8px; border:1px solid #3A3026; margin-top:10px;">
+                    <summary style="font-size:0.82rem; font-weight:800; color:#FFE066; cursor:pointer;">🔧 좌/우 개별 미세 회전 및 높이 맞춤</summary>
+                    <div class="ctrl-grid-2" style="margin-top: 8px;">
+                        <div class="ctrl-row">
+                            <label>👈 좌측 추가 회전 <span id="valLRot">0°</span></label>
+                            <input type="range" id="rngLRot" min="-15" max="15" value="0" step="0.5">
+                        </div>
+                        <div class="ctrl-row">
+                            <label>👉 우측 추가 회전 <span id="valRRot">0°</span></label>
+                            <input type="range" id="rngRRot" min="-15" max="15" value="0" step="0.5">
+                        </div>
+                    </div>
+                    <div style="display:flex; justify-content:flex-end; margin-top:6px;">
+                        <button type="button" class="btn-sync-y" id="btnSyncYLevel">⚖️ 좌/우 수평 높이 동일하게 맞춤</button>
+                    </div>
+                </details>
+
+                <!-- 📐 [눈썹 3등분 가이드선 & 비율 패널 (세로선 + 가로선)] -->
+                <div style="background:#1E1A17; padding:9px 10px; border-radius:10px; border:1.5px solid #4A3B2C; margin-top:12px;">
+                    <!-- 1. 세로선 섹션 -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom:1px solid #362A1E; padding-bottom:6px;">
+                        <label style="font-size:0.84rem; font-weight:800; color:#FFFFFF; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                            <input type="checkbox" id="chkShow3Guides" style="accent-color:#FFFFFF;"> 📐 세로 3등분선 & 비율 (흰색 실선)
+                        </label>
+                        <button type="button" class="btn-mirror" id="btnMirrorLeftToRight" title="좌측 3등분선을 우측 눈썹으로 대칭 복사합니다">🪞 우측으로 미러링</button>
+                    </div>
+
+                    <!-- 🔗 대칭 옵션 바 -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:#26201B; padding:5px 8px; border-radius:6px; margin-bottom:8px; border:1px solid #3E3224;">
+                        <label style="font-size:0.75rem; color:#4ADE80; cursor:pointer; display:flex; align-items:center; gap:4px; font-weight:700;">
+                            <input type="checkbox" id="chkLiveMirror" style="accent-color:#4ADE80;"> 🔗 좌우 실시간 대칭 연동
+                        </label>
+                        <button type="button" class="btn-reset-guide" id="btnResetGuides">🔄 세로선 초기화</button>
+                    </div>
+
+                    <!-- 🎚️ 가이드선 스타일 (굵기 & 투명도) -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; background:#241E19; padding:5px 8px; border-radius:6px; margin-bottom:8px; border:1px solid #483A2C;">
+                        <div class="ctrl-row" style="margin-bottom:0;">
+                            <label style="font-size:0.73rem;">〰️ 선 굵기 <span id="valGuideLineWidth">1.0px</span></label>
+                            <input type="range" id="rngGuideLineWidth" min="0.5" max="4.0" value="1.0" step="0.5">
+                        </div>
+                        <div class="ctrl-row" style="margin-bottom:0;">
+                            <label style="font-size:0.73rem;">👁️ 선 투명도 <span id="valGuideLineOpacity">80%</span></label>
+                            <input type="range" id="rngGuideLineOpacity" min="10" max="100" value="80" step="5">
+                        </div>
+                    </div>
+
+                    <!-- 👈 좌측 눈썹 3등분선 조절 -->
+                    <div style="background:#241E19; border:1px solid #483A2C; border-radius:7px; padding:7px 8px; margin-bottom:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                            <span style="font-size:0.78rem; font-weight:800; color:#FFFFFF;">👈 좌측 세로 3선 (꼬리 · 산 · 앞머리)</span>
+                            <span id="badgeRatioLeft" style="font-size:0.72rem; color:#FFFFFF; font-weight:800; background:#333; padding:1px 6px; border-radius:4px; border:1px solid #666;">비율 60% : 40% (1:0.67)</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:4px;">
+                            <div class="ctrl-row" style="margin-bottom:0;">
+                                <label style="font-size:0.74rem;">① 꼬리선 <span id="valGuideL1">-48%</span></label>
+                                <input type="range" id="rngGuideL1" min="-70" max="0" value="-48">
+                            </div>
+                            <div class="ctrl-row" style="margin-bottom:0;">
+                                <label style="font-size:0.74rem;">② 눈썹산 <span id="valGuideL2">+12%</span></label>
+                                <input type="range" id="rngGuideL2" min="-40" max="40" value="12">
+                            </div>
+                            <div class="ctrl-row" style="margin-bottom:0;">
+                                <label style="font-size:0.74rem;">③ 앞머리 <span id="valGuideL3">+48%</span></label>
+                                <input type="range" id="rngGuideL3" min="0" max="70" value="48">
+                            </div>
+                        </div>
+                        <div id="infoDistLeft" style="font-size:0.72rem; color:#C8C8C8; text-align:right; font-weight:600;">구간1: 60px (60.0%) | 구간2: 40px (40.0%)</div>
+                    </div>
+
+                    <!-- 👉 우측 눈썹 3등분선 조절 -->
+                    <div style="background:#241E19; border:1px solid #483A2C; border-radius:7px; padding:7px 8px; margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                            <span style="font-size:0.78rem; font-weight:800; color:#FFFFFF;">👉 우측 세로 3선 (앞머리 · 산 · 꼬리)</span>
+                            <span id="badgeRatioRight" style="font-size:0.72rem; color:#FFFFFF; font-weight:800; background:#333; padding:1px 6px; border-radius:4px; border:1px solid #666;">비율 40% : 60% (1:1.50)</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:4px;">
+                            <div class="ctrl-row" style="margin-bottom:0;">
+                                <label style="font-size:0.74rem;">① 앞머리 <span id="valGuideR1">-48%</span></label>
+                                <input type="range" id="rngGuideR1" min="-70" max="0" value="-48">
+                            </div>
+                            <div class="ctrl-row" style="margin-bottom:0;">
+                                <label style="font-size:0.74rem;">② 눈썹산 <span id="valGuideR2">-12%</span></label>
+                                <input type="range" id="rngGuideR2" min="-40" max="40" value="-12">
+                            </div>
+                            <div class="ctrl-row" style="margin-bottom:0;">
+                                <label style="font-size:0.74rem;">③ 꼬리선 <span id="valGuideR3">+48%</span></label>
+                                <input type="range" id="rngGuideR3" min="0" max="70" value="48">
+                            </div>
+                        </div>
+                        <div id="infoDistRight" style="font-size:0.72rem; color:#C8C8C8; text-align:right; font-weight:600;">구간1: 40px (40.0%) | 구간2: 60px (60.0%)</div>
+                    </div>
+
+                    <!-- 2. 가로선 섹션 (미러링 없음) -->
+                    <div style="border-top:1px solid #362A1E; padding-top:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <label style="font-size:0.84rem; font-weight:800; color:#FFFFFF; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                                <input type="checkbox" id="chkShowHGuides" style="accent-color:#FFFFFF;"> 📏 가로 3등분선 & 비율 (흰색 실선)
+                            </label>
+                            <button type="button" class="btn-reset-guide" id="btnResetHGuides">🔄 가로선 초기화</button>
+                        </div>
+                        <div style="background:#241E19; border:1px solid #483A2C; border-radius:7px; padding:7px 8px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                                <span style="font-size:0.78rem; font-weight:800; color:#FFFFFF;">↕️ 가로 3선 (상단 · 중심 · 하단)</span>
+                                <span id="badgeRatioH" style="font-size:0.72rem; color:#FFFFFF; font-weight:800; background:#333; padding:1px 6px; border-radius:4px; border:1px solid #666;">비율 50% : 50% (1:1.00)</span>
+                            </div>
+                            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:4px;">
+                                <div class="ctrl-row" style="margin-bottom:0;">
+                                    <label style="font-size:0.74rem;">① 상단선 <span id="valGuideH1">-48%</span></label>
+                                    <input type="range" id="rngGuideH1" min="-80" max="0" value="-48">
+                                </div>
+                                <div class="ctrl-row" style="margin-bottom:0;">
+                                    <label style="font-size:0.74rem;">② 중심선 <span id="valGuideH2">0%</span></label>
+                                    <input type="range" id="rngGuideH2" min="-40" max="40" value="0">
+                                </div>
+                                <div class="ctrl-row" style="margin-bottom:0;">
+                                    <label style="font-size:0.74rem;">③ 하단선 <span id="valGuideH3">+48%</span></label>
+                                    <input type="range" id="rngGuideH3" min="0" max="80" value="48">
+                                </div>
+                            </div>
+                            <div id="infoDistH" style="font-size:0.72rem; color:#C8C8C8; text-align:right; font-weight:600;">상단구간: 30px (50.0%) | 하단구간: 30px (50.0%)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 탭 2: 사진 편집 툴 (밝기, 대비, 채도, 크롭 확대/이동) -->
+            <div id="tabContent2" style="display: none;">
+                <div class="ctrl-grid-2">
+                    <div class="ctrl-row">
+                        <label>☀️ 명도 (밝기) <span id="valBright">100%</span></label>
+                        <input type="range" id="rngBright" min="50" max="150" value="100">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>🌓 대비 (Contrast) <span id="valContrast">100%</span></label>
+                        <input type="range" id="rngContrast" min="50" max="150" value="100">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>🎨 채도 (Saturation) <span id="valSaturate">100%</span></label>
+                        <input type="range" id="rngSaturate" min="0" max="200" value="100">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>🔍 사진 줌/확대 <span id="valImgZoom">100%</span></label>
+                        <input type="range" id="rngImgZoom" min="50" max="300" value="100">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>↔️ 사진 가로 이동 <span id="valImgPanX">0px</span></label>
+                        <input type="range" id="rngImgPanX" min="-200" max="200" value="0">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>↕️ 사진 세로 이동 <span id="valImgPanY">0px</span></label>
+                        <input type="range" id="rngImgPanY" min="-200" max="200" value="0">
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    </div> <!-- 🎯 after-flex-container 닫기 (히스토리 패널이 3개 열 아래 전체 너비로 배치되도록 분리) -->
+
+    <!-- 📜 생성 결과물 자동 히스토리 갤러리 섹션 (하단 전체 너비) -->
+    <div class="history-section" id="historySection">
+        <div class="history-header">
+            <div class="history-title">
+                <span>🗂️ 상담 디자인 생성 히스토리</span>
+                <span class="history-badge" id="historyCount">0개 저장됨</span>
+            </div>
+            <div class="history-actions">
+                <button type="button" class="btn-clear-history" id="btnClearHistory">🗑️ 전체 비우기</button>
+            </div>
+        </div>
+        
+        <div class="history-container" id="historyList">
+            <div class="history-empty" id="historyEmpty">
+                <span>✨ [Before/After 2분할 비교 저장] 또는 [예상 디자인 고화질 저장] 버튼을 누르면 이곳에 1행 2열 큰 카드 형태로 결과물이 자동 보관됩니다. (클릭 시 확대 및 재다운로드 가능)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ⚠️ 항상 히스토리 하단에 유동적으로 위치하는 시술 상담 및 개인정보 안내 배너 -->
+    <div class="bottom-disclaimer-wrap">
+        <div class="disclaimer-banner">
+            ⚠️ <b>시술 상담 안내</b>: 본 이미지는 디자인 상담을 위한 가상 시뮬레이션이며 실제 시술 후 모양, 색상 및 결과와 차이가 있을 수 있습니다.
+        </div>
+        <div class="privacy-banner">
+            🔒 업로드한 사진은 현재 상담 세션의 시뮬레이션 용도로만 사용되며 외부 서버나 DB에 저장되지 않습니다.
+        </div>
+    </div>
+
+</div>
+
+<!-- 🔍 히스토리 이미지 확대 팝업 모달 -->
+<div class="history-modal" id="historyModal">
+    <div class="history-modal-overlay" id="modalOverlay"></div>
+    <div class="history-modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="modalTitle">🖼️ 생성 결과물 미리보기</div>
+            <button type="button" class="btn-close-modal" id="btnCloseModal">✕</button>
+        </div>
+        <div class="modal-body">
+            <img id="modalImg" class="modal-preview-img" alt="상담 결과물">
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-modal-download" id="btnModalDownload">
+                📥 이 이미지 다운로드 (PNG)
+            </button>
+            <button type="button" class="btn-modal-open-tab" id="btnModalOpenTab" style="background:#2C2824; color:#D4AF37; border:1px solid #D4AF37; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer; margin-left:8px;">
+                🖼️ 새 창에서 크게 보기
+            </button>
+            <button type="button" class="btn-modal-close" id="btnModalCloseSecondary">닫기</button>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,1087 @@
+/* =========================================================================
+   mobile-ui.css — 시뮬레이터 모바일 레이아웃
+   -------------------------------------------------------------------------
+   데스크톱 3열 레이아웃(Before | After | 컨트롤)을 폰에서 세로로 편 결과,
+   컨트롤이 화면 밖으로 밀려나 사진을 보면서 조절할 수 없던 문제를 해결한다.
+
+   구조:  상단 액션바(고정) → 사진 무대(남는 공간 전부) → 바텀시트(떠 있음)
+   사진은 원본 비율·해상도를 그대로 두고 화면에 맞춰 축소 표시만 한다.
+   ========================================================================= */
+
+html.mui-on, html.mui-on body {
+    height: 100%;
+    overflow: hidden;                 /* 페이지 전체 스크롤 제거 (시트 안에서만 스크롤) */
+    background: #14111c;
+    overscroll-behavior: none;
+}
+
+/* 원본 3열 컨테이너는 껍데기만 남기고 숨긴다 (요소는 제거하지 않고 이동만 했으므로
+   내부에 남은 장식용 제목·안내문만 감춰진다). */
+html.mui-on #container,
+html.mui-on .after-layout-wrapper,
+html.mui-on .bottom-disclaimer-wrap { display: none !important; }
+
+html.mui-on .mui-shell {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif;
+    color: #F2EEFB;
+}
+
+/* ── 상단 액션바 ─────────────────────────────────────────────────────── */
+/* 시스템 바 높이는 앱 셸이 재서 --sa-* 로 넣어준다 (기본값 0) */
+:root { --sa-top: 0px; --sa-bottom: 0px; --sa-left: 0px; --sa-right: 0px; }
+
+.mui-topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px calc(10px + var(--sa-right)) 7px calc(10px + var(--sa-left));
+    background: #1B1626;
+    border-bottom: 1px solid #372F4A;
+    z-index: 5;
+}
+
+/* 최상단 가로 전체 버튼 */
+.mui-settings {
+    appearance: none;
+    flex: 0 0 auto;
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid #372F4A;
+    background: #272236;
+    color: #E8C65A;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 800;
+    padding: calc(11px + var(--sa-top)) 12px 11px;
+    cursor: pointer;
+}
+.mui-settings:active { background: #3A3350; }
+
+.mui-seg {
+    display: flex;
+    background: #272236;
+    border: 1px solid #372F4A;
+    border-radius: 9px;
+    padding: 3px;
+    gap: 3px;
+}
+.mui-seg button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: #A79DC0;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 7px 12px;
+    border-radius: 7px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.mui-seg button.is-active { background: #C9A227; color: #221C33; }
+
+.mui-actions { margin-left: auto; display: flex; gap: 4px; }
+.mui-actions button {
+    appearance: none;
+    height: 34px;
+    padding: 0 8px;
+    border-radius: 8px;
+    border: 1px solid #372F4A;
+    background: #272236;
+    color: #F2EEFB;
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+@media (max-width: 380px) {
+    .mui-seg button { padding: 7px 9px; font-size: 11.5px; }
+    .mui-actions button { padding: 0 6px; font-size: 10.5px; }
+}
+.mui-actions button:disabled { opacity: .35; }
+.mui-actions button:active:not(:disabled) { background: #3A3350; }
+
+/* ── 눈썹 이동 대상 칩 ───────────────────────────────────────────────── */
+.mui-chips {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 5px;
+    padding: 7px calc(10px + var(--sa-right)) 7px calc(10px + var(--sa-left));
+    background: #191424;
+    border-bottom: 1px solid #2C253D;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.mui-chips::-webkit-scrollbar { display: none; }
+/* 크기·여백은 아래쪽 '칩 줄의 자식 전부' 규칙 한 곳에서만 정한다.
+   여기서 px 를 못 박아 두었더니 선택자 우선순위가 더 높아, 화면 폭에 맞춰
+   줄이려 해도 이 네 칩만 11.5px 로 버텼다. */
+html.mui-on .mui-chips .brow-move-target-btn {
+    white-space: nowrap;
+}
+
+/* ── 사진 무대 ───────────────────────────────────────────────────────── */
+.mui-stage {
+    flex: 1 1 auto;
+    position: relative;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    background: #0F0D16;
+    overflow: hidden;
+}
+/* Before / After 중 하나만 보이게 (아래 크기 규칙보다 특정도가 낮으면
+   display:block 에 밀리므로 !important 로 못박는다) */
+html.mui-on .mui-stage > *          { display: none !important; }
+html.mui-on .mui-stage > .is-shown  { display: block !important; }
+
+/* 캔버스·사진 모두 원본 비율 유지한 채 무대에 맞춰 축소만 */
+html.mui-on .mui-stage #dragCanvas,
+html.mui-on .mui-stage #lipCanvas,
+html.mui-on .mui-stage .customer-photo {
+    width: auto !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    border-radius: 10px;
+    border: 1px solid #372F4A;
+    touch-action: none;               /* 캔버스 드래그가 페이지 스크롤로 새지 않게 */
+}
+html.mui-on .mui-stage .customer-photo { touch-action: auto; }
+
+.mui-hint {
+    position: absolute;
+    left: 50%;
+    bottom: calc(6px + var(--sa-bottom));
+    transform: translateX(-50%);
+    background: rgba(15,13,22,.82);
+    border: 1px solid #372F4A;
+    color: #A79DC0;
+    font-size: 10.5px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    pointer-events: none;
+    white-space: nowrap;
+    max-width: 94%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── 바텀시트 ────────────────────────────────────────────────────────── */
+/* 시트는 '높이'로 여닫는다.
+   transform 으로 내리면 시트 아랫부분이 화면 밖으로 나가서, 그 안의 스크롤 영역까지
+   함께 밀려나 하단 조절 항목에 영영 닿을 수 없다. 높이를 바꾸면 항상 화면 안이다. */
+.mui-sheet {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    display: flex;
+    flex-direction: column;
+    background: #1B1626;
+    border-top: 1px solid #4A3F63;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -10px 30px rgba(0,0,0,.45);
+    transition: height .24s cubic-bezier(.22,.61,.36,1);
+    z-index: 10;
+    touch-action: none;
+    overflow: hidden;
+}
+/* half 은 직전 빌드에서 사진이 차지하던 높이를 그대로 유지하는 값이다.
+   (전에는 74vh 시트를 56% 내려 32.6vh 만 보였다 → 34vh 로 맞춤)
+   차이는 이제 그 34vh 가 전부 '닿을 수 있는' 영역이라는 점이다. */
+.mui-sheet[data-snap="peek"] { height: calc(92px + var(--sa-bottom)); }
+.mui-sheet[data-snap="half"] { height: calc(34vh + var(--sa-bottom)); }
+.mui-sheet[data-snap="full"] { height: calc(80vh + var(--sa-bottom)); }
+.mui-sheet.is-dragging { transition: none; }
+
+.mui-handle {
+    flex: 0 0 auto;
+    padding: 8px 0 4px;
+    display: grid;
+    place-items: center;
+    cursor: grab;
+}
+.mui-handle::before {
+    content: "";
+    width: 42px; height: 4px;
+    border-radius: 999px;
+    background: #5A4E78;
+}
+
+.mui-tabs {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 4px;
+    padding: 4px 8px 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-bottom: 1px solid #2C253D;
+}
+.mui-tabs::-webkit-scrollbar { display: none; }
+.mui-tabs button {
+    appearance: none;
+    flex: 1 0 auto;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #A79DC0;
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    line-height: 1.3;
+    padding: 7px 9px;
+    border-radius: 9px;
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+.mui-tabs button i { font-style: normal; font-size: 15px; }
+.mui-tabs button.is-active {
+    background: rgba(201,162,39,.14);
+    border-color: #C9A227;
+    color: #E8C65A;
+}
+
+.mui-panes {
+    flex: 1 1 auto;
+    min-height: 0;          /* flex 자식이 내용 크기 밑으로 줄어들 수 있게 */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    /* 오른쪽 48px 은 조절바가 들어오지 않는 '스크롤 여백'이다.
+       이 자리는 시트의 스크롤 영역이므로 손가락을 대고 밀면 스크롤만 되고,
+       실수로 슬라이더 값이 바뀌지 않는다. (안드로이드 최소 터치 크기 48dp) */
+    padding: 10px calc(48px + var(--sa-right)) calc(36px + var(--sa-bottom)) calc(12px + var(--sa-left));
+    /* 스크롤 여백이 어디인지 알려주는 점선 레일 (내용과 함께 흐르지 않게 고정) */
+    background-image: repeating-linear-gradient(
+        to bottom, #3A3350 0 5px, transparent 5px 12px);
+    background-repeat: repeat-y;
+    background-size: 3px 12px;
+    background-position: right calc(21px + var(--sa-right)) top;
+    background-attachment: scroll;
+}
+.mui-pane { display: none; }
+.mui-pane.is-active { display: block; }
+
+/* ── 시트 안에 들어온 원본 컨트롤 모양 정리 ──────────────────────────── */
+html.mui-on .mui-panes .ctrl-grid-2,
+html.mui-on .mui-panes .ctrl-grid,
+html.mui-on .mui-panes [style*="grid-template-columns"] {
+    display: block !important;        /* 2열 → 1열 (가로 잘림 제거) */
+}
+html.mui-on .mui-panes .ctrl-row { margin-bottom: 14px; }
+html.mui-on .mui-panes .ctrl-row label {
+    font-size: 13px !important;
+    margin-bottom: 8px !important;
+}
+/* 손가락으로 잡기 쉬운 슬라이더.
+   touch-action:pan-y 를 주면 세로로 미는 동작은 브라우저가 가져가 시트가
+   스크롤되고, 가로로 미는 동작만 슬라이더에 전달된다. 스크롤하다 조절바를
+   스치면서 값이 바뀌던 문제가 여기서 걸러진다. */
+html.mui-on .mui-panes input[type="range"] {
+    width: 100% !important;
+    height: 30px !important;
+    accent-color: #C9A227;
+    touch-action: pan-y;
+}
+html.mui-on .mui-panes button {
+    min-height: 40px;
+    font-size: 12.5px !important;
+}
+html.mui-on .mui-panes select {
+    width: 100%;
+    min-height: 42px;
+    font-size: 14px !important;
+}
+html.mui-on .mui-panes input[type="checkbox"] {
+    width: 20px; height: 20px;
+    vertical-align: middle;
+}
+html.mui-on .mui-panes label { line-height: 1.5; }
+/* 시트 안에서는 원본의 고정폭·음수여백 해제 */
+html.mui-on .mui-panes .side-control-panel {
+    width: auto !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+html.mui-on .mui-panes * { max-width: 100%; }
+
+.mui-pane-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: #E8C65A;
+    margin: 2px 0 12px;
+    letter-spacing: -.2px;
+}
+
+/* 데스크톱 미리보기에서는 이 레이아웃을 쓰지 않는다 */
+@media (min-width: 821px) {
+    html.mui-on .mui-shell { display: none; }
+    html.mui-on #container { display: block !important; }
+    html.mui-on, html.mui-on body { overflow: auto; height: auto; }
+}
+
+
+/* =========================================================================
+   입술 시뮬레이터에서 옮겨온 원본 컨트롤 다듬기
+   -------------------------------------------------------------------------
+   입술 쪽은 눈썹과 달리 뷰 전환·표시 토글·아코디언이 원본 요소 그대로
+   올라온다. 요소를 새로 만들지 않는 원칙을 지키느라 모양만 여기서 맞춘다.
+   ========================================================================= */
+
+/* 상단 세그먼트에 들어온 뷰 버튼 (시술 전 / 예상 디자인 / 비교) */
+html.mui-on .mui-seg .view-btn {
+    flex: 0 0 auto;
+    background: transparent;
+    border: 0;
+    color: #A79DC0;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 7px 11px;
+    border-radius: 7px;
+    white-space: nowrap;
+    transition: none;
+}
+html.mui-on .mui-seg .view-btn.active {
+    background: #C9A227;
+    color: #221C33;
+    font-weight: 800;
+}
+
+/* 액션바에 들어온 되돌리기 · 원본복원 */
+html.mui-on .mui-actions .btn-contour-action {
+    flex: 0 0 auto;
+    background: #272236;
+    color: #F2EEFB;
+    border: 1px solid #372F4A;
+    border-radius: 8px;
+}
+
+/* 칩 줄에 들어온 이동 대상 · 표시 토글 */
+html.mui-on .mui-chips .move-target-btn,
+html.mui-on .mui-chips .contour-btn {
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 7px 11px !important;
+    font-size: 11.5px !important;
+    border-radius: 999px !important;
+    white-space: nowrap;
+}
+
+/* 시트 안 아코디언: 머리글은 감추고 본문만 편다 (탭이 그 역할을 대신한다) */
+html.mui-on .mui-panes .acc-header { display: none !important; }
+html.mui-on .mui-panes .acc-card {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+}
+html.mui-on .mui-panes .acc-body {
+    display: block !important;
+    padding: 0 !important;
+}
+
+/* 3열 프리셋(시술 기법)까지 1열로 펴지지 않게 되돌린다.
+   위쪽 [style*="grid-template-columns"] 규칙보다 뒤에 와야 이긴다. */
+html.mui-on .mui-panes [style*="repeat(3, 1fr)"] {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+}
+
+/* 인식 상태 배지 · 가이드 재추출 버튼 */
+html.mui-on .mui-panes .detection-status-badge {
+    width: auto !important;
+    margin: 0 0 12px !important;
+}
+html.mui-on .mui-panes .btn-extract-main {
+    width: 100% !important;
+    justify-content: center;
+    margin-top: 16px !important;
+}
+
+/* 색상 칩은 손가락으로 누를 수 있는 크기로 */
+html.mui-on .mui-panes .color-chip { height: 40px !important; }
+
+/* 구간 소제목(윗입술 상부 · 하부 · 입꼬리 …) 사이 간격 */
+html.mui-on .mui-panes .acc-body > div { margin-bottom: 14px; }
+html.mui-on .mui-panes .acc-body > div:last-child { margin-bottom: 0; }
+
+
+/* =========================================================================
+   저장 탭 — 비교 보기 · 전체 저장
+   ========================================================================= */
+
+/* 저장 탭에는 조절바가 없으니 오른쪽 스크롤 여백과 점선 레일을 걷는다 */
+.mui-panes.no-gutter {
+    padding-right: calc(12px + var(--sa-right));
+    background-image: none;
+}
+
+.mui-histtools {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin: 0 0 14px;
+}
+html.mui-on .mui-panes .mui-histtools .mui-histbtn {
+    appearance: none;
+    min-height: 46px;
+    border: 1px solid #4A3F63;
+    border-radius: 10px;
+    background: #272236;
+    color: #E8C65A;
+    font-family: inherit;
+    font-size: clamp(11px, 3.4vw, 13px) !important;
+    font-weight: 800;
+    white-space: nowrap;
+    cursor: pointer;
+}
+html.mui-on .mui-panes .mui-histtools .mui-histbtn:active { background: #3A3350; }
+
+/* ── 비교 화면 ──────────────────────────────────────────────────────────
+   상담용 화면이라 버튼·설명을 걷어내고 사진만 크게 깐다.
+   한 줄에 두 장씩 놓아 시술 전/후, 또는 디자인끼리 바로 견줄 수 있다. */
+.mui-compare {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    background: #0F0D16;
+}
+.mui-compare-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: calc(10px + var(--sa-top)) calc(12px + var(--sa-right)) 10px calc(12px + var(--sa-left));
+    background: #1B1626;
+    border-bottom: 1px solid #372F4A;
+}
+.mui-compare-title {
+    flex: 0 0 auto;
+    font-size: 14px;
+    font-weight: 800;
+    color: #F2EEFB;
+    white-space: nowrap;
+}
+/* 버튼 두 개가 자리를 차지하면 안내 문구부터 줄인다 (좁은 화면에서는 감춘다) */
+.mui-compare-hint {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 11px;
+    line-height: 1.3;
+    color: #A79DC0;
+    margin-right: auto;
+    overflow: hidden;
+}
+@media (max-width: 420px) {
+    .mui-compare-hint { display: none; }
+    .mui-compare-title { margin-right: auto; }
+}
+.mui-compare-close {
+    appearance: none;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    border: 1px solid #4A3F63;
+    border-radius: 8px;
+    background: #C9A227;
+    color: #221C33;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 800;
+    padding: 9px 16px;
+    cursor: pointer;
+}
+
+.mui-compare-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    /* 격자(grid) 로 두면 한 줄의 높이가 다른 칸에 끌려가 사진이 잘린다.
+       줄바꿈 flex 로 두면 칸마다 제 높이를 갖고, 위로 붙어 정렬된다. */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    align-content: flex-start;
+    gap: 8px;
+    padding: 8px calc(8px + var(--sa-right)) calc(20px + var(--sa-bottom)) calc(8px + var(--sa-left));
+}
+.mui-compare-cell { flex: 0 0 calc(50% - 4px); }
+.mui-compare-cell {
+    margin: 0;
+    background: #1B1626;
+    border: 1px solid #372F4A;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    /* 확대 전에는 세로로 밀면 목록이 스크롤되고, 두 손가락 동작만 넘어온다.
+       확대한 뒤에는 JS 가 none 으로 바꿔 한 손가락 이동도 사진에 전달한다. */
+    touch-action: pan-y;
+}
+.mui-compare-cell.is-zoomed {
+    border-color: #C9A227;
+    z-index: 1;
+}
+.mui-compare-cell img {
+    transform-origin: center center;
+    will-change: transform;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+/* 누른 사진은 한 줄을 통째로 써서 더 크게 본다 */
+.mui-compare-cell.is-wide { grid-column: 1 / -1; }
+.mui-compare-cell img {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: #0F0D16;
+}
+.mui-compare-cell figcaption {
+    /* 확대하면 사진이 자기 상자 밖으로 넘쳐 이름표를 덮는다. 위로 올려 둔다. */
+    position: relative;
+    z-index: 2;
+    background: #1B1626;
+    padding: 7px 8px;
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #A79DC0;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.mui-compare-cell.is-wide figcaption { font-size: 12px; color: #E8C65A; }
+
+
+/* ── 저장 탭의 히스토리 카드 ─────────────────────────────────────────────
+   데스크톱 CSS 는 썸네일 상자를 480px 로 고정하고 object-fit:cover 로
+   채운다. 폰에서는 사진 위아래가 잘려 무엇을 저장했는지 알아보기 어렵다.
+   높이를 사진에 맡기고 통째로 보이게 한다. */
+html.mui-on .mui-panes .history-card-thumb-wrap {
+    height: auto !important;
+    max-height: 46vh;
+}
+html.mui-on .mui-panes .history-card-thumb {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 46vh;
+    object-fit: contain !important;
+}
+/* 손가락에는 hover 가 없어 이 덮개가 계속 사진을 가린다. 카드에 이미
+   '크게 보기' 버튼이 있으므로 감춘다. */
+html.mui-on .mui-panes .history-card-overlay-btn { display: none !important; }
+
+html.mui-on .mui-panes .history-container { gap: 12px !important; }
+html.mui-on .mui-panes .history-card { padding: 10px !important; }
+html.mui-on .mui-panes .history-card-info { margin-top: 10px !important; }
+
+
+/* ── 조절바 ± 미세조정 ──────────────────────────────────────────────────
+   숫자 양옆 버튼. 라벨이 flex(space-between) 라 오른쪽 끝에 붙는다. */
+html.mui-on .mui-panes .mui-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+/* 숫자는 버튼 사이에서 폭이 흔들리지 않게 자리를 잡아둔다 */
+html.mui-on .mui-panes .mui-step > span {
+    min-width: 52px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+/* 위쪽 .mui-panes button 규칙(min-height:40px)을 눌러쓴다 */
+html.mui-on .mui-panes .mui-step .mui-step-btn {
+    appearance: none;
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    flex: 0 0 auto;
+    padding: 0 !important;
+    border: 1px solid #4A3F63;
+    border-radius: 9px;
+    background: #2C2540;
+    color: #F2EEFB;
+    font-family: inherit;
+    font-size: 18px !important;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    /* 세로로 밀면 시트가 스크롤되도록 (조절바와 같은 규칙) */
+    touch-action: pan-y;
+}
+html.mui-on .mui-panes .mui-step .mui-step-btn:active {
+    background: #C9A227;
+    color: #221C33;
+    border-color: #C9A227;
+}
+
+/* ── 눈썹 무대: 시술 전 사진 + 결과 캔버스 겹치기 ───────────────────────
+   둘을 같은 그리드 칸에 넣으면 크기 규칙(max-width/height)이 똑같이 걸려
+   화면상 정확히 포개진다. 위치 계산을 손으로 하지 않아도 되고, 캔버스의
+   getBoundingClientRect 도 원래대로 남아 드래그 좌표가 어긋나지 않는다. */
+html.mui-on .mui-stage > .mui-shot {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    align-self: stretch;
+    flex: 1 1 auto;
+    place-items: center;
+    min-width: 0;
+    min-height: 0;
+    position: relative;
+}
+html.mui-on .mui-shot > .customer-photo,
+html.mui-on .mui-shot > #dragCanvas {
+    display: block !important;
+    grid-area: 1 / 1;
+}
+
+/* 겹쳐 둔 두 장 중 지금 볼 것만 남긴다. 자리는 계속 차지하게 두어야
+   (display 가 아니라 visibility) 사진 크기가 흔들리지 않는다.
+     예상 디자인 — 캔버스만. 사진을 켜 두면 캔버스에서 사진을 줄였을 때
+                  빈 자리로 뒤에 깔린 원본이 비쳐 두 장이 겹쳐 보인다.
+     시술 전     — 사진만
+     비교        — 둘 다 (캔버스를 반쪽만 남겨 좌우로 나눈다) */
+html.mui-on .mui-shot > .customer-photo { visibility: hidden; }
+html.mui-on .mui-shot.is-before > .customer-photo,
+html.mui-on .mui-shot.is-compare > .customer-photo { visibility: visible; }
+html.mui-on .mui-shot.is-before > #dragCanvas { visibility: hidden; }
+
+/* 비교: 결과 캔버스에서 선 오른쪽만 남긴다 → 왼쪽 시술 전 / 오른쪽 예상.
+   --split 은 자바스크립트가 선을 끌 때마다 갱신한다. */
+html.mui-on .mui-shot.is-compare > #dragCanvas {
+    -webkit-clip-path: inset(0 0 0 var(--split, 50%));
+    clip-path: inset(0 0 0 var(--split, 50%));
+}
+/* 비교 중에는 눈썹이 끌려 움직이면 안 된다. 손가락은 선을 옮기는 데만 쓴다. */
+html.mui-on .mui-shot.is-compare > #dragCanvas,
+html.mui-on .mui-shot.is-compare > .customer-photo { pointer-events: none; }
+html.mui-on .mui-shot.is-compare { touch-action: none; }
+
+.mui-split { display: none; }
+html.mui-on .mui-shot.is-compare > .mui-split {
+    display: block;
+    position: absolute;
+    width: 44px;                 /* 손가락으로 잡기 쉬운 폭 (보이는 선은 가운데 2px) */
+    margin-left: -22px;
+    z-index: 3;
+    touch-action: none;
+    cursor: ew-resize;
+}
+.mui-split::before {
+    content: "";
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: rgba(255,255,255,.85);
+    box-shadow: 0 0 6px rgba(0,0,0,.6);
+}
+.mui-split::after {
+    content: "⇔";
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: rgba(20,17,28,.86);
+    border: 1.5px solid rgba(255,255,255,.9);
+    color: #FFF;
+    font-size: 15px;
+    line-height: 31px;
+    text-align: center;
+}
+
+/* ── 퀵 ↔ 메뉴얼 전환 줄 ────────────────────────────────────────────── */
+.mui-modebar {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 2px 10px 8px;
+}
+.mui-modebar button {
+    appearance: none;
+    border: 1px solid #3A3154;
+    border-radius: 10px;
+    background: #221C31;
+    color: #A79DC0;
+    font-family: inherit;
+    /* 좁은 기기에서 글자가 두 줄로 접히면 버튼이 부풀어 사진을 가린다 */
+    font-size: clamp(11px, 3.4vw, 13px);
+    font-weight: 700;
+    padding: 9px 2px;
+    min-height: 38px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.mui-modebar button.is-active {
+    background: #3D2F63;
+    border-color: #7B5CFF;
+    color: #F2EEFB;
+}
+
+/* ── 퀵 패널 ────────────────────────────────────────────────────────────
+   .mui-panes 클래스를 같이 달고 있어 스크롤 여백·조절바 크기 규칙은
+   메뉴얼과 똑같이 물려받는다. 여기서는 보이고 감추는 것만 정한다. */
+.mui-quick { display: none; }
+.mui-sheet.is-quick > .mui-tabs,
+.mui-sheet.is-quick > .mui-panes:not(.mui-quick) { display: none; }
+.mui-sheet.is-quick > .mui-quick { display: block; }
+
+.mui-qhead {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    color: #8C82A8;
+    margin: 4px 0 10px;
+}
+.mui-qslot + .mui-qhead,
+.mui-qcolors + .mui-qhead { margin-top: 18px; }
+
+/* 대표 색상 — 한 줄에 네 개, 손가락으로 바로 짚을 수 있는 크기 */
+.mui-qcolors {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+.mui-qcolor {
+    appearance: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    padding: 6px 2px;
+    cursor: pointer;
+}
+.mui-qcolor > i {
+    display: block;
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 2px solid #2C253D;
+    box-shadow: 0 1px 4px rgba(0,0,0,.4);
+}
+.mui-qcolor > em {
+    font-style: normal;
+    font-size: 10.5px;
+    line-height: 1.25;
+    color: #A79DC0;
+    text-align: center;
+    word-break: keep-all;
+}
+.mui-qcolor.is-active { border-color: #7B5CFF; background: #2A2340; }
+.mui-qcolor.is-active > i { border-color: #F2EEFB; }
+.mui-qcolor.is-active > em { color: #F2EEFB; font-weight: 700; }
+
+/* 세부 조정으로 넘어가는 버튼 */
+.mui-qswitch {
+    appearance: none;
+    display: block;
+    width: 100%;
+    margin-top: 18px;
+    border: 1px dashed #4A3F63;
+    border-radius: 12px;
+    background: #221C31;
+    color: #A79DC0;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 12px 0;
+    min-height: 44px;
+    cursor: pointer;
+}
+
+/* ── 퀵: 눈썹 디자인 넘겨 고르기 ─────────────────────────────────────── */
+.mui-qdesigns {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    /* 오른쪽 스크롤 여백 밖까지 끌어내 화면 끝까지 넘길 수 있게 한다 */
+    margin-right: calc(-48px - var(--sa-right));
+    padding: 2px calc(48px + var(--sa-right)) 6px 0;
+}
+.mui-qdesigns::-webkit-scrollbar { display: none; }
+
+.mui-qdesign {
+    appearance: none;
+    flex: 0 0 auto;
+    width: 104px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    scroll-snap-align: center;
+    padding: 8px 6px;
+    border: 1.5px solid #3A3154;
+    border-radius: 12px;
+    background: #221C31;
+    color: #A79DC0;
+    font-family: inherit;
+    cursor: pointer;
+}
+.mui-qdesign img {
+    width: 100%;
+    height: 30px;
+    object-fit: contain;
+    /* 디자인 원본은 어두운 선이라 그대로는 어두운 판에서 보이지 않는다 */
+    filter: brightness(0) invert(1) opacity(.75);
+}
+.mui-qdesign em {
+    font-style: normal;
+    font-size: 10px;
+    line-height: 1.25;
+    text-align: center;
+    word-break: keep-all;
+}
+.mui-qdesign.is-active {
+    border-color: #7B5CFF;
+    background: #2E2547;
+    color: #F2EEFB;
+}
+.mui-qdesign.is-active img { filter: brightness(0) invert(1); }
+
+/* 비교 보기의 그림은 가로폭을 채우고 세로는 그 비율만큼.
+   안내문구 배너는 화면에 뿌리기 전에 자바스크립트가 미리 떼어낸다.
+   상자에 맞춰 잘라내면(cover) 비율이 조금만 어긋나도 얼굴이 잘려 나간다. */
+html.mui-on .mui-compare-cell img {
+    display: block;
+    width: 100%;
+    height: auto;
+    background: #0F0D16;
+}
+
+.mui-compare-save {
+    appearance: none;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    border: 1px solid #4A3F63;
+    border-radius: 8px;
+    background: #2C2540;
+    color: #F2EEFB;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 9px 14px;
+    cursor: pointer;
+}
+.mui-compare-save:disabled { opacity: .5; }
+
+/* ── 사진 한 장 크게 보기 ────────────────────────────────────────────── */
+.mui-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    background: #0B0910;
+}
+.mui-lightbox-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: calc(10px + var(--sa-top)) calc(12px + var(--sa-right)) 10px calc(12px + var(--sa-left));
+    background: #1B1626;
+    border-bottom: 1px solid #372F4A;
+}
+.mui-lightbox-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #F2EEFB;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.mui-lightbox-close {
+    appearance: none;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    border: 1px solid #4A3F63;
+    border-radius: 8px;
+    background: #C9A227;
+    color: #221C33;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 800;
+    padding: 9px 16px;
+    cursor: pointer;
+}
+.mui-lightbox-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    padding: 8px calc(8px + var(--sa-right)) calc(8px + var(--sa-bottom)) calc(8px + var(--sa-left));
+    touch-action: none;
+}
+/* 사진 전체가 들어가게 넣는다 — 잘라내지 않는다 */
+html.mui-on .mui-lightbox-body img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
+    transform-origin: center center;
+    will-change: transform;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* 전체 초기화 — 되돌릴 수 없는 동작이라 다른 버튼과 구분되게 둔다 */
+html.mui-on .mui-actions .mui-wipe {
+    appearance: none;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    border: 1px solid #7A3B4A;
+    border-radius: 9px;
+    background: #2E1B22;
+    color: #F0B7C2;
+    font-family: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* ── 상단 줄을 기기 폭에 맞춘다 ────────────────────────────────────────
+ *
+ * 보기 전환 3개 + 되돌리기 · 다시실행 · 전체 초기화가 한 줄에 들어가야 한다.
+ * 지금까지는 380px 한 군데만 끊어 두고 그보다 좁으면 아랫줄로 흘려보냈는데,
+ * 그 사이 폭의 기기에서는 줄이 두 겹이 되어 사진을 그만큼 가렸고, 더 좁은
+ * 기기에서는 아예 잘려 버튼이 안 보였다. 기종마다 폭이 다 다르니 끊는
+ * 자리를 몇 개 더 잡는 식으로는 끝이 없다.
+ *
+ * 그래서 두 단계로 맞춘다.
+ *   1) 글자와 여백을 화면 폭(vw)에 물려 매끄럽게 줄어들게 한다 — clamp
+ *   2) 그래도 넘치면 mobile-ui.js 가 실제로 재어 --fit 을 낮춘다
+ *      (버튼 글자 수는 기기가 아니라 상황이 정한다. 디자인 이름이 길거나
+ *       '다시실행' 이 나타나면 그만큼 넓어진다)
+ *
+ * 줄바꿈은 하지 않는다. 한 줄에 다 들어가거나, 들어갈 만큼 작아진다.
+ */
+html.mui-on .mui-topbar {
+    --fit: 1;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    column-gap: calc(clamp(3px, 1.4vw, 8px) * var(--fit));
+    padding-left: calc(clamp(5px, 2vw, 10px) + var(--sa-left));
+    padding-right: calc(clamp(5px, 2vw, 10px) + var(--sa-right));
+}
+/* 줄이는 일은 --fit 이 맡는다. 여기서 눌리면 글자가 잘려 보인다. */
+html.mui-on .mui-seg,
+html.mui-on .mui-actions {
+    flex: 0 0 auto;
+    min-width: 0;
+}
+html.mui-on .mui-seg {
+    padding: calc(3px * var(--fit));
+    gap: calc(3px * var(--fit));
+}
+html.mui-on .mui-seg button {
+    font-size: calc(clamp(10.5px, 3vw, 12.5px) * var(--fit));
+    padding: calc(7px * var(--fit)) calc(clamp(5px, 2.1vw, 11px) * var(--fit));
+}
+html.mui-on .mui-actions {
+    margin-left: auto;
+    gap: calc(clamp(2px, 1vw, 5px) * var(--fit));
+}
+html.mui-on .mui-actions button {
+    flex: 0 0 auto;
+    height: calc(34px * var(--fit));
+    min-height: 0;
+    font-size: calc(clamp(10px, 2.9vw, 11.5px) * var(--fit));
+    padding: 0 calc(clamp(4px, 1.8vw, 8px) * var(--fit));
+}
+html.mui-on .mui-actions .mui-wipe {
+    font-size: calc(clamp(10px, 2.9vw, 12px) * var(--fit));
+    padding: 0 calc(clamp(5px, 2.1vw, 11px) * var(--fit));
+}
+
+/* 칩은 줄바꿈 없이 한 줄로 늘어서고, 넘치면 옆으로 민다.
+   줄바꿈이 되면 글자가 두 줄로 접히면서 버튼이 동그랗게 부푼다. */
+/* 칩이 넘칠 때 옆으로 밀면, 화면 밖으로 나간 칩은 있는 줄도 모른다.
+   실제로 입술 화면에서 '자동·함께' 가 안 보이고 '선 굵기' 는 잘려 있었다.
+   상담 중에 찾아 헤맬 바에는 한 줄 더 쓰는 편이 낫다.
+   (눈썹은 다섯 개라 자동 맞춤이 조금 줄이면 한 줄에 들어간다) */
+html.mui-on .mui-chips {
+    --fit: 1;
+    flex-wrap: wrap;
+    overflow-x: visible;
+    column-gap: calc(clamp(3px, 1.3vw, 5px) * var(--fit));
+    row-gap: 5px;
+    padding-left: calc(clamp(5px, 2vw, 10px) + var(--sa-left));
+    padding-right: calc(clamp(5px, 2vw, 10px) + var(--sa-right));
+}
+html.mui-on .mui-chips > * {
+    flex: 0 0 auto !important;
+    white-space: nowrap !important;
+    word-break: keep-all;
+}
+/* 칩 줄에 들어오는 버튼은 저마다 다른 화면에서 온 것이라 생김새가 제각각이다.
+   클래스별로 손보면 반드시 하나를 빠뜨린다(실제로 '조절 초기화' 가 112px 로
+   고정된 채 안 줄어들어, 눈썹 줄이 8px 모자라 두 줄이 됐다).
+   그래서 클래스를 따지지 않고 칩 줄의 자식 전부에 같은 옷을 입힌다.
+
+   특히 입술 쪽은 원래 세로로 쌓인 패널에 있던 것이라 가로로 꽉 차게
+   만들어져 있다(.btn-extract-main 은 width:100%). 그대로 두면 '재추출'
+   혼자 줄 전체를 먹고 나머지 칩을 화면 밖으로 밀어낸다. 실제로 그렇게
+   나가서 자동·함께가 안 보이고 선 굵기는 잘려 있었다. */
+html.mui-on .mui-chips.mui-chips > * {
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+    padding: calc(7px * var(--fit)) calc(clamp(6px, 2.4vw, 12px) * var(--fit)) !important;
+    font-size: calc(clamp(10px, 3vw, 11.5px) * var(--fit)) !important;
+    line-height: 1.35 !important;
+}
+
+/* '재추출' 은 되돌리는 자리라 구분은 되게 두되, 금색 그라데이션이
+   줄에서 혼자 튀지 않도록 톤을 낮춘다. */
+html.mui-on .mui-chips .btn-extract-main {
+    background: #3A3020 !important;
+    color: #F0D480 !important;
+    border: 1px solid #6B5628 !important;
+    box-shadow: none !important;
+    font-weight: 700 !important;
+}
+
+/* 고객 이력으로 저장 — 두 칸을 다 쓴다.
+   갤러리 저장과 달리 '누구의 무엇' 인지가 함께 남는 자리라 크게 둔다. */
+html.mui-on .mui-panes .mui-histtools .mui-histbtn-wide {
+    grid-column: 1 / -1;
+    color: #221c33;
+    background: linear-gradient(135deg, #FFE066, #D4AF37);
+    border-color: #FFD700;
+}

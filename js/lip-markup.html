@@ -1,0 +1,453 @@
+<div class="after-layout-wrapper">
+        <div class="after-flex-container">
+            <!-- 1열: After 실시간 인터랙티브 캔버스 (전체 확장) -->
+            <div class="col-item col-after">
+                <div class="column-title">1. After 실시간 시뮬레이션 & 시술 디자인</div>
+
+                <!-- ✨ 입술 가이드 재추출 / 원위치 버튼 -->
+                <button type="button" class="btn-extract-main extracted" id="btnExtractLips">
+                    <span>🔄 입술 가이드 재추출 / 원위치</span>
+                </button>
+
+                <!-- 🔬 검출 상태 배지 -->
+                <div class="detection-status-badge" id="detectionBadge" style="display: flex;">
+                    <div style="display: flex; align-items: center; gap: 5px;">
+                        <span class="badge-dot"></span>
+                        <span id="badgeText">✨ 입술 가이드 추출 완료</span>
+                    </div>
+                    <span style="color:#A89B8C; font-size:0.72rem;">자연스러운 매끄러운 곡선 활성</span>
+                </div>
+
+                <!-- 👁️ 뷰 모드 바 (Before / After / Split) -->
+                <div class="view-mode-bar" id="viewModeBar">
+                    <button type="button" class="view-btn" id="btnViewBefore">👀 Before (원본)</button>
+                    <button type="button" class="view-btn active" id="btnViewAfter">💋 After (시뮬레이션)</button>
+                    <button type="button" class="view-btn" id="btnViewSplit">↔️ Before/After 분할</button>
+                </div>
+
+                <!-- 🎛️ 라인 & 렌더 옵션 3분할 세그먼트 툴바 -->
+                <div class="contour-toolbar" id="contourToolbar" style="display: flex;">
+                    <button type="button" class="contour-btn active" id="btnToggleDesignLine">🟡 시술선 (ON)</button>
+                    <button type="button" class="contour-btn" id="btnToggleFillTint">💄 틴트 채움</button>
+                    <button type="button" class="contour-btn" id="btnCycleLineWidth">📏 선 굵기: 2px</button>
+                </div>
+
+                <!-- ⚡ 보정 액션 바 -->
+                <div class="contour-actions-bar" id="contourActionsBar" style="display: flex;">
+                    <button type="button" class="btn-contour-action" id="btnUndoContour">↩️ 실행취소</button>
+                    <button type="button" class="btn-contour-action" id="btnResetContour">🔄 AI 원본복원</button>
+                </div>
+
+                <div style="text-align:center; font-size:0.75rem; color:#A89B8C; margin: 4px 0 6px 0;">🖱️ 좌클릭: 입술 이동 | 우클릭 드래그: 사진 이동 | 휠/핀치: 줌 | 더블클릭: 원본 크기 복원</div>
+                <div class="canvas-container">
+                    <canvas id="lipCanvas"></canvas>
+                </div>
+                <div class="action-buttons-wrap">
+                    <button type="button" class="btn-action-primary" id="btnDownloadAfter" style="width: 100%;">💾 립 결과 다운로드 (PNG)</button>
+                </div>
+            </div>
+
+            <!-- 2열: 토글 조절 메뉴 (접이식 아코디언 카드) -->
+            <div class="col-item col-control">
+                <div class="column-title">2. 토글 맞춤 조절 메뉴</div>
+                <div class="control-panel">
+                    <!-- 📍 [이동 모드 & 위치/길이감 조절 바] -->
+                    <div style="background:#1E1A17; padding:7px 9px; border-radius:8px; margin-bottom:8px; border:1px solid #3A3026;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="font-size:0.80rem; font-weight:800; color:#FFE066;">✥ 위치 & 전체 길이감</span>
+                            <span style="font-size:0.70rem; color:#4ADE80; font-weight:700;">✨ 화면에서 바로 드래그 가능</span>
+                        </div>
+                        <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:6px; margin-bottom:6px;">
+                            <button type="button" class="preset-chip active move-target-btn" data-target="auto" id="btnMoveAuto">✨ 부위별 자동 감지</button>
+                            <button type="button" class="preset-chip move-target-btn" data-target="both" id="btnMoveBoth">🔗 전체 함께 이동</button>
+                        </div>
+                        <div class="ctrl-grid-2" style="margin-bottom:6px;">
+                            <div class="ctrl-row" style="margin-bottom:0;">
+                                <label id="lblMoveY">📍 전체 상하 (Y) <span id="valMoveY">0px</span></label>
+                                <input type="range" id="rngMoveY" min="-600" max="600" value="0">
+                            </div>
+                            <div class="ctrl-row" style="margin-bottom:0;">
+                                <label id="lblMoveX">📍 전체 좌우 (X) <span id="valMoveX">0px</span></label>
+                                <input type="range" id="rngMoveX" min="-600" max="600" value="0">
+                            </div>
+                        </div>
+                        <div class="ctrl-row" style="margin-bottom:0;">
+                            <label>↔️ 입술 전체 가로 길이감 <span id="valGlobalWidth">100%</span></label>
+                            <input type="range" id="rngGlobalWidth" min="40" max="200" value="100">
+                        </div>
+                    </div>
+
+                    <!-- 🔘 [토글 카드 1] 💖 윗입술 정밀 디자인 (상부/하부/입꼬리) -->
+                    <div class="acc-card open" id="cardUpper">
+                        <div class="acc-header" onclick="toggleAcc('cardUpper')">
+                            <div class="acc-title">
+                                <span class="acc-arrow">▶</span>
+                                <span>💖 윗입술 정밀 디자인 (상부/하부/입꼬리)</span>
+                            </div>
+                            <span class="acc-badge">입꼬리·인중·좌우 밸런스</span>
+                        </div>
+                        <div class="acc-body">
+                            <!-- 📍 윗입술 개별 위치 & 가로 길이감 -->
+                            <div class="ctrl-grid-2" style="background:#1E1A17; padding:4px 6px; border-radius:6px; margin-bottom:6px;">
+                                <div class="ctrl-row" style="margin-bottom:0;">
+                                    <label>📍 윗입술 위치 (Y) <span id="valUpperY">0px</span></label>
+                                    <input type="range" id="rngUpperY" min="-600" max="600" value="0">
+                                </div>
+                                <div class="ctrl-row" style="margin-bottom:0;">
+                                    <label>📍 윗입술 위치 (X) <span id="valUpperX">0px</span></label>
+                                    <input type="range" id="rngUpperX" min="-600" max="600" value="0">
+                                </div>
+                            </div>
+                            <div class="ctrl-grid-2" style="background:#1E1A17; padding:4px 6px; border-radius:6px; margin-bottom:8px;">
+                                <div class="ctrl-row" style="margin-bottom:0;">
+                                    <label>↔️ 윗입술 가로 길이감 <span id="valUpperWidth">100%</span></label>
+                                    <input type="range" id="rngUpperWidth" min="40" max="200" value="100">
+                                </div>
+                                <div class="ctrl-row" style="margin-bottom:0;">
+                                    <label>↕️ 윗입술 전체 두께 <span id="valUpperHeight">100%</span></label>
+                                    <input type="range" id="rngUpperHeight" min="60" max="160" value="100">
+                                </div>
+                            </div>
+
+                            <!-- 🔺 1. 윗입술 상부 경계 및 볼륨 -->
+                            <div style="background:#241E19; border:1px solid #483A2C; border-radius:7px; padding:7px 8px; margin-bottom:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                    <span style="font-size:0.80rem; font-weight:800; color:#FFD21F;">🔺 윗입술 상부 경계 & 볼륨</span>
+                                    <span style="font-size:0.70rem; color:#DDD; background:#362B20; padding:1px 6px; border-radius:4px;">입꼬리·인중</span>
+                                </div>
+                                <div class="ctrl-grid-2">
+                                    <div class="ctrl-row lip-shelved">
+                                        <label>🔺 상부 외곽 오버립 <span id="valUpperTopOver">0px</span></label>
+                                        <input type="range" id="rngUpperTopOver" min="0" max="40" value="0">
+                                    </div>
+                                    <div class="ctrl-row">
+                                        <label>↗️ 입꼬리 오버립 <span id="valCornerOverU">0px</span></label>
+                                        <input type="range" id="rngCornerOverU" min="0" max="40" value="0">
+                                    </div>
+                                    <div class="ctrl-row lip-shelved">
+                                        <label>⛰️ 상부 입술산 볼륨 <span id="valUpperTopPeakVol">0px</span></label>
+                                        <input type="range" id="rngUpperTopPeakVol" min="-30" max="30" value="0">
+                                    </div>
+                                </div>
+                                <div class="ctrl-grid-2">
+                                    <div class="ctrl-row">
+                                        <label>🌙 인중 라운드 <span id="valPhiltrumRound">0px</span></label>
+                                        <input type="range" id="rngPhiltrumRound" min="-30" max="30" value="0">
+                                    </div>
+                                    <div class="ctrl-row">
+                                        <label>🔻 인중 골 깊이 <span id="valPhiltrumDepth">0px</span></label>
+                                        <input type="range" id="rngPhiltrumDepth" min="-20" max="30" value="0">
+                                    </div>
+                                </div>
+                                <div class="ctrl-row" style="margin-bottom:0;">
+                                    <label>↔️ 인중 폭 <span id="valPhiltrumWidth">0px</span></label>
+                                    <input type="range" id="rngPhiltrumWidth" min="-30" max="30" value="0">
+                                </div>
+                            </div>
+
+                            <!-- 🔻 2. 윗입술 하부 경계 및 볼륨 -->
+                            <div style="background:#241E19; border:1px solid #483A2C; border-radius:7px; padding:7px 8px; margin-bottom:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                    <span style="font-size:0.80rem; font-weight:800; color:#FFE066;">🔻 윗입술 하부 경계 & 볼륨</span>
+                                    <span style="font-size:0.70rem; color:#DDD; background:#362B20; padding:1px 6px; border-radius:4px;">하단 라운드</span>
+                                </div>
+                                <div class="ctrl-grid-2">
+                                    <div class="ctrl-row">
+                                        <label>🌙 하단 전체 자연스런 라운드 <span id="valUpperBottomFullRound">0px</span></label>
+                                        <input type="range" id="rngUpperBottomFullRound" min="-30" max="30" value="0">
+                                    </div>
+                                    <div class="ctrl-row lip-shelved">
+                                        <label>📍 하부 경계선 위치 <span id="valUpperBottomY">0px</span></label>
+                                        <input type="range" id="rngUpperBottomY" min="-25" max="25" value="0">
+                                    </div>
+                                </div>
+                                <div class="ctrl-grid-2 lip-shelved">
+                                    <div class="ctrl-row lip-shelved">
+                                        <label>💧 하부 구순결절 볼륨 <span id="valUpperBottomCenterVol">0px</span></label>
+                                        <input type="range" id="rngUpperBottomCenterVol" min="-25" max="25" value="0">
+                                    </div>
+                                    <div class="ctrl-row lip-shelved">
+                                        <label>🌙 하부 안쪽 곡률 <span id="valUpperBottomRound">0px</span></label>
+                                        <input type="range" id="rngUpperBottomRound" min="-20" max="20" value="0">
+                                    </div>
+                                </div>
+                                <div class="ctrl-row lip-shelved" style="margin-bottom:0;">
+                                    <label>🌓 하부 좌우 볼륨 <span id="valUpperBottomSideVol">0px</span></label>
+                                    <input type="range" id="rngUpperBottomSideVol" min="-20" max="20" value="0">
+                                </div>
+                            </div>
+
+                            <!-- 😊 3. 윗입술 입꼬리 & 좌우 볼륨 밸런스 -->
+                            <div style="background:#241E19; border:1px solid #483A2C; border-radius:7px; padding:7px 8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                    <span style="font-size:0.80rem; font-weight:800; color:#FFE066;">😊 윗입술 입꼬리 & 볼륨 밸런스</span>
+                                    <span style="font-size:0.70rem; color:#DDD; background:#362B20; padding:1px 6px; border-radius:4px;">상단 꼬리선·비대칭</span>
+                                </div>
+                                <div class="ctrl-grid-2" style="margin-bottom:6px;">
+                                    <div class="ctrl-row" style="margin-bottom:0;">
+                                        <label>😊 윗입술 좌측 입꼬리 <span id="valUpperLeftCorner">0px</span></label>
+                                        <input type="range" id="rngUpperLeftCorner" min="-30" max="30" value="0">
+                                    </div>
+                                    <div class="ctrl-row" style="margin-bottom:0;">
+                                        <label>😊 윗입술 우측 입꼬리 <span id="valUpperRightCorner">0px</span></label>
+                                        <input type="range" id="rngUpperRightCorner" min="-30" max="30" value="0">
+                                    </div>
+                                </div>
+                                <div style="font-size:0.70rem; color:#A89B8C; margin:0 0 5px;">입꼬리는 위·아래 입술이 만나는 한 점이라 함께 적용됩니다</div><div class="ctrl-grid-2" id="gridSharpUpper" style="margin-bottom:6px;"><div class="ctrl-row" style="margin-bottom:0;"><label>📐 좌측 입꼬리 뾰족 <span id="valSharpL">0px</span></label><input type="range" id="rngSharpL" min="0" max="40" value="0"></div><div class="ctrl-row" style="margin-bottom:0;"><label>📐 우측 입꼬리 뾰족 <span id="valSharpR">0px</span></label><input type="range" id="rngSharpR" min="0" max="40" value="0"></div></div><div class="ctrl-grid-2" style="margin-bottom:6px;">
+                                    <div class="ctrl-row" style="margin-bottom:0;">
+                                        <label>◀️ 윗입술 좌측 볼륨 <span id="valUpperLeftVol">0px</span></label>
+                                        <input type="range" id="rngUpperLeftVol" min="-30" max="30" value="0">
+                                    </div>
+                                    <div class="ctrl-row" style="margin-bottom:0;">
+                                        <label>▶️ 윗입술 우측 볼륨 <span id="valUpperRightVol">0px</span></label>
+                                        <input type="range" id="rngUpperRightVol" min="-30" max="30" value="0">
+                                    </div>
+                                </div>
+                                <!-- 🔗 연동 & 대칭 도구 바 -->
+                                <div style="display:flex; justify-content:space-between; align-items:center; background:#1A1613; padding:5px 8px; border-radius:6px; flex-wrap:wrap; gap:6px; border:1px solid #3E3227; margin-top:6px;">
+                                    <div style="display:flex; gap:10px; align-items:center;">
+                                        <label style="font-size:0.76rem; color:#FFE066; cursor:pointer; display:flex; align-items:center; gap:4px; font-weight:700;">
+                                            <input type="checkbox" id="chkLinkLR" checked style="accent-color:#D4AF37;"> 🔗 좌우 연동
+                                        </label>
+                                        <label style="font-size:0.76rem; color:#4ADE80; cursor:pointer; display:flex; align-items:center; gap:4px; font-weight:700;">
+                                            <input type="checkbox" id="chkLinkUpDown" style="accent-color:#4ADE80;"> 🔗 상하(윗/아래) 연동
+                                        </label>
+                                    </div>
+                                    <button type="button" class="btn-reset-mini" id="btnQuickSymmetry">⚖️ 좌우 대칭 맞추기</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 🔘 [토글 카드 2] 🌓 아랫입술 정밀 디자인 (상부/하부/입꼬리) -->
+                    <div class="acc-card" id="cardLower">
+                        <div class="acc-header" onclick="toggleAcc('cardLower')">
+                            <div class="acc-title">
+                                <span class="acc-arrow">▶</span>
+                                <span>🌓 아랫입술 정밀 디자인 (상부/하부/입꼬리)</span>
+                            </div>
+                            <span class="acc-badge">상부 구순선·하부 외곽·입꼬리</span>
+                        </div>
+                        <div class="acc-body">
+                            <!-- 📍 아랫입술 개별 위치 & 가로 길이감 -->
+                            <div class="ctrl-grid-2" style="background:#1E1A17; padding:4px 6px; border-radius:6px; margin-bottom:6px;">
+                                <div class="ctrl-row" style="margin-bottom:0;">
+                                    <label>📍 아랫입술 위치 (Y) <span id="valLowerY">0px</span></label>
+                                    <input type="range" id="rngLowerY" min="-600" max="600" value="0">
+                                </div>
+                                <div class="ctrl-row" style="margin-bottom:0;">
+                                    <label>📍 아랫입술 위치 (X) <span id="valLowerX">0px</span></label>
+                                    <input type="range" id="rngLowerX" min="-600" max="600" value="0">
+                                </div>
+                            </div>
+                            <div class="ctrl-grid-2" style="background:#1E1A17; padding:4px 6px; border-radius:6px; margin-bottom:8px;">
+                                <div class="ctrl-row" style="margin-bottom:0;">
+                                    <label>↔️ 아랫입술 가로 길이감 <span id="valLowerWidth">100%</span></label>
+                                    <input type="range" id="rngLowerWidth" min="40" max="200" value="100">
+                                </div>
+                                <div class="ctrl-row" style="margin-bottom:0;">
+                                    <label>↕️ 아랫입술 전체 두께 <span id="valLowerHeight">100%</span></label>
+                                    <input type="range" id="rngLowerHeight" min="40" max="200" value="100">
+                                </div>
+                            </div>
+
+                            <!-- 🔺 1. 아랫입술 상부 경계 및 볼륨 -->
+                            <div style="background:#241E19; border:1px solid #483A2C; border-radius:7px; padding:7px 8px; margin-bottom:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                    <span style="font-size:0.80rem; font-weight:800; color:#FFE066;">🔺 아랫입술 상부 경계 & 볼륨</span>
+                                    <span style="font-size:0.70rem; color:#DDD; background:#362B20; padding:1px 6px; border-radius:4px;">상부 경계선</span>
+                                </div>
+                                <div class="ctrl-grid-2">
+                                    <div class="ctrl-row">
+                                        <label>📍 상부 경계선 위치 <span id="valLowerTopY">0px</span></label>
+                                        <input type="range" id="rngLowerTopY" min="-25" max="25" value="0">
+                                    </div>
+                                    <div class="ctrl-row lip-shelved">
+                                        <label>💧 상부 안쪽 중앙 볼륨 <span id="valLowerTopCenterVol">0px</span></label>
+                                        <input type="range" id="rngLowerTopCenterVol" min="-25" max="25" value="0">
+                                    </div>
+                                </div>
+                                <div class="ctrl-grid-2 lip-shelved">
+                                    <div class="ctrl-row lip-shelved">
+                                        <label>🌙 상부 안쪽 곡률 <span id="valLowerTopRound">0px</span></label>
+                                        <input type="range" id="rngLowerTopRound" min="-20" max="20" value="0">
+                                    </div>
+                                    <div class="ctrl-row lip-shelved">
+                                        <label>🌓 상부 좌우 볼륨 <span id="valLowerTopSideVol">0px</span></label>
+                                        <input type="range" id="rngLowerTopSideVol" min="-20" max="20" value="0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 🔻 2. 아랫입술 하부 경계 및 볼륨 -->
+                            <div style="background:#241E19; border:1px solid #483A2C; border-radius:7px; padding:7px 8px; margin-bottom:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                    <span style="font-size:0.80rem; font-weight:800; color:#FFD21F;">🔻 아랫입술 하부 경계 & 볼륨</span>
+                                    <span style="font-size:0.70rem; color:#DDD; background:#362B20; padding:1px 6px; border-radius:4px;">하단 외곽</span>
+                                </div>
+                                <div class="ctrl-grid-2">
+                                    <div class="ctrl-row">
+                                        <label>🔻 하부 외곽 오버립 <span id="valLowerBottomOver">0px</span></label>
+                                        <input type="range" id="rngLowerBottomOver" min="0" max="40" value="0">
+                                    </div>
+                                    <div class="ctrl-row lip-shelved">
+                                        <label>↘️ 입꼬리 오버립 <span id="valCornerOverL">0px</span></label>
+                                        <input type="range" id="rngCornerOverL" min="0" max="40" value="0">
+                                    </div>
+                                    <div class="ctrl-row lip-shelved">
+                                        <label>🌓 하부 중앙 볼륨 <span id="valLowerBottomCenterVol">0px</span></label>
+                                        <input type="range" id="rngLowerBottomCenterVol" min="-30" max="30" value="0">
+                                    </div>
+                                </div>
+                                <div class="ctrl-row lip-shelved" style="margin-bottom:0;">
+                                    <label>🌙 하부 라운드 <span id="valLowerBottomRound">0px</span></label>
+                                    <input type="range" id="rngLowerBottomRound" min="-30" max="30" value="0">
+                                </div>
+                            </div>
+
+                            <!-- 😊 3. 아랫입술 입꼬리 & 좌우 볼륨 밸런스 -->
+                            <div style="background:#241E19; border:1px solid #483A2C; border-radius:7px; padding:7px 8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                                    <span style="font-size:0.80rem; font-weight:800; color:#FFD21F;">😊 아랫입술 입꼬리 & 볼륨 밸런스</span>
+                                    <span style="font-size:0.70rem; color:#DDD; background:#362B20; padding:1px 6px; border-radius:4px;">하단 꼬리선·비대칭</span>
+                                </div>
+                                <div class="ctrl-grid-2" style="margin-bottom:6px;">
+                                    <div class="ctrl-row" style="margin-bottom:0;">
+                                        <label>😊 아랫입술 좌측 입꼬리 <span id="valLowerLeftCorner">0px</span></label>
+                                        <input type="range" id="rngLowerLeftCorner" min="-30" max="30" value="0">
+                                    </div>
+                                    <div class="ctrl-row" style="margin-bottom:0;">
+                                        <label>😊 아랫입술 우측 입꼬리 <span id="valLowerRightCorner">0px</span></label>
+                                        <input type="range" id="rngLowerRightCorner" min="-30" max="30" value="0">
+                                    </div>
+                                </div>
+                                <div class="ctrl-grid-2" id="gridSharpLower" style="margin-bottom:6px;"><div class="ctrl-row" style="margin-bottom:0;"><label>📐 좌측 입꼬리 뾰족 <span id="valSharpL2">0px</span></label><input type="range" id="rngSharpL2" min="0" max="40" value="0"></div><div class="ctrl-row" style="margin-bottom:0;"><label>📐 우측 입꼬리 뾰족 <span id="valSharpR2">0px</span></label><input type="range" id="rngSharpR2" min="0" max="40" value="0"></div></div><div class="ctrl-grid-2" style="margin-bottom:6px;">
+                                    <div class="ctrl-row" style="margin-bottom:0;">
+                                        <label>◀️ 아랫입술 좌측 볼륨 <span id="valLowerLeftVol">0px</span></label>
+                                        <input type="range" id="rngLowerLeftVol" min="-30" max="30" value="0">
+                                    </div>
+                                    <div class="ctrl-row" style="margin-bottom:0;">
+                                        <label>▶️ 아랫입술 우측 볼륨 <span id="valLowerRightVol">0px</span></label>
+                                        <input type="range" id="rngLowerRightVol" min="-30" max="30" value="0">
+                                    </div>
+                                </div>
+                                <!-- 🔗 연동 & 대칭 도구 바 -->
+                                <div style="display:flex; justify-content:space-between; align-items:center; background:#1A1613; padding:5px 8px; border-radius:6px; flex-wrap:wrap; gap:6px; border:1px solid #3E3227; margin-top:6px;">
+                                    <div style="display:flex; gap:10px; align-items:center;">
+                                        <label style="font-size:0.76rem; color:#FFE066; cursor:pointer; display:flex; align-items:center; gap:4px; font-weight:700;">
+                                            <input type="checkbox" id="chkLinkLR_Lower" checked style="accent-color:#D4AF37;"> 🔗 좌우 연동
+                                        </label>
+                                        <label style="font-size:0.76rem; color:#4ADE80; cursor:pointer; display:flex; align-items:center; gap:4px; font-weight:700;">
+                                            <input type="checkbox" id="chkLinkUpDown_Lower" style="accent-color:#4ADE80;"> 🔗 상하(윗/아래) 연동
+                                        </label>
+                                    </div>
+                                    <button type="button" class="btn-reset-mini" id="btnQuickSymmetry_Lower">⚖️ 좌우 대칭 맞추기</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 🔘 [토글 카드 4] 🎨 틴트 컬러 & 전문 기법 -->
+                    <div class="acc-card" id="cardColor">
+                        <div class="acc-header" onclick="toggleAcc('cardColor')">
+                            <div class="acc-title">
+                                <span class="acc-arrow">▶</span>
+                                <span>🎨 틴트 컬러 & 전문 기법</span>
+                            </div>
+                            <span class="acc-badge">내추럴·풀립·그라데이션</span>
+                        </div>
+                        <div class="acc-body">
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 8px;">
+                                <button type="button" class="preset-chip active tech-btn" data-tech="natural">🌿 내추럴</button>
+                                <button type="button" class="preset-chip tech-btn" data-tech="full_lip">💄 풀립</button>
+                                <button type="button" class="preset-chip tech-btn" data-tech="gradient_lip">✨ 그라데이션</button>
+                                <button type="button" class="preset-chip tech-btn" data-tech="water_color">💧 수채화</button>
+                                <button type="button" class="preset-chip tech-btn" data-tech="velvet_lip">🎀 벨벳</button>
+                                <button type="button" class="preset-chip tech-btn" data-tech="mlbb">🌸 MLBB</button>
+                            </div>
+                            <div class="color-palette-wrap">
+                                <div class="color-chip active" style="background:#E25B6F;" data-color="#E25B6F">로즈핑크</div>
+                                <div class="color-chip" style="background:#C82333;" data-color="#C82333">클래식레드</div>
+                                <div class="color-chip" style="background:#F07167;" data-color="#F07167">코랄피치</div>
+                                <div class="color-chip" style="background:#8E2838;" data-color="#8E2838">딥버건디</div>
+                                <div class="color-chip" style="background:#D98A7B;" data-color="#D98A7B">누드베이지</div>
+                                <div class="color-chip" style="background:#D81B60;" data-color="#D81B60">체리핑크</div>
+                                <div class="color-chip" style="background:#B03060;" data-color="#B03060">플럼베리</div>
+                                <div class="color-chip" style="background:#FF8BA7;" data-color="#FF8BA7">베이비핑크</div>
+                            </div>
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; background: #1E1A17; padding: 4px 8px; border-radius: 6px;">
+                                <span style="font-size: 0.80rem; font-weight: 700; color: #DDD;">🎨 커스텀 피커</span>
+                                <input type="color" id="customColorPicker" value="{{default_color}}" style="background:transparent; border:none; cursor:pointer; width:32px; height:20px;">
+                            </div>
+                            <div class="ctrl-grid-2">
+                                <div class="ctrl-row">
+                                    <label>🎨 발색 농도 <span id="valDensity">100%</span></label>
+                                    <input type="range" id="rngDensity" min="40" max="140" value="100">
+                                </div>
+                                <div class="ctrl-row">
+                                    <label>👁️ 틴트 투명도 <span id="valOpacity">85%</span></label>
+                                    <input type="range" id="rngOpacity" min="10" max="100" value="85">
+                                </div>
+                            </div>
+                            <div class="ctrl-row" style="margin-top:6px; margin-bottom:0;">
+                                <label>🌫️ 경계선 흐림 <span id="valBlur">3.5px</span></label>
+                                <input type="range" id="rngBlur" min="0" max="10" step="0.5" value="3.5">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div> <!-- 🎯 after-flex-container 닫기 (히스토리 패널이 2개 열 아래 전체 너비로 배치되도록 분리) -->
+
+    <!-- 📜 생성 결과물 자동 히스토리 갤러리 섹션 (하단 전체 너비) -->
+    <div class="history-section" id="historySection">
+        <div class="history-header">
+            <div class="history-title">
+                <span>🗂️ 립 시뮬레이션 상담 히스토리</span>
+                <span class="history-badge" id="historyCount">0개 저장됨</span>
+            </div>
+            <div class="history-actions">
+                <button type="button" class="btn-clear-history" id="btnClearHistory">🗑️ 전체 비우기</button>
+            </div>
+        </div>
+        
+        <div class="history-container" id="historyList">
+            <div class="history-empty" id="historyEmpty">
+                <span>✨ [립 결과 다운로드] 버튼을 누르면 이곳에 1행 2열 큰 카드 형태로 최대 16개 이상 결과물이 자동 보관됩니다. (클릭 시 확대 및 재다운로드 가능)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ⚠️ 항상 히스토리 하단에 위치하는 시술 상담 및 개인정보 안내 배너 -->
+    <div class="bottom-disclaimer-wrap">
+        <div class="disclaimer-banner">
+            ⚠️ <b>시술 상담 안내</b>: 본 이미지는 디자인 상담을 위한 가상 시뮬레이션이며 실제 시술 후 모양, 색상 및 결과와 차이가 있을 수 있습니다.
+        </div>
+        <div class="privacy-banner">
+            🔒 업로드한 사진은 현재 상담 세션의 시뮬레이션 용도로만 사용되며 외부 서버나 DB에 저장되지 않습니다.
+        </div>
+    </div>
+
+</div> <!-- after-layout-wrapper 닫기 -->
+
+<!-- 🔍 확대 팝업 모달 -->
+<div class="history-modal" id="historyModal">
+    <div class="history-modal-overlay" id="modalOverlay"></div>
+    <div class="history-modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="modalTitle">💋 립 시뮬레이션 결과물 미리보기</div>
+            <button type="button" class="btn-close-modal" id="btnCloseModal">✕</button>
+        </div>
+        <div class="modal-body">
+            <img id="modalImg" class="modal-preview-img" alt="립 시뮬레이션">
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-modal-download" id="btnModalDownload">📥 이 이미지 다운로드 (PNG)</button>
+            <button type="button" class="btn-modal-open-tab" id="btnModalOpenTab" style="background:#2C2824; color:#D4AF37; border:1px solid #D4AF37; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer; margin-left:8px;">
+                🖼️ 새 창에서 크게 보기
+            </button>
+            <button type="button" class="btn-modal-close" id="btnModalClose">닫기</button>
+        </div>
+    </div>
+</div>

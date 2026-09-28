@@ -1,0 +1,957 @@
+* { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            padding: 0;
+            background: transparent;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow-x: hidden;
+            overflow-y: auto;
+            width: 100%;
+        }
+        
+        .after-layout-wrapper {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .after-flex-container {
+            display: flex;
+            flex-direction: row;
+            gap: 20px;
+            align-items: flex-start;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .col-item {
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .col-after {
+            flex: 0 0 600px;
+            width: 600px;
+            min-width: 600px;
+            max-width: 600px;
+        }
+
+        .col-control {
+            flex: 1;
+            min-width: 360px;
+            max-width: 520px;
+        }
+
+        .column-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #3A322C;
+            margin: 0 0 8px 0;
+            line-height: 1.3;
+            display: flex;
+            align-items: center;
+            height: 32px;
+            box-sizing: border-box;
+        }
+
+        /* 👁️ 뷰 모드 바 (Before / After / Split) */
+        .view-mode-bar {
+            display: flex;
+            gap: 4px;
+            background: #25201C;
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid #3E3227;
+            margin-bottom: 8px;
+            width: 600px;
+            box-sizing: border-box;
+        }
+        .view-btn {
+            flex: 1;
+            background: #171513;
+            color: #BBB;
+            border: 1px solid #44372C;
+            padding: 6px 4px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        .view-btn.active {
+            background: linear-gradient(135deg, #FFE066 0%, #D4AF37 100%);
+            color: #111;
+            border-color: #D4AF37;
+            font-weight: 800;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 600px;
+            height: 800px;
+            max-width: 600px;
+            min-height: 800px;
+            max-height: 800px;
+            background: #141210;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 8px 28px rgba(0,0,0,0.45);
+            border: 2px solid #D4AF37;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+        }
+
+        canvas {
+            width: 600px;
+            height: 800px;
+            max-width: 600px;
+            max-height: 800px;
+            display: block;
+            cursor: grab;
+            object-fit: fill;
+            background: #111;
+            box-sizing: border-box;
+        }
+        canvas:active { cursor: grabbing; }
+
+        .action-buttons-wrap {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            width: 600px;
+            box-sizing: border-box;
+        }
+
+        .btn-action-primary {
+            flex: 1;
+            background: linear-gradient(135deg, #FFD700 0%, #D4AF37 100%);
+            color: #111;
+            font-weight: 800;
+            font-size: 0.88rem;
+            padding: 9px 10px;
+            border-radius: 10px;
+            border: 1px solid #B8972E;
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(212, 175, 55, 0.3);
+            transition: all 0.2s ease;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .btn-action-primary:hover {
+            background: linear-gradient(135deg, #FFE033 0%, #E6C200 100%);
+            transform: translateY(-2px);
+        }
+
+        .btn-action-secondary {
+            flex: 1;
+            background: linear-gradient(135deg, #4A3A2C 0%, #2A2018 100%);
+            color: #FFF;
+            font-weight: 700;
+            font-size: 0.86rem;
+            padding: 9px 10px;
+            border-radius: 10px;
+            border: 1px solid #7A6553;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .btn-action-secondary:hover {
+            border-color: #D4AF37;
+            transform: translateY(-2px);
+        }
+
+        /* 🎛️ 컨트롤 패널 & 토글 아코디언 */
+        .control-panel {
+            background: #1C1917;
+            border: 1.5px solid #3D332A;
+            border-radius: 12px;
+            padding: 12px;
+            color: #E2DDD5;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        /* ⚡ 퀵 프리셋 토글 칩스 */
+        .preset-toggle-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 12px;
+            background: #25201C;
+            padding: 6px;
+            border-radius: 10px;
+            border: 1px solid #3E3227;
+        }
+        .preset-chip {
+            flex: 1;
+            min-width: 90px;
+            background: #171513;
+            color: #DDD;
+            border: 1px solid #44372C;
+            padding: 6px 6px;
+            border-radius: 7px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .preset-chip:hover {
+            border-color: #D4AF37;
+            color: #FFF;
+        }
+        .preset-chip.active {
+            background: linear-gradient(135deg, #FFE066 0%, #D4AF37 100%);
+            color: #111;
+            border-color: #D4AF37;
+            font-weight: 800;
+        }
+
+        /* 📂 토글 아코디언 카드 스타일 */
+        .acc-card {
+            background: #231E1B;
+            border: 1.5px solid #382F26;
+            border-radius: 10px;
+            margin-bottom: 8px;
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .acc-card.open {
+            border-color: #7A6347;
+            background: #26211D;
+        }
+        .acc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 9px 12px;
+            cursor: pointer;
+            background: #28221E;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        .acc-header:hover {
+            background: #332B25;
+        }
+        .acc-card.open .acc-header {
+            background: #2E2722;
+            border-bottom: 1px solid #3D332A;
+        }
+        .acc-title {
+            font-size: 0.86rem;
+            font-weight: 800;
+            color: #FFE066;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .acc-badge {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #A89B8C;
+        }
+        .acc-arrow {
+            font-size: 0.72rem;
+            color: #D4AF37;
+            transition: transform 0.25s;
+        }
+        .acc-card.open .acc-arrow {
+            transform: rotate(90deg);
+        }
+        .acc-body {
+            display: none;
+            padding: 10px 12px;
+        }
+        .acc-card.open .acc-body {
+            display: block;
+        }
+
+        .ctrl-grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+        .ctrl-row { margin-bottom: 6px; }
+        .ctrl-row label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 700;
+            color: #DDD;
+            margin-bottom: 3px;
+            font-size: 0.80rem;
+        }
+        .ctrl-row label span { color: #D4AF37; font-weight: 800; }
+        
+        .ctrl-row input[type="range"] {
+            width: 100%;
+            height: 5px;
+            background: #382F26;
+            border-radius: 3px;
+            outline: none;
+            accent-color: #D4AF37;
+            cursor: pointer;
+            margin: 2px 0;
+        }
+
+        .btn-reset-mini {
+            background: #3D2F23;
+            color: #E6C8A6;
+            border: 1px solid #5A4737;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn-reset-mini:hover { background: #5A4737; color: #FFF; }
+
+        /* 🎨 컬러 칩 & 기법 */
+        .color-palette-wrap {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+        .color-chip {
+            height: 28px;
+            border-radius: 6px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.70rem;
+            font-weight: 800;
+            color: #FFF;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            transition: all 0.2s;
+        }
+        .color-chip:hover, .color-chip.active {
+            border-color: #FFF;
+            transform: scale(1.04);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+
+        /* 📜 히스토리 갤러리 */
+        .history-section {
+            width: 100%;
+            margin-top: 20px;
+            background: #181615;
+            border: 2px solid #3D332A;
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+            box-sizing: border-box;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1.5px solid #332B24;
+            padding-bottom: 10px;
+            margin-bottom: 12px;
+        }
+        .history-title {
+            color: #D4AF37;
+            font-size: 1.1rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .history-badge {
+            background: #2D241C;
+            color: #E6C8A6;
+            font-size: 0.80rem;
+            font-weight: 700;
+            padding: 2px 7px;
+            border-radius: 10px;
+            border: 1px solid #5A4737;
+        }
+
+        /* 📜 생성 결과물 자동 히스토리 갤러리 섹션 (하단 100% 와이드) */
+        .history-section {
+            width: 100%;
+            margin-top: 28px;
+            background: #181615;
+            border: 2px solid #3D332A;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+            box-sizing: border-box;
+            clear: both;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1.5px solid #332B24;
+            padding-bottom: 14px;
+            margin-bottom: 20px;
+        }
+
+        .history-title {
+            color: #D4AF37;
+            font-size: 1.2rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .history-badge {
+            background: #2D241C;
+            color: #E6C8A6;
+            font-size: 0.85rem;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 12px;
+            border: 1px solid #5A4737;
+        }
+
+        .history-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+
+        .btn-clear-history {
+            background: transparent;
+            color: #A89F91;
+            border: 1px solid #44382D;
+            padding: 7px 14px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-clear-history:hover {
+            color: #FF6B6B;
+            border-color: #FF6B6B;
+            background: rgba(255, 107, 107, 0.12);
+        }
+
+        /* 큰 2열 그리드 레이아웃 (1행에 2개씩 큼직하게 50:50 분할 배치) */
+        .history-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        @media (max-width: 900px) {
+            .history-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .history-empty {
+            grid-column: 1 / -1;
+            width: 100%;
+            text-align: center;
+            color: #8C7D70;
+            font-size: 0.95rem;
+            padding: 40px 20px;
+            border: 2px dashed #3D332A;
+            border-radius: 12px;
+            background: #141211;
+            box-sizing: border-box;
+        }
+
+        .history-card {
+            background: #201C1A;
+            border: 2px solid #3D332A;
+            border-radius: 14px;
+            padding: 16px;
+            transition: all 0.25s ease;
+            position: relative;
+            box-sizing: border-box;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+        }
+        .history-card:hover {
+            transform: translateY(-4px);
+            border-color: #D4AF37;
+            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.28);
+        }
+
+        .history-card-thumb-wrap {
+            position: relative;
+            width: 100%;
+            height: 480px;
+            background: #12100E;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1.5px solid #383028;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .history-card-thumb {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center center;
+            display: block;
+            transition: transform 0.25s ease;
+        }
+        .history-card-thumb-wrap:hover .history-card-thumb {
+            transform: scale(1.02);
+        }
+
+        .history-card-overlay-btn {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #FFF;
+            font-weight: 800;
+            font-size: 1.05rem;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .history-card-thumb-wrap:hover .history-card-overlay-btn {
+            opacity: 1;
+        }
+
+        .history-card-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 14px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #2E2823;
+        }
+
+        .history-card-tag {
+            font-size: 0.88rem;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: #4A2518;
+            color: #FFD0C7;
+            border: 1px solid #753B28;
+        }
+
+        .history-card-time {
+            font-size: 0.85rem;
+            color: #A89F91;
+            font-weight: 700;
+        }
+
+        .history-card-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .btn-card-action {
+            flex: 1;
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 0.92rem;
+            cursor: pointer;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+        .btn-card-view {
+            background: #2E2925;
+            color: #E6C8A6;
+            border: 1.5px solid #4A3F35;
+        }
+        .btn-card-view:hover {
+            background: #3D352F;
+            color: #FFF;
+            border-color: #D4AF37;
+        }
+        .btn-card-download {
+            background: linear-gradient(135deg, #D4AF37 0%, #AA820A 100%);
+            color: #111;
+        }
+        .btn-card-download:hover {
+            background: linear-gradient(135deg, #FFE066 0%, #D4AF37 100%);
+            transform: translateY(-1px);
+        }
+
+        /* ⚠️ 항상 최하단에 위치하는 시술 상담 및 개인정보 안내 배너 */
+        .bottom-disclaimer-wrap {
+            width: 100%;
+            margin-top: 32px;
+            padding-bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            box-sizing: border-box;
+        }
+
+        .disclaimer-banner {
+            width: 100%;
+            background-color: #FFF9F2;
+            border: 1px dashed #E6C8A6;
+            padding: 0.9rem 1.2rem;
+            border-radius: 10px;
+            font-size: 0.88rem;
+            color: #8C6239;
+            text-align: center;
+            line-height: 1.5;
+            box-sizing: border-box;
+        }
+
+        .privacy-banner {
+            text-align: center;
+            font-size: 0.82rem;
+            color: #998B7E;
+        }
+
+        /* 🔍 히스토리 팝업 모달 */
+        .history-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            min-height: 100%;
+            display: none;
+            align-items: flex-start;
+            justify-content: center;
+            z-index: 9999999;
+            padding: 20px 10px;
+            box-sizing: border-box;
+            background: rgba(0, 0, 0, 0.88);
+            backdrop-filter: blur(8px);
+        }
+        .history-modal.active {
+            display: flex !important;
+        }
+
+        .history-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .history-modal-content {
+            position: relative;
+            background: #1C1917;
+            border: 2.5px solid #D4AF37;
+            border-radius: 16px;
+            width: 95%;
+            max-width: 980px;
+            max-height: 88vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 24px 70px rgba(0,0,0,0.98);
+            z-index: 10;
+            overflow: hidden;
+            animation: modalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            box-sizing: border-box;
+        }
+
+        @keyframes modalPopIn {
+            from { opacity: 0; transform: scale(0.94); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 20px;
+            border-bottom: 1.5px solid #332B24;
+            background: #241F1B;
+        }
+
+        .modal-title {
+            color: #D4AF37;
+            font-size: 1.15rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-close-modal {
+            background: transparent;
+            color: #BBB;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0 4px;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        .btn-close-modal:hover {
+            color: #FFF;
+        }
+
+        .modal-body {
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: auto;
+            background: #100E0D;
+        }
+
+        .modal-preview-img {
+            max-width: 100%;
+            max-height: 72vh;
+            border-radius: 10px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.5);
+            object-fit: contain;
+        }
+
+        .modal-footer {
+            padding: 14px 20px;
+            border-top: 1.5px solid #332B24;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            background: #241F1B;
+        }
+
+        .btn-modal-download {
+            background: linear-gradient(135deg, #D4AF37 0%, #AA820A 100%);
+            color: #111;
+            font-weight: 800;
+            font-size: 0.95rem;
+            padding: 9px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .btn-modal-download:hover {
+            background: linear-gradient(135deg, #FFE066 0%, #D4AF37 100%);
+            transform: translateY(-1px);
+        }
+
+        .btn-modal-close {
+            background: #332B24;
+            color: #E6C8A6;
+            font-weight: 700;
+            font-size: 0.95rem;
+            padding: 9px 18px;
+            border-radius: 8px;
+            border: 1px solid #5A4737;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-modal-close:hover {
+            background: #44382E;
+            color: #FFF;
+        }
+
+        /* ✨ AI 입술 경계 분석 버튼 & 툴바 */
+        .btn-extract-main {
+            background: linear-gradient(135deg, #FFE066 0%, #D4AF37 50%, #B8972E 100%);
+            color: #111;
+            font-size: 0.90rem;
+            font-weight: 800;
+            padding: 9px 12px;
+            border-radius: 9px;
+            border: 1.5px solid #FFD700;
+            cursor: pointer;
+            box-shadow: 0 3px 12px rgba(212, 175, 55, 0.35);
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+        .btn-extract-main:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 18px rgba(255, 215, 0, 0.5);
+        }
+        .btn-extract-main.extracted {
+            background: linear-gradient(135deg, #2E2721 0%, #1F1A16 100%);
+            color: #FFE066;
+            border-color: #D4AF37;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .btn-extract-main.extracted:hover {
+            background: linear-gradient(135deg, #3D332A 0%, #29221D 100%);
+            border-color: #FFD700;
+            color: #FFF;
+            transform: translateY(-1px);
+        }
+
+        /* 🔬 검출 상태 배지 */
+        .detection-status-badge {
+            background: rgba(30, 26, 22, 0.95);
+            border: 1px solid #D4AF37;
+            border-radius: 8px;
+            padding: 5px 9px;
+            margin-bottom: 8px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: #FFE066;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+        }
+        .badge-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #28a745;
+            box-shadow: 0 0 5px #28a745;
+            display: inline-block;
+        }
+
+        /* 🎛️ 라인 & 렌더 옵션 툴바 (3분할 세그먼트 버튼) */
+        .contour-toolbar {
+            display: flex;
+            gap: 4px;
+            background: #25201C;
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid #3E3227;
+            margin-bottom: 8px;
+        }
+        .contour-btn {
+            flex: 1;
+            background: #171513;
+            color: #BBB;
+            border: 1px solid #44372C;
+            padding: 6px 4px;
+            border-radius: 6px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+        .contour-btn:hover {
+            border-color: #D4AF37;
+            color: #FFF;
+        }
+        .contour-btn.active {
+            background: linear-gradient(135deg, #FFE066 0%, #D4AF37 100%);
+            color: #111;
+            border-color: #D4AF37;
+            font-weight: 800;
+            box-shadow: 0 2px 8px rgba(212, 175, 55, 0.25);
+        }
+        .contour-btn.tint-active {
+            background: linear-gradient(135deg, #FF6B8B 0%, #E25B6F 100%);
+            color: #FFF;
+            border-color: #FF6B8B;
+            font-weight: 800;
+            box-shadow: 0 2px 8px rgba(226, 91, 111, 0.35);
+        }
+
+        /* ⚡ 보정 & JSON 액션 바 */
+        .contour-actions-bar {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+            width: 100%;
+        }
+        .btn-contour-action {
+            flex: 1;
+            background: #25201B;
+            color: #E6C8A6;
+            border: 1px solid #4D3F33;
+            border-radius: 7px;
+            padding: 5px 3px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            white-space: nowrap;
+        }
+        .btn-contour-action:hover {
+            background: #3A3026;
+            border-color: #D4AF37;
+            color: #FFF;
+        }
+
+        /* 토스트 알림 */
+        .toast-msg {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #25201B;
+            border: 1.5px solid #D4AF37;
+            color: #FFE066;
+            font-weight: 800;
+            font-size: 0.86rem;
+            padding: 8px 18px;
+            border-radius: 20px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+            z-index: 99999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .toast-msg.show {
+            opacity: 1;
+        }
+            opacity: 1;
+        }
+
+/* ── 잠시 내려둔 입술 조절바 ───────────────────────────────────────────
+ *
+ * 원장님 요청으로 메뉴얼 화면에서 아래 열두 개를 감췄다. 지운 것이 아니라
+ * 감춘 것이다 — lip-canvas.js 가 이 조절바들을 이름으로 찾아 값을 읽으므로
+ * 요소가 사라지면 그 자리에서 멈춘다. 다시 쓰고 싶어지면 lip-markup.html 에서
+ * lip-shelved 만 떼면 그대로 돌아온다.
+ *
+ *   윗입술 : 상부 외곽 오버립 · 상부 입술산 볼륨 · 하부 경계선 위치
+ *            하부 구순결절 볼륨 · 하부 안쪽 곡률 · 하부 좌우 볼륨
+ *   아랫입술: 상부 안쪽 중앙 볼륨 · 상부 안쪽 곡률 · 상부 좌우 볼륨
+ *            하부 중앙 볼륨 · 하부 라운드 · 입꼬리 오버립
+ */
+.lip-shelved { display: none !important; }
+
+/* 입꼬리 오버립(아래)은 퀵 화면이 빌려다 쓴다. 빌려 간 자리에서는 보인다 —
+ * 내려둔 것은 메뉴얼 화면이지 퀵 화면이 아니다. */
+.mui-qslot .lip-shelved { display: block !important; }

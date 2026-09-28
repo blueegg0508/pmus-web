@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#1a1625">
+<title>PMUS 반영구 시뮬레이터</title>
+<!-- 아이폰 웹앱 (홈 화면에 추가). 안드로이드 앱 안에서는 쓰이지 않는다. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PMUS">
+<link rel="stylesheet" href="css/app.css?v=80">
+</head>
+<body>
+
+<header class="app-bar">
+    <img src="assets/logo.png?v=80" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
+    <div class="app-bar-end">
+        <button id="diag-btn" class="diag-btn" type="button">버전</button>
+        <button id="lic-badge" class="lic-badge" type="button" hidden></button>
+    </div>
+</header>
+
+<!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
+<section id="license-gate" class="step license-gate" hidden>
+    <div class="lic-card">
+        <img src="assets/logo-full.png?v=80" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <h2 class="lic-title">라이선스 등록</h2>
+        <p class="lic-desc" id="lic-message">
+            이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
+            아래 <strong>기기 코드</strong>를 판매처로 보내주시면 등록 키를 발급해 드립니다.
+        </p>
+
+        <div class="lic-device">
+            <span class="lic-device-label">기기 코드</span>
+            <code id="lic-device-code">------------</code>
+            <button class="btn btn-ghost btn-sm" id="lic-copy-device">복사</button>
+        </div>
+
+        <label class="lic-label" for="lic-token">발급받은 등록 키</label>
+        <textarea id="lic-token" class="lic-input" rows="4"
+                  placeholder="전달받은 등록 키를 그대로 붙여넣으세요"
+                  autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+
+        <div id="lic-error" class="lic-error" hidden></div>
+
+        <button class="btn btn-primary" id="lic-activate">등록하기</button>
+    </div>
+</section>
+
+<!-- ── 1단계: 사진 선택 ───────────────────────────────────────────── -->
+<section id="step-photo" class="step">
+    <h2 class="step-title"><span class="step-num">1</span> 고객 사진</h2>
+
+    <!-- 첫 방문은 사진부터, 재방문은 고객부터 — 두 갈래를 여기서 가른다 -->
+    <div id="crm-bar" class="crm-bar" hidden>
+        <div class="crm-entry">
+            <button type="button" class="crm-find" id="crm-find">🔍 재방문 고객 찾기</button>
+            <button type="button" class="crm-plan-btn" id="crm-plan-open">🔔 <span id="crm-plan-count">일정</span></button>
+        </div>
+        <div class="crm-current" id="crm-current" hidden>
+            <div class="crm-who">
+                <strong id="crm-cur-name"></strong>
+                <span id="crm-cur-sub"></span>
+            </div>
+            <button type="button" class="crm-detach" id="crm-detach" title="이 고객과 연결 끊기">✕</button>
+        </div>
+    </div>
+
+    <div id="drop-zone" class="drop-zone">
+        <div class="drop-icon">📷</div>
+        <p class="drop-main">사진을 선택하세요</p>
+        <p class="drop-sub">정면을 바라본 밝은 사진일수록 인식이 정확합니다</p>
+        <div class="drop-actions">
+            <button class="btn btn-primary" id="btn-camera">카메라로 촬영</button>
+            <button class="btn btn-ghost" id="btn-gallery">앨범에서 선택</button>
+        </div>
+    </div>
+
+    <input type="file" id="file-camera"  accept="image/*" capture="user" hidden>
+    <input type="file" id="file-gallery" accept="image/*" hidden>
+
+    <div id="photo-preview" class="photo-preview" hidden>
+        <img id="preview-img" alt="선택한 고객 사진">
+        <div class="photo-meta">
+            <span id="photo-size"></span>
+            <span id="detect-status" class="badge">인식 대기</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btn-rephoto">다른 사진 선택</button>
+    </div>
+</section>
+
+<!-- ── 2단계: 시술 부위 ───────────────────────────────────────────── -->
+<section id="step-mode" class="step" hidden>
+    <h2 class="step-title"><span class="step-num">2</span> 시술 부위</h2>
+    <div class="mode-tabs">
+        <button class="mode-tab is-active" data-mode="brow" data-feat="brow">눈썹</button>
+        <button class="mode-tab" data-mode="lip" data-feat="lip">입술</button>
+    </div>
+
+    <p class="carry-note" id="carry-note" hidden></p>
+    <div class="carry-picker" id="carry-picker" hidden></div>
+    <button type="button" class="carry-go" id="carry-go" hidden>✏️ 이 사진으로 편집하기</button>
+
+    <div class="edit-tabs" id="edit-tabs">
+        <button class="edit-tab is-active" data-edit="quick" type="button">
+            <b>퀵</b><em>바로 조절 · 빠른 상담</em>
+        </button>
+        <button class="edit-tab" data-edit="manual" type="button">
+            <b>메뉴얼</b><em>디자인 선택 · 세부 조정</em>
+        </button>
+    </div>
+
+    <label id="opt-standard-lip" class="opt-row" hidden>
+        <input type="checkbox" id="chk-standard-lip">
+        <span class="opt-text">
+            <b>메뉴얼에서 얼굴 인식 없이 기본 입술선으로 시작</b>
+            <em>인식이 안 되는 기기에서 켜세요. 표준 입술을 얼굴 위에 놓고
+                끌어서 맞추면 됩니다. 퀵은 이 설정과 상관없이 실제 입술을
+                따라갑니다. 한 번 켜두면 계속 유지됩니다.</em>
+        </span>
+    </label>
+</section>
+
+<!-- ── 3단계: 눈썹 디자인 ─────────────────────────────────────────── -->
+<section id="step-design" class="step" hidden>
+    <h2 class="step-title"><span class="step-num">3</span> 눈썹 디자인</h2>
+    <p class="step-hint">디자인을 고르면 <strong>편집 화면</strong>으로 넘어갑니다.
+       쓰시던 고유 디자인이 있으면 맨 아래 <strong>내 디자인 등록</strong>으로 추가하세요.</p>
+    <div id="design-grid" class="design-grid"></div>
+    <input type="file" id="design-file" accept="image/png,.png" hidden>
+</section>
+
+<!-- ── 시뮬레이터 ─────────────────────────────────────────────────── -->
+<section id="step-canvas" class="step step-canvas" hidden>
+    <div id="canvas-loading" class="canvas-loading" hidden>
+        <div class="spinner"></div>
+        <p id="loading-text">준비 중...</p>
+    </div>
+    <iframe id="sim-frame" title="시뮬레이터" frameborder="0" scrolling="no"></iframe>
+</section>
+
+<button id="settings-toggle" class="settings-toggle" type="button">편집으로 돌아가기</button>
+
+<div id="lic-sheet" class="lic-sheet" hidden>
+    <div class="lic-sheet-box">
+        <h3 class="lic-sheet-title">라이선스 정보</h3>
+        <dl id="lic-detail" class="lic-detail"></dl>
+        <div class="lic-sheet-actions">
+            <button class="btn btn-ghost btn-sm" id="lic-change">등록 키 변경</button>
+            <button class="btn btn-primary btn-sm" id="lic-close">닫기</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── 버전 & 진단 ────────────────────────────────────────────────── -->
+<div id="diag-sheet" class="lic-sheet" hidden>
+    <div class="lic-sheet-box">
+        <h3 class="lic-sheet-title">버전</h3>
+
+        <div class="ver-now">
+            <span class="ver-label">현재 버전</span>
+            <strong id="ver-current">—</strong>
+        </div>
+
+        <div id="ver-state" class="ver-state">새 버전이 있는지 확인해 보세요.</div>
+
+        <div id="ver-bar" class="ver-bar" hidden><i id="ver-bar-fill"></i></div>
+
+        <div class="ver-actions">
+            <button class="btn btn-ghost btn-sm" id="ver-check">새 버전 확인</button>
+            <button class="btn btn-primary btn-sm" id="ver-get" hidden>지금 받아서 설치</button>
+        </div>
+
+        <details class="ver-diag">
+            <summary>기기 진단 (문제가 있을 때만)</summary>
+            <p class="design-dlg-guide">
+                눈썹이나 입술이 <strong>보이지 않는 기기</strong>에서 아래를
+                <strong>그대로 캡처해 보내주세요.</strong> 무엇이 막혔는지 여기에 남습니다.
+            </p>
+            <pre id="diag-out" class="diag-out">진단하기를 눌러 주세요.</pre>
+            <div class="lic-sheet-actions">
+                <button class="btn btn-ghost btn-sm" id="diag-copy">복사</button>
+                <button class="btn btn-ghost btn-sm" id="diag-run">다시 진단</button>
+            </div>
+        </details>
+
+        <div class="lic-sheet-actions">
+            <button class="btn btn-primary btn-sm" id="diag-close">닫기</button>
+        </div>
+    </div>
+</div>
+
+<!-- 사진 크게 보기 — 상담 중에 고객과 같이 보는 자리 -->
+<div id="crm-zoom" class="crm-zoom" hidden>
+    <img id="crm-zoom-img" alt="">
+    <div class="crm-zoom-bar">
+        <span id="crm-zoom-cap"></span>
+        <span class="crm-zoom-hint">두 손가락으로 확대</span>
+        <button type="button" id="crm-zoom-del" class="crm-zoom-del" hidden>지우기</button>
+        <button type="button" id="crm-zoom-close" class="crm-zoom-close">닫기</button>
+    </div>
+</div>
+
+<!-- ── 고객 장부 ──────────────────────────────────────────────────── -->
+<div id="crm-sheet" class="lic-sheet" hidden>
+    <div class="lic-sheet-box crm-box">
+
+        <!-- 찾기 -->
+        <div id="crm-view-list">
+            <h3 class="lic-sheet-title">고객 찾기</h3>
+            <input type="text" id="crm-q" class="lic-input crm-q"
+                   placeholder="이름 또는 번호 뒷자리"
+                   autocapitalize="off" autocorrect="off" spellcheck="false">
+            <div id="crm-list" class="crm-list"></div>
+            <div class="lic-sheet-actions">
+                <button class="btn btn-ghost btn-sm" id="crm-new">+ 새 고객</button>
+                <button class="btn btn-primary btn-sm" id="crm-close">닫기</button>
+            </div>
+        </div>
+
+        <!-- 고객 카드 -->
+        <div id="crm-view-card" hidden>
+            <h3 class="lic-sheet-title" id="crm-card-name">고객</h3>
+            <div class="crm-meta" id="crm-card-meta"></div>
+            <div class="crm-memo" id="crm-card-memo" hidden></div>
+
+            <div class="crm-sec-title">시술 이력</div>
+            <div id="crm-history" class="crm-history"></div>
+
+            <!-- 시술 후 사진은 시술이 끝난 뒤에 찍는다 -->
+            <input type="file" id="crm-shot-file" accept="image/*" capture="environment" hidden>
+
+            <div class="ver-actions">
+                <button class="btn btn-primary btn-sm" id="crm-start">이 고객으로 상담 시작</button>
+            </div>
+            <div class="lic-sheet-actions">
+                <button class="btn btn-ghost btn-sm" id="crm-edit">고객 정보 수정</button>
+                <button class="btn btn-ghost btn-sm" id="crm-back">← 목록</button>
+            </div>
+        </div>
+
+        <!-- 리터치 예정일 고르기 -->
+        <div id="crm-view-retouch" hidden>
+            <h3 class="lic-sheet-title">리터치 예정일</h3>
+            <p class="design-dlg-guide" id="crm-retouch-who"></p>
+            <div class="crm-quick" id="crm-retouch-quick"></div>
+            <label class="lic-label" for="crm-retouch-date">직접 고르기</label>
+            <input type="date" id="crm-retouch-date" class="lic-input">
+            <div class="lic-sheet-actions">
+                <button class="btn btn-ghost btn-sm" id="crm-retouch-off">예정 없음</button>
+                <button class="btn btn-ghost btn-sm" id="crm-retouch-cancel">취소</button>
+                <button class="btn btn-primary btn-sm" id="crm-retouch-save">저장</button>
+            </div>
+        </div>
+
+        <!-- 일정 -->
+        <div id="crm-view-plan" hidden>
+            <h3 class="lic-sheet-title">관리 일정</h3>
+            <div class="crm-plan-tabs">
+                <button type="button" class="is-active" data-span="14">2주</button>
+                <button type="button" data-span="30">1개월</button>
+                <button type="button" data-span="90">3개월</button>
+                <button type="button" data-span="0">전체</button>
+            </div>
+            <div id="crm-plan" class="crm-plan"></div>
+            <div class="lic-sheet-actions">
+                <button class="btn btn-primary btn-sm" id="crm-plan-close">닫기</button>
+            </div>
+        </div>
+
+        <!-- 새로 만들기 · 수정 -->
+        <div id="crm-view-edit" hidden>
+            <h3 class="lic-sheet-title" id="crm-edit-title">새 고객</h3>
+
+            <label class="lic-label" for="crm-f-name">이름</label>
+            <input type="text" id="crm-f-name" class="lic-input" maxlength="30" placeholder="김OO">
+
+            <label class="lic-label" for="crm-f-phone">연락처</label>
+            <input type="text" id="crm-f-phone" class="lic-input" maxlength="20"
+                   inputmode="tel" placeholder="010-0000-0000">
+
+            <label class="lic-label" for="crm-f-memo">메모</label>
+            <textarea id="crm-f-memo" class="lic-input" rows="3"
+                      placeholder="피부 상태, 선호하는 모양, 주의사항 등"></textarea>
+
+            <label class="crm-consent">
+                <input type="checkbox" id="crm-f-consent">
+                <span>
+                    <b>사진 보관에 동의받았습니다</b>
+                    <em>얼굴 사진은 개인정보입니다. 동의한 날짜가 기록되며,
+                        고객이 요청하면 '고객 삭제' 로 사진까지 남김없이 지울 수 있습니다.</em>
+                </span>
+            </label>
+
+            <div id="crm-edit-error" class="lic-error" hidden></div>
+
+            <div class="lic-sheet-actions">
+                <button class="btn btn-ghost btn-sm" id="crm-delete" hidden>고객 삭제</button>
+                <button class="btn btn-ghost btn-sm" id="crm-edit-cancel">취소</button>
+                <button class="btn btn-primary btn-sm" id="crm-save">저장</button>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- ── 내 디자인 등록 ─────────────────────────────────────────────── -->
+<div id="design-dialog" class="lic-sheet" hidden>
+    <div class="lic-sheet-box">
+        <h3 class="lic-sheet-title">내 디자인 등록</h3>
+
+        <div class="design-dlg-preview-wrap">
+            <img id="design-dlg-preview" alt="등록할 디자인 미리보기">
+        </div>
+        <p id="design-dlg-size" class="design-dlg-size"></p>
+        <div id="design-dlg-error" class="lic-error" hidden></div>
+
+        <p class="design-dlg-guide">
+            배경이 <strong>투명한 PNG</strong>, <strong>왼쪽 눈썹 한 쪽</strong>만 담아
+            주세요. 오른쪽은 자동으로 좌우 반전해서 만듭니다.
+            색은 편집 화면에서 다시 입히므로 모양과 농담만 있으면 됩니다.
+        </p>
+
+        <label class="lic-label" for="design-dlg-name">디자인 이름</label>
+        <input type="text" id="design-dlg-name" class="lic-input" maxlength="24"
+               placeholder="예) 원장님 시그니처 아치">
+
+        <button type="button" id="design-dlg-flip" class="btn btn-ghost btn-sm design-dlg-flip">
+            좌우 뒤집기
+        </button>
+
+        <div class="lic-sheet-actions">
+            <button class="btn btn-ghost btn-sm" id="design-dlg-cancel">취소</button>
+            <button class="btn btn-primary btn-sm" id="design-dlg-save">등록</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── 촬영 화면 (가이드 점선) ─────────────────────────────────── -->
+<div id="cam" class="cam" hidden>
+    <div class="cam-bar">
+        <span class="cam-title">가이드에 맞춰 촬영</span>
+        <button type="button" id="cam-flip" class="cam-flip">앞/뒤 전환</button>
+        <button type="button" id="cam-close" class="cam-close">닫기</button>
+    </div>
+
+    <div class="cam-stage">
+        <div class="cam-frame" id="cam-frame">
+            <video id="cam-video" playsinline muted autoplay></video>
+            <svg class="cam-guide" id="cam-guide" preserveAspectRatio="none" aria-hidden="true">
+                <!-- 5×5 격자 (JS 가 그린다) -->
+                <g id="g-grid" class="g-grid"></g>
+                <!-- 머리 윤곽 -->
+                <ellipse id="g-head"></ellipse>
+            </svg>
+        </div>
+        <p class="cam-hint">
+            코를 <strong>가운데 세로선</strong>에 맞추고, 얼굴은 <strong>타원 안에 꽉 차게</strong>.<br>
+            매번 같은 구도로 찍어야 편집 값이 모자라지 않습니다.
+        </p>
+    </div>
+
+    <div class="cam-actions">
+        <button type="button" id="cam-shoot" class="cam-shoot" aria-label="촬영"></button>
+    </div>
+    <div id="cam-error" class="cam-error" hidden></div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<!-- ── 아이폰 웹앱: 홈 화면에 추가 안내 ───────────────────────────── -->
+<div id="pwa-install" class="pwa-sheet" hidden>
+    <div class="pwa-card" role="dialog" aria-labelledby="pwa-install-title">
+        <h2 id="pwa-install-title" class="pwa-title">홈 화면에 추가해 주세요</h2>
+        <p class="pwa-desc">앱처럼 아이콘으로 열리고, 한 번 연 뒤로는 인터넷 없이도 씁니다.</p>
+        <ol class="pwa-steps">
+            <li><b>1.</b> 사파리 아래쪽 <span class="pwa-k">공유 <span class="pwa-share" aria-hidden="true"></span></span> 버튼을 누릅니다.</li>
+            <li><b>2.</b> 목록을 내려 <span class="pwa-k">홈 화면에 추가</span>를 누릅니다.</li>
+            <li><b>3.</b> 오른쪽 위 <span class="pwa-k">추가</span>를 누르면 홈 화면에 PMUS 아이콘이 생깁니다.</li>
+            <li><b>4.</b> 앞으로는 <b>그 아이콘으로</b> 여세요. 라이선스도 거기서 등록합니다.</li>
+        </ol>
+        <p class="pwa-note">사파리가 아닌 다른 앱(카카오톡 등) 안에서 열었다면, 오른쪽 위 메뉴에서 <b>사파리로 열기</b>를 먼저 눌러 주세요.</p>
+        <button class="btn btn-primary" id="pwa-install-close" type="button">알겠습니다</button>
+    </div>
+</div>
+
+<!-- ── 아이폰 웹앱: 사진 저장 ───────────────────────────────────────── -->
+<div id="pwa-save" class="pwa-sheet" hidden>
+    <div class="pwa-card" role="dialog" aria-labelledby="pwa-save-title">
+        <h2 id="pwa-save-title" class="pwa-title"><span id="pwa-save-count">사진 1장</span> 준비됐습니다</h2>
+        <p class="pwa-desc">아래 버튼을 누르고, 뜨는 창에서 <span class="pwa-k">이미지 저장</span>을 누르면 사진 앱에 들어갑니다.</p>
+        <button class="btn btn-primary" id="pwa-save-go" type="button">📥 사진 앱에 저장</button>
+        <button class="btn btn-ghost" id="pwa-save-cancel" type="button">닫기</button>
+    </div>
+</div>
+
+<script type="module" src="js/pwa.js?v=80"></script>
+<script type="module" src="js/app.js?v=80"></script>
+</body>
+</html>

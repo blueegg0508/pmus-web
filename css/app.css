@@ -1,0 +1,1528 @@
+/* 브로우리스트 모바일 — 앱 셸 스타일 (시뮬레이터 내부 스타일은 brow.css / lip.css) */
+
+:root {
+    --bg:        #14111c;
+    --surface:   #1e1a2b;
+    --surface-2: #272236;
+    --line:      #372f4a;
+    --text:      #f2eefb;
+    --muted:     #a79dc0;
+    --accent:    #c9a227;
+    --accent-2:  #e8c65a;
+    --ok:        #4ade80;
+    --warn:      #fbbf24;
+    --radius:    14px;
+}
+
+* { box-sizing: border-box; }
+
+/* HTML 의 hidden 속성은 브라우저 기본 display:none 으로 동작하므로,
+   아래 .canvas-loading{display:grid} 같은 작성자 규칙에 밀려 무력화된다.
+   실제로 로딩 오버레이가 안 사라져 시뮬레이터가 어둡게 덮이는 문제가 있었다. */
+[hidden] { display: none !important; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: contain;
+}
+
+body {
+    padding: 0 0 env(safe-area-inset-bottom);
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+/* ── 상단바 ── */
+/* 로고(좌) · 프로그램 이름(중앙) · 라이선스(우) 3단 배치.
+   양쪽 칸에 같은 최소폭을 줘서 가운데 이름이 화면 정중앙에 오게 한다. */
+.app-bar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+    padding: calc(10px + env(safe-area-inset-top)) 14px 10px;
+    background: linear-gradient(180deg, #221c33, #14111c);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+}
+.app-logo {
+    justify-self: start;
+    width: 96px;          /* 기존 34px 상자(실제 34×18) 대비 약 3배 */
+    height: auto;
+    max-height: 46px;
+    object-fit: contain;
+}
+.app-title {
+    margin: 0;
+    text-align: center;
+    /* 이름이 'PMUS 반영구 시뮬레이터' 로 길어졌다. 폭이 좁아지면 단계적으로
+       뚝뚝 끊어 줄이는 대신 화면 폭에 물려 매끄럽게 줄인다. 320px 기기에서
+       말줄임(…)이 걸리던 것을 없애기 위한 것이다. */
+    font-size: clamp(11.5px, 3.6vw, 15.5px);
+    font-weight: 800;
+    letter-spacing: -0.4px;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+
+/* 이름이 길어 좁은 화면에서 잘리므로, 폭에 따라 로고와 글자를 단계적으로 줄인다.
+   그래도 모자라면 말줄임으로 처리해 레이아웃이 깨지지 않게 한다. */
+.app-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 430px) {
+    .app-bar { grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; }
+    .app-logo { width: 84px; max-height: 42px; }
+}
+
+@media (max-width: 380px) {
+    .app-bar { grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; }
+    .app-logo { width: 72px; max-height: 36px; }
+    .app-title { letter-spacing: -0.6px; }
+}
+
+/* ── 단계 섹션 ── */
+.step { padding: 18px; }
+.step-canvas { padding: 0; position: relative; min-height: 300px; }
+
+.step-title {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin: 0 0 14px;
+    font-size: 15px;
+    font-weight: 700;
+}
+.step-num {
+    display: grid;
+    place-items: center;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #221c33;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+/* ── 사진 선택 ── */
+.drop-zone {
+    border: 1.5px dashed var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 34px 20px;
+    text-align: center;
+}
+.drop-icon { font-size: 40px; margin-bottom: 10px; }
+.drop-main { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+.drop-sub  { margin: 0 0 18px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.drop-actions { display: flex; flex-direction: column; gap: 9px; }
+
+.btn {
+    appearance: none;
+    border: 1px solid transparent;
+    border-radius: 11px;
+    padding: 13px 18px;
+    font-size: 14.5px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: filter .15s, background .15s;
+}
+.btn:active { filter: brightness(.9); }
+.btn-primary { background: var(--accent); color: #221c33; }
+.btn-ghost   { background: var(--surface-2); color: var(--text); border-color: var(--line); }
+.btn-sm      { padding: 9px 14px; font-size: 13px; }
+
+.photo-preview {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 12px;
+}
+.photo-preview img {
+    width: 100%;
+    border-radius: 10px;
+    display: block;
+    max-height: 260px;
+    object-fit: contain;
+    background: #0d0b13;
+}
+.photo-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 11px 2px 12px;
+    font-size: 12.5px;
+    color: var(--muted);
+}
+.badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--muted);
+}
+.badge-ok   { color: var(--ok);   border-color: rgba(74,222,128,.35); background: rgba(74,222,128,.10); }
+.badge-warn { color: var(--warn); border-color: rgba(251,191,36,.35); background: rgba(251,191,36,.10); }
+
+/* ── 부위 탭 ── */
+.mode-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 6px;
+}
+.mode-tab {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 14.5px;
+    font-weight: 700;
+    padding: 11px;
+    border-radius: 9px;
+    cursor: pointer;
+}
+.mode-tab.is-active { background: var(--accent); color: #221c33; }
+
+/* ── 디자인 선택 ── */
+.design-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 9px;
+}
+.design-card {
+    appearance: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 6px;
+    background: var(--surface);
+    border: 1.5px solid var(--line);
+    border-radius: 12px;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: center;
+    cursor: pointer;
+}
+.design-card img {
+    width: 100%;
+    height: 34px;
+    object-fit: contain;
+    filter: brightness(0) invert(1) opacity(.75);
+}
+.design-card.is-active {
+    border-color: var(--accent);
+    background: rgba(201,162,39,.12);
+    color: var(--accent-2);
+}
+.design-card.is-active img { filter: none; }
+
+/* 사진을 올린 뒤 어떻게 진행하는지 알려주는 안내 */
+.step-hint {
+    margin: 0 0 12px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: var(--muted);
+}
+.step-hint strong { color: var(--accent-2); }
+
+/* ── 시뮬레이터 프레임 ── */
+#sim-frame {
+    width: 100%;
+    height: 900px;
+    border: 0;
+    display: block;
+    background: var(--bg);
+}
+
+.canvas-loading {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 14px;
+    background: rgba(20,17,28,.94);
+    z-index: 20;
+}
+.spinner {
+    width: 34px; height: 34px;
+    border: 3px solid var(--line);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.canvas-loading p { margin: 0; font-size: 13.5px; color: var(--muted); }
+
+/* ── 토스트 ── */
+.toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(22px + env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    background: #2c2540;
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 12px 18px;
+    border-radius: 11px;
+    font-size: 13.5px;
+    max-width: min(90vw, 420px);
+    text-align: center;
+    /* 오류 안내는 줄을 나눠 보여준다 (메모리 상태를 아랫줄에 붙인다) */
+    white-space: pre-line;
+    line-height: 1.45;
+    z-index: 100;
+    box-shadow: 0 8px 28px rgba(0,0,0,.45);
+}
+
+@media (max-width: 360px) {
+    .design-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ── 시뮬레이터 전체화면 모드 ──────────────────────────────────────────
+   폰에서 시뮬레이터가 뜨면 위쪽 설정 단계를 접고 한 화면을 통째로 넘긴다.
+   ('설정' 버튼으로 다시 펼 수 있다) */
+body.sim-fullscreen { max-width: none; }
+body.sim-fullscreen .app-bar,
+body.sim-fullscreen #step-photo,
+body.sim-fullscreen #step-mode,
+body.sim-fullscreen #step-design { display: none; }
+
+/* display:revert 를 쓰면 <header> 가 UA 기본값인 block 으로 돌아가
+   상단바 3단 그리드가 무너진다(로고·이름·배지가 세로로 쌓임). 명시적으로 되돌린다. */
+body.sim-fullscreen.settings-open .app-bar { display: grid; }
+body.sim-fullscreen.settings-open #step-photo,
+body.sim-fullscreen.settings-open #step-mode,
+body.sim-fullscreen.settings-open #step-design { display: block; }
+body.sim-fullscreen.settings-open #step-canvas { display: none; }
+
+/* 설정 화면에서는 하단 전체폭 버튼에 가리지 않게 여백을 준다 */
+body.sim-fullscreen.settings-open { padding-bottom: 84px; }
+
+body.sim-fullscreen #sim-frame { height: 100dvh !important; }
+
+/* 하단에 가로 전체를 쓰는 버튼 — 손가락으로 누르기 쉽게 */
+.settings-toggle {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 90;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 16px 18px calc(16px + env(safe-area-inset-bottom));
+    border: 0;
+    border-top: 1px solid var(--line);
+    background: var(--accent);
+    color: #221c33;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 800;
+    box-shadow: 0 -6px 22px rgba(0,0,0,.45);
+    cursor: pointer;
+}
+.settings-toggle:active { filter: brightness(.93); }
+body.sim-fullscreen .settings-toggle { display: none; }
+body.sim-fullscreen.settings-open .settings-toggle { display: flex; }
+
+/* ── 라이선스 ───────────────────────────────────────────────────────── */
+.lic-badge {
+    justify-self: end;
+    appearance: none;
+    padding: 5px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.lic-badge.is-warn {
+    color: var(--warn);
+    border-color: rgba(251,191,36,.4);
+    background: rgba(251,191,36,.12);
+}
+
+.license-gate { padding-top: 28px; }
+.lic-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px 18px;
+}
+.lic-logo {
+    display: block;
+    width: 100%;
+    max-width: 210px;
+    margin: 6px auto 26px;
+}
+.lic-title { margin: 0 0 10px; font-size: 18px; font-weight: 800; }
+.lic-desc  { margin: 0 0 18px; font-size: 13px; line-height: 1.65; color: var(--muted); }
+.lic-desc strong { color: var(--accent-2); }
+
+.lic-device {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+}
+.lic-device-label { font-size: 11.5px; color: var(--muted); font-weight: 700; }
+#lic-device-code {
+    flex: 1;
+    font-family: ui-monospace, "Consolas", monospace;
+    font-size: 16px;
+    letter-spacing: 1.5px;
+    color: var(--accent-2);
+    font-weight: 700;
+}
+
+.lic-label { display: block; font-size: 12.5px; font-weight: 700; margin-bottom: 8px; }
+.lic-input {
+    width: 100%;
+    background: #100e18;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    color: var(--text);
+    font-family: ui-monospace, "Consolas", monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    padding: 12px;
+    resize: vertical;
+    margin-bottom: 14px;
+}
+.lic-input:focus { outline: none; border-color: var(--accent); }
+
+.lic-error {
+    background: rgba(239,68,68,.12);
+    border: 1px solid rgba(239,68,68,.4);
+    color: #FCA5A5;
+    border-radius: 10px;
+    padding: 11px 13px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    margin-bottom: 14px;
+}
+.lic-error span { color: var(--muted); font-size: 11.5px; }
+
+#lic-activate { width: 100%; }
+
+.mode-tab.is-locked { opacity: .45; }
+
+.lic-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 120;
+    display: grid;
+    place-items: center;
+    padding: 22px;
+    background: rgba(10,8,15,.72);
+}
+.lic-sheet-box {
+    width: 100%;
+    max-width: 380px;
+    max-height: 88dvh;          /* 내용이 길면 상자 안에서만 스크롤한다 */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 20px;
+}
+.lic-sheet-title { margin: 0 0 14px; font-size: 15px; font-weight: 800; }
+.lic-detail {
+    margin: 0 0 18px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px 14px;
+    font-size: 12.5px;
+}
+.lic-detail dt { color: var(--muted); font-weight: 700; white-space: nowrap; }
+.lic-detail dd { margin: 0; text-align: right; word-break: break-all; }
+.lic-sheet-actions { display: flex; gap: 8px; }
+.lic-sheet-actions .btn { flex: 1; }
+
+
+/* ── 내 디자인 등록 ─────────────────────────────────────────────────── */
+
+/* 등록한 디자인임을 알려주는 꼬리표 */
+.design-card { position: relative; }
+.design-mine {
+    position: absolute;
+    left: 6px; top: 6px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(201,162,39,.92);
+    color: #221c33;
+    font-size: 9.5px;
+    font-weight: 800;
+    font-style: normal;
+    letter-spacing: -.2px;
+}
+
+/* 삭제 단추 — 손가락으로 누를 수 있는 크기로 */
+.design-del {
+    position: absolute;
+    right: 2px; top: 2px;
+    width: 30px; height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 999px;
+    background: rgba(20,17,28,.78);
+    color: #F2EEFB;
+    font-size: 17px;
+    font-style: normal;
+    line-height: 1;
+    cursor: pointer;
+}
+.design-del:active { background: rgba(226,91,111,.9); }
+
+/* 맨 끝의 등록 카드 */
+.design-add {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-style: dashed;
+    color: var(--accent);
+}
+.design-add i {
+    font-style: normal;
+    font-size: 26px;
+    line-height: 1;
+}
+.design-add span { font-weight: 700; }
+
+/* 등록 대화상자 */
+.design-dlg-preview-wrap {
+    display: grid;
+    place-items: center;
+    min-height: 96px;
+    margin-bottom: 8px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    /* 투명 배경이 보이도록 체크무늬를 깐다 */
+    background-color: #2a2440;
+    background-image:
+        linear-gradient(45deg, #201b31 25%, transparent 25%, transparent 75%, #201b31 75%),
+        linear-gradient(45deg, #201b31 25%, transparent 25%, transparent 75%, #201b31 75%);
+    background-size: 14px 14px;
+    background-position: 0 0, 7px 7px;
+}
+.design-dlg-preview-wrap img {
+    max-width: 100%;
+    max-height: 130px;
+}
+.design-dlg-size {
+    margin: 0 0 10px;
+    font-size: 11.5px;
+    color: var(--muted);
+    text-align: center;
+}
+.design-dlg-guide {
+    margin: 10px 0 14px;
+    font-size: 12px;
+    line-height: 1.65;
+    color: var(--muted);
+}
+.design-dlg-guide strong { color: var(--accent-2); }
+/* 위아래 여백을 '취소 ↔ 등록' 사이 간격(.lic-sheet-actions 의 gap 8px)과
+   같게 둔다. 아래가 붙어 있으면 등록 버튼과 한 덩어리로 보인다. */
+.design-dlg-flip { width: 100%; margin: 8px 0; }
+.design-dlg-flip.is-active {
+    background: var(--accent);
+    color: #221c33;
+    font-weight: 800;
+}
+
+
+/* ── 부위 선택 아래 옵션 줄 ─────────────────────────────────────────── */
+.opt-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: var(--surface);
+    cursor: pointer;
+}
+.opt-row input[type="checkbox"] {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    margin: 1px 0 0;
+    accent-color: var(--accent);
+}
+.opt-text { display: block; }
+.opt-text b {
+    display: block;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text);
+}
+.opt-text em {
+    display: block;
+    margin-top: 4px;
+    font-size: 11.5px;
+    font-style: normal;
+    line-height: 1.6;
+    color: var(--muted);
+}
+
+
+/* ── 촬영 화면 ──────────────────────────────────────────────────────────
+   기본 카메라 앱을 부르면 그 화면 위에 가이드를 그릴 수 없어서,
+   앱 안에서 직접 카메라를 열고 점선을 얹는다. */
+.cam {
+    position: fixed;
+    inset: 0;
+    z-index: 130;
+    display: flex;
+    flex-direction: column;
+    background: #0b0910;
+}
+.cam[hidden] { display: none !important; }
+
+.cam-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
+    background: #16121f;
+    border-bottom: 1px solid var(--line);
+}
+.cam-title { font-size: 14px; font-weight: 800; margin-right: auto; }
+.cam-flip, .cam-close {
+    appearance: none;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    padding: 9px 12px;
+    cursor: pointer;
+}
+.cam-close { background: var(--accent); color: #221c33; border-color: var(--accent); }
+
+.cam-stage {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px;
+}
+
+/* 촬영 틀 — 기준 사진과 같은 비율로 잘라 담는다 */
+.cam-frame {
+    position: relative;
+    /* 실제 비율은 기준 사진에서 잰 값으로 JS 가 넣는다 (FRAME_GUIDE.aspect) */
+    aspect-ratio: 0.8;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #000;
+}
+.cam-frame video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.cam-frame.is-mirrored video { transform: scaleX(-1); }
+
+.cam-guide {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+.cam-guide ellipse {
+    fill: none;
+    stroke: #E8C65A;
+    stroke-width: 0.7;
+    stroke-dasharray: 3 2.4;
+    opacity: .95;
+}
+/* 5×5 격자 — 구도를 눈으로 재는 자. 얼굴 윤곽보다 흐리게 둔다 */
+.cam-guide .g-grid line {
+    stroke: #F2EEFB;
+    stroke-width: 0.3;
+    stroke-dasharray: 1.6 2.2;
+    opacity: .6;
+}
+/* 정가운데 줄 — 얼굴 중심을 맞추는 기준이라 조금 진하게 */
+.cam-guide .g-grid line.is-center {
+    stroke-width: 0.4;
+    opacity: .85;
+}
+
+
+.cam-hint {
+    margin: 0;
+    max-width: 420px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--muted);
+    text-align: center;
+}
+.cam-hint strong { color: var(--accent-2); }
+
+.cam-actions {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    padding: 14px 12px calc(18px + env(safe-area-inset-bottom));
+    background: #16121f;
+    border-top: 1px solid var(--line);
+}
+.cam-shoot {
+    appearance: none;
+    width: 68px; height: 68px;
+    border-radius: 999px;
+    border: 4px solid var(--accent);
+    background: var(--text);
+    cursor: pointer;
+}
+.cam-shoot:active { transform: scale(.94); }
+.cam-shoot:disabled { opacity: .4; }
+
+.cam-error {
+    margin: 0 14px calc(14px + env(safe-area-inset-bottom));
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(248,113,113,.12);
+    border: 1px solid rgba(248,113,113,.4);
+    color: #fca5a5;
+    font-size: 12.5px;
+    line-height: 1.6;
+}
+.cam-error[hidden] { display: none !important; }
+
+
+/* ── 편집 방식 (퀵 / 메뉴얼) ─────────────────────────────────────────── */
+.edit-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 10px;
+}
+.edit-tab {
+    appearance: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 11px 8px;
+    border: 1.5px solid var(--line);
+    border-radius: 11px;
+    background: var(--surface);
+    color: var(--muted);
+    font-family: inherit;
+    cursor: pointer;
+}
+.edit-tab b { font-size: 14px; font-weight: 800; }
+.edit-tab em {
+    font-style: normal;
+    font-size: 10.5px;
+    line-height: 1.4;
+    opacity: .85;
+}
+.edit-tab.is-active {
+    border-color: var(--accent);
+    background: rgba(201,162,39,.12);
+    color: var(--accent-2);
+}
+
+/* 눈썹·입술 작업이 서로 이어지고 있음을 알리는 한 줄 */
+.carry-note {
+    margin: 10px 0 0;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+}
+
+/* 이어서 쓸 밑그림 고르기 — 좌우로 넘겨 본다 */
+.carry-picker {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+    padding-bottom: 4px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+}
+.carry-picker::-webkit-scrollbar { display: none; }
+.carry-item {
+    appearance: none;
+    flex: 0 0 auto;
+    width: 92px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    scroll-snap-align: center;
+    padding: 6px;
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-family: inherit;
+    cursor: pointer;
+}
+.carry-item img {
+    width: 100%;
+    height: 74px;
+    object-fit: cover;
+    object-position: top center;
+    border-radius: 6px;
+    background: #000;
+}
+.carry-item span {
+    font-size: 10.5px;
+    line-height: 1.25;
+    text-align: center;
+    word-break: keep-all;
+}
+.carry-item.is-active {
+    border-color: var(--accent);
+    background: rgba(201,162,39,.12);
+    color: var(--accent-2);
+    font-weight: 700;
+}
+
+/* 고른 사진으로 편집을 시작하는 버튼 */
+.carry-go {
+    appearance: none;
+    display: block;
+    width: 100%;
+    margin-top: 10px;
+    padding: 14px 0;
+    border: 0;
+    border-radius: 12px;
+    background: var(--accent);
+    color: #221C33;
+    font-family: inherit;
+    font-size: 14.5px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.carry-go:active { filter: brightness(.93); }
+
+/* ── 진단 ────────────────────────────────────────────────────────────── */
+/* 현장에서 안 되는 폰이 스스로 상태를 말하게 하는 화면. 눈에 띄되
+   작업을 방해하지 않도록 상단 바 구석에만 둔다. */
+/* 상단 바는 로고 | 제목 | 오른쪽 칸 의 3칸 격자다.
+   버튼 두 개는 한 칸 안에 나란히 둔다. */
+.app-bar-end {
+    justify-self: end;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+.app-bar-end .lic-badge { justify-self: auto; }
+
+.diag-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, .72);
+    background: rgba(255, 255, 255, .10);
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 999px;
+}
+.diag-out {
+    max-height: 46vh;
+    margin: 10px 0 4px;
+    padding: 10px 12px;
+    overflow: auto;
+    font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+    font-size: 11.5px;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: #d9d4e4;
+    background: rgba(0, 0, 0, .32);
+    border: 1px solid rgba(255, 255, 255, .10);
+    border-radius: 10px;
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* ── 버전 화면 ───────────────────────────────────────────────────────── */
+/* 원장님이 가장 먼저 봐야 할 것은 '지금 어떤 판을 쓰고 있나' 와
+   '새 판이 있나' 둘뿐이다. 진단 기록은 문제가 있을 때만 펼친다. */
+.ver-now {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 12px 0 10px;
+    padding: 11px 13px;
+    background: rgba(255, 255, 255, .05);
+    border: 1px solid rgba(255, 255, 255, .10);
+    border-radius: 10px;
+}
+.ver-label { font-size: 12.5px; color: var(--muted); }
+#ver-current { font-size: 16px; font-weight: 800; letter-spacing: -0.2px; }
+
+.ver-state {
+    margin: 0 0 12px;
+    padding: 10px 13px;
+    font-size: 13px;
+    line-height: 1.6;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .08);
+    white-space: pre-wrap;
+}
+.ver-state.is-new {                       /* 새 판이 있을 때만 눈에 띄게 */
+    color: #F4E7B5;
+    background: rgba(201, 162, 39, .13);
+    border-color: rgba(201, 162, 39, .45);
+}
+.ver-state.is-bad {
+    color: #F0B7C2;
+    background: rgba(122, 59, 74, .18);
+    border-color: rgba(122, 59, 74, .55);
+}
+
+.ver-bar {
+    height: 8px;
+    margin: 0 0 12px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, .08);
+    border-radius: 999px;
+}
+.ver-bar > i {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--gold, #C9A227);
+    border-radius: 999px;
+    transition: width .2s ease;
+}
+
+.ver-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.ver-actions .btn { flex: 1 1 auto; min-width: 0; }
+
+.ver-diag { margin: 6px 0 4px; }
+.ver-diag > summary {
+    padding: 8px 2px;
+    font-size: 12.5px;
+    color: var(--muted);
+    cursor: pointer;
+    list-style: revert;
+}
+
+/* ── 교육용 무료판 ───────────────────────────────────────────────────── */
+/* 무료로 쓰고 있다는 것은 늘 보여야 한다. 기한이 눈에 띄되, 상담 중에
+   손님 시선을 끌 만큼 요란하지는 않게. */
+/* 상단 두 버튼은 어떤 경우에도 글자가 접히지 않게. 접히면 버튼이 세로로
+   부풀어 로고·제목 자리를 밀어낸다. */
+.diag-btn, .lic-badge { white-space: nowrap; }
+
+.lic-badge.is-free {
+    color: #1F1A10;
+    background: linear-gradient(135deg, #FFE066, #D4AF37);
+    border-color: #FFD700;
+    font-weight: 800;
+}
+
+/* 무료판에는 '등록' 이라는 절차가 없다. 기기 코드를 보내 키를 받으라는
+   안내를 그대로 두면 엉뚱한 길을 알려 주는 셈이다. */
+body.is-free .lic-device,
+body.is-free .lic-label,
+body.is-free #lic-token,
+body.is-free #lic-activate { display: none !important; }
+
+body.is-free .lic-card { text-align: center; }
+body.is-free .lic-desc { margin-bottom: 4px; }
+
+/* 끝이 가까우면 남은 시간을 같이 보여 준다 */
+.lic-badge.is-free.is-soon {
+    background: linear-gradient(135deg, #F0B7C2, #C97A8A);
+    border-color: #E39AA8;
+    color: #2B1218;
+}
+
+/* ── 고객 장부 ───────────────────────────────────────────────────────── */
+/* 손님이 앉아 있는 앞에서 쓰는 화면이다. 단계가 깊어지거나 글자가 작아지면
+   원장님이 화면을 들여다보느라 대화가 끊긴다. 크고 단순하게 둔다. */
+.crm-bar { margin: 0 0 14px; }
+
+.crm-find {
+    width: 100%;
+    appearance: none;
+    padding: 13px 14px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--gold, #e8c65a);
+    background: rgba(201, 162, 39, .10);
+    border: 1px dashed rgba(201, 162, 39, .5);
+    border-radius: 12px;
+    cursor: pointer;
+}
+.crm-find:active { background: rgba(201, 162, 39, .18); }
+
+.crm-current {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 12px 11px 14px;
+    background: rgba(201, 162, 39, .12);
+    border: 1px solid rgba(201, 162, 39, .45);
+    border-radius: 12px;
+}
+.crm-who { flex: 1 1 auto; min-width: 0; }
+.crm-who strong { display: block; font-size: 15px; font-weight: 800; }
+.crm-who span {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.crm-detach {
+    flex: 0 0 auto;
+    appearance: none;
+    width: 30px; height: 30px;
+    font-size: 14px;
+    color: var(--muted);
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+/* ── 고객 화면 ───────────────────────────────────────────────────────── */
+.crm-box { max-height: 88vh; overflow-y: auto; }
+.crm-q { margin-bottom: 10px; }
+
+.crm-list { max-height: 46vh; overflow-y: auto; margin-bottom: 10px; }
+
+.crm-row {
+    display: block;
+    width: 100%;
+    text-align: left;
+    appearance: none;
+    padding: 11px 13px;
+    margin-bottom: 6px;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .09);
+    border-radius: 10px;
+    font-family: inherit;
+    cursor: pointer;
+}
+.crm-row:active { background: rgba(255, 255, 255, .09); }
+.crm-row-name { display: block; font-size: 14.5px; font-weight: 800; color: var(--text); }
+.crm-row-sub { display: block; margin-top: 2px; font-size: 12px; color: var(--muted); }
+
+.crm-empty {
+    margin: 14px 4px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--muted);
+    text-align: center;
+}
+
+.crm-meta { margin: 8px 0 2px; font-size: 12.5px; line-height: 1.6; color: var(--muted); }
+.crm-memo {
+    margin: 8px 0 2px;
+    padding: 10px 12px;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: 10px;
+}
+
+.crm-sec-title {
+    margin: 16px 0 8px;
+    font-size: 12.5px;
+    font-weight: 800;
+    color: var(--gold, #e8c65a);
+    letter-spacing: -.2px;
+}
+.crm-history { max-height: 44vh; overflow-y: auto; }
+
+.crm-visit {
+    padding: 11px 12px;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .09);
+    border-radius: 10px;
+}
+.crm-visit-head { display: flex; align-items: baseline; gap: 8px; }
+.crm-visit-head b { font-size: 13.5px; font-weight: 800; }
+.crm-visit-head span { font-size: 12.5px; color: var(--muted); }
+.crm-visit-memo { margin-top: 5px; font-size: 12.5px; line-height: 1.6; color: var(--muted); white-space: pre-wrap; }
+
+/* 지난 시술 사진 — "지난번엔 이렇게 하셨죠" 가 이 줄에서 나온다 */
+.crm-shots { display: flex; gap: 6px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; }
+.crm-shots::-webkit-scrollbar { display: none; }
+.crm-shots img {
+    flex: 0 0 auto;
+    height: 92px;
+    width: auto;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, .12);
+}
+
+.crm-consent {
+    display: flex;
+    gap: 9px;
+    margin: 12px 0 4px;
+    padding: 11px 12px;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .10);
+    border-radius: 10px;
+    cursor: pointer;
+}
+.crm-consent input { margin-top: 3px; flex: 0 0 auto; }
+.crm-consent b { display: block; font-size: 13px; }
+.crm-consent em {
+    display: block;
+    margin-top: 4px;
+    font-size: 11.5px;
+    line-height: 1.6;
+    font-style: normal;
+    color: var(--muted);
+}
+
+/* ── 고객 줄 입구 ────────────────────────────────────────────────────── */
+.crm-entry { display: flex; gap: 8px; }
+.crm-entry .crm-find { flex: 1 1 auto; }
+
+.crm-plan-btn {
+    flex: 0 0 auto;
+    appearance: none;
+    padding: 13px 14px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    background: rgba(255, 255, 255, .05);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+}
+/* 닷새 안에 챙길 것이 있으면 눈에 띄어야 한다 */
+.crm-plan-btn.is-soon {
+    color: #2B1218;
+    background: linear-gradient(135deg, #F0B7C2, #C97A8A);
+    border-color: #E39AA8;
+    font-weight: 800;
+}
+
+/* ── 사진 세 자리 ────────────────────────────────────────────────────── */
+/* 빈 자리도 자리를 잡아 둔다. '시술 후' 가 비어 있는 것이 보여야
+   원장님이 시술을 마치고 한 장 찍는다. */
+.crm-slots {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+    margin-top: 9px;
+}
+.crm-slot { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.crm-slot-cap {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--muted);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.crm-slot img {
+    width: 100%;
+    height: 88px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, .14);
+    cursor: pointer;
+}
+.crm-slot-add {
+    appearance: none;
+    width: 100%;
+    height: 88px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    background: rgba(255, 255, 255, .03);
+    border: 1px dashed rgba(255, 255, 255, .20);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.crm-slot-add:active { background: rgba(255, 255, 255, .08); }
+
+.crm-match {
+    margin-top: 7px;
+    font-size: 11.5px;
+    color: var(--gold, #e8c65a);
+    text-align: center;
+}
+
+/* ── 리터치 줄 ───────────────────────────────────────────────────────── */
+.crm-retouch {
+    display: block;
+    width: 100%;
+    margin-top: 9px;
+    appearance: none;
+    padding: 9px 10px;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--muted);
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 9px;
+    cursor: pointer;
+}
+.crm-retouch.is-soon {
+    color: #F4D7DD;
+    background: rgba(201, 122, 138, .18);
+    border-color: rgba(227, 154, 168, .55);
+}
+
+/* ── 간격 고르기 ─────────────────────────────────────────────────────── */
+.crm-quick { display: flex; flex-wrap: wrap; gap: 7px; margin: 10px 0 14px; }
+.crm-quick button {
+    flex: 1 1 0;
+    min-width: 64px;
+    appearance: none;
+    padding: 11px 6px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 10px;
+    cursor: pointer;
+}
+.crm-quick button.is-active {
+    color: #221c33;
+    background: var(--gold, #c9a227);
+    border-color: var(--gold, #c9a227);
+}
+
+/* ── 관리 일정 ───────────────────────────────────────────────────────── */
+.crm-plan-tabs { display: flex; gap: 6px; margin: 4px 0 12px; }
+.crm-plan-tabs button {
+    flex: 1 1 0;
+    appearance: none;
+    padding: 9px 4px;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--muted);
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 9px;
+    cursor: pointer;
+}
+.crm-plan-tabs button.is-active {
+    color: #221c33;
+    background: var(--gold, #c9a227);
+    border-color: var(--gold, #c9a227);
+}
+
+.crm-plan { max-height: 56vh; overflow-y: auto; }
+.crm-plan-month {
+    margin: 12px 2px 6px;
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--gold, #e8c65a);
+}
+.crm-plan-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    appearance: none;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    background: rgba(255, 255, 255, .04);
+    border: 1px solid rgba(255, 255, 255, .09);
+    border-radius: 10px;
+    font-family: inherit;
+    cursor: pointer;
+}
+.crm-plan-row.is-soon {
+    background: rgba(201, 122, 138, .15);
+    border-color: rgba(227, 154, 168, .45);
+}
+.crm-plan-day {
+    flex: 0 0 auto;
+    min-width: 38px;
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--text);
+}
+.crm-plan-who {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.crm-plan-when { flex: 0 0 auto; font-size: 11.5px; color: var(--muted); }
+
+/* 결과를 손에 쥔 채 고객을 고르는 중이라는 표시 */
+.crm-pending {
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #F4E7B5;
+    background: rgba(201, 162, 39, .13);
+    border: 1px solid rgba(201, 162, 39, .45);
+    border-radius: 10px;
+}
+
+/* ── 경과 (시술 후 누적) ─────────────────────────────────────────────── */
+/* 한 장으로는 색이 어떻게 앉았고 얼마나 빠졌는지 알 수 없다.
+   시술 직후부터 재방문마다 쌓아 옆으로 늘어놓는다. */
+.crm-after-cap {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin: 12px 2px 6px;
+}
+.crm-after-cap span { font-size: 11.5px; font-weight: 800; color: var(--gold, #e8c65a); }
+.crm-after-cap em { font-size: 11px; font-style: normal; color: var(--muted); }
+
+.crm-after {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+}
+.crm-after::-webkit-scrollbar { display: none; }
+
+.crm-after-cell { flex: 0 0 auto; display: flex; flex-direction: column; gap: 3px; }
+.crm-after-cell img {
+    width: 84px;
+    height: 84px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, .14);
+    cursor: pointer;
+}
+.crm-after-cell span {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    line-height: 1.25;
+    text-align: center;
+}
+.crm-after-cell span b { font-size: 10.5px; font-weight: 800; color: var(--text); }
+.crm-after-cell span em {
+    font-size: 9.5px;
+    font-style: normal;
+    color: var(--muted);
+}
+
+.crm-after-add {
+    flex: 0 0 auto;
+    width: 84px;
+    height: 84px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    appearance: none;
+    font-family: inherit;
+    color: #221c33;
+    background: linear-gradient(135deg, #FFE066, #D4AF37);
+    border: 1px solid #FFD700;
+    border-radius: 8px;
+    cursor: pointer;
+}
+.crm-after-add b { font-size: 19px; line-height: 1; }
+.crm-after-add span { font-size: 10.5px; font-weight: 800; }
+
+/* ── 사진 크게 보기 ──────────────────────────────────────────────────── */
+/* 작은 썸네일로는 결이 안 보인다. 손가락으로 가리키며 이야기하려면 커야 한다. */
+.crm-zoom {
+    position: fixed;
+    inset: 0;
+    /* 고객 팝업(.lic-sheet 120) · 촬영 화면(.cam 130) 보다 위.
+       사진을 눌렀는데 팝업 뒤로 깔려 안 보이던 것을 고친다 —
+       확대는 팝업을 닫지 않고 그 위에 떠서, 닫으면 보던 카드로 바로 돌아온다. */
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 20px;
+    background: rgba(8, 6, 12, .93);
+}
+.crm-zoom img {
+    max-width: 100%;
+    max-height: calc(100% - 70px);
+    object-fit: contain;
+    border-radius: 10px;
+    /* 손가락으로 당길 때 브라우저가 먼저 가로채지 않게 */
+    touch-action: none;
+    transform-origin: center center;
+    will-change: transform;
+    cursor: zoom-in;
+}
+.crm-zoom img.is-zoomed { border-radius: 0; cursor: grab; }
+.crm-zoom-bar { display: flex; align-items: center; gap: 10px; }
+#crm-zoom-cap { font-size: 13px; font-weight: 700; color: var(--muted); }
+.crm-zoom-close, .crm-zoom-del {
+    appearance: none;
+    padding: 9px 16px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 9px;
+    cursor: pointer;
+}
+.crm-zoom-close {
+    color: #221c33;
+    background: var(--gold, #c9a227);
+    border: 1px solid var(--gold, #c9a227);
+}
+.crm-zoom-del {
+    color: #F0B7C2;
+    background: rgba(122, 59, 74, .3);
+    border: 1px solid rgba(122, 59, 74, .7);
+}
+
+/* 확대 화면 안내 — 처음 여는 분은 손가락으로 되는 줄 모른다 */
+.crm-zoom-hint {
+    font-size: 11.5px;
+    color: rgba(255, 255, 255, .45);
+}
+
+/* 상담 당일 두 장에도 찍은 때를 붙인다 — 시기별 기록으로 읽히게 */
+.crm-slot-when {
+    font-size: 9.5px;
+    color: var(--muted);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 크게 볼 때는 자리가 넉넉하니 날짜와 시각을 다 적는다 */
+#crm-zoom-cap { display: flex; flex-direction: column; gap: 1px; }
+#crm-zoom-cap b { font-size: 13px; font-weight: 800; color: var(--text); }
+#crm-zoom-cap em {
+    font-size: 11.5px;
+    font-style: normal;
+    color: var(--muted);
+}
+
+/* ── 아이폰 웹앱 (홈 화면에 추가 안내 · 사진 저장) ──────────────────── */
+.pwa-sheet {
+    position: fixed; inset: 0; z-index: 3000;
+    display: flex; align-items: flex-end; justify-content: center;
+    background: rgba(10, 8, 16, .62);
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+}
+.pwa-sheet[hidden] { display: none; }
+.pwa-card {
+    width: 100%; max-width: 440px;
+    background: var(--surface); color: var(--text);
+    border: 1px solid var(--line); border-radius: 18px;
+    padding: 22px 20px 18px;
+    display: flex; flex-direction: column; gap: 12px;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, .45);
+}
+.pwa-title { margin: 0; font-size: 18px; color: var(--accent-2); }
+.pwa-desc, .pwa-note { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text); }
+.pwa-note { font-size: 12.5px; opacity: .8; }
+.pwa-steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; font-size: 14px; line-height: 1.55; }
+.pwa-steps b { color: var(--accent-2); margin-right: 4px; }
+.pwa-k {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 8px; border-radius: 999px;
+    background: var(--accent); color: #221c33; font-weight: 700; font-size: 13px;
+}
+/* 사파리 공유 아이콘 (네모에서 위로 나가는 화살표) */
+.pwa-share {
+    display: inline-block; width: 11px; height: 13px; position: relative;
+    border: 2px solid currentColor; border-top: none; border-radius: 0 0 2px 2px;
+    margin-top: 3px;
+}
+.pwa-share::before {
+    content: ""; position: absolute; left: 50%; top: -7px; width: 2px; height: 10px;
+    background: currentColor; transform: translateX(-50%);
+}
+.pwa-share::after {
+    content: ""; position: absolute; left: 50%; top: -8px; width: 6px; height: 6px;
+    border-left: 2px solid currentColor; border-top: 2px solid currentColor;
+    transform: translateX(-50%) rotate(45deg);
+}
+.pwa-card .btn { width: 100%; }
