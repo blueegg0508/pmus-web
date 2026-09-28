@@ -297,6 +297,7 @@ async function mountSimulator(kind, cfg) {
     let doc = `<!DOCTYPE html>
 <html lang="ko"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<style>:root{--sa-top:${sa.top}px;--sa-bottom:${sa.bottom}px;--sa-left:${sa.left}px;--sa-right:${sa.right}px}</style>
 <script>(function(){
 function s(k,m){try{window.parent.postMessage({type:"mui:err",kind:k,msg:String(m).slice(0,240)},"*")}catch(e){}}
 window.addEventListener("error",function(e){var t=e.target;
@@ -305,10 +306,7 @@ s("오류",(e.message||"")+" @"+(e.lineno||0))},true);
 window.addEventListener("unhandledrejection",function(e){var r=e.reason;s("미처리",(r&&r.message)||r)});
 window.__blReport=s;})();<\/script>
 <style>${css}</style>
-<style>${muiCss}</style>
-<!-- 상태표시줄·홈 표시줄 높이. mobile-ui.css 가 기본값 0 을 두므로 **그 뒤에** 넣어야 이긴다.
-     앞에 두었더니 0 으로 덮여서 아이폰(노치)에서 맨 위 버튼이 상태표시줄 밑에 깔렸다(2026-09-29). -->
-<style>:root{--sa-top:${sa.top}px;--sa-bottom:${sa.bottom}px;--sa-left:${sa.left}px;--sa-right:${sa.right}px}</style></head>
+<style>${muiCss}</style></head>
 <body>
 ${fillTemplate(markup, cfg)}
 <script>window.CFG = ${JSON.stringify(cfg)};<\/script>
