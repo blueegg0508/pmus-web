@@ -1305,29 +1305,81 @@
                 ctx.beginPath();
                 ctx.moveTo(splitX, 0);
                 ctx.lineTo(splitX, h);
+                // 굵기·손잡이 크기는 '화면에서 보이는 크기' 로 정한다. 캔버스는 사진 원래 해상도라
+                // 캔버스 픽셀로 정하면 화면에서 두세 배 두껍게 보였다 (2026-10-07 원장님: 너무 두껍다).
+                const px = canvasPxPerCss();
                 ctx.strokeStyle = '#D4AF37';
-                ctx.lineWidth = 3.5;
-                ctx.shadowColor = 'rgba(0,0,0,0.85)';
-                ctx.shadowBlur = 8;
+                ctx.lineWidth = 1.5 * px;
+                ctx.shadowColor = 'rgba(0,0,0,0.7)';
+                ctx.shadowBlur = 4 * px;
                 ctx.stroke();
 
-                // 🌟 스플릿 바 중앙 원형 핸들 (기존 15px 대비 2.5배 확대: radius = 38px)
+                // 🌟 스플릿 바 원형 핸들 (radius = 38px)
+                // 눈썹 비교와 같이 '보이는 사진' 의 아래쪽 20% 자리에 둔다.
+                // 가운데에 두면 입술을 가려 설명할 때 거슬렸다 (2026-10-07).
+                const hy = splitHandleY(h);
                 ctx.beginPath();
-                ctx.arc(splitX, h / 2, 38, 0, Math.PI * 2);
+                ctx.arc(splitX, hy, 13 * px, 0, Math.PI * 2);   // 지름 26px
                 ctx.fillStyle = '#D4AF37';
                 ctx.fill();
                 ctx.strokeStyle = '#111111';
-                ctx.lineWidth = 4;
+                ctx.lineWidth = 1.5 * px;
                 ctx.stroke();
 
-                ctx.fillStyle = '#111111';
-                ctx.font = 'bold 30px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('↔', splitX, h / 2);
+                // 화살표는 글자(↔) 대신 선으로 그린다 — 글자는 기기 글꼴마다 가운데가 틀어진다
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = '#111111';
+                ctx.lineWidth = 1.8 * px;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                const a = 6.5 * px, k = 3.5 * px;
+                ctx.beginPath();
+                ctx.moveTo(splitX - a, hy); ctx.lineTo(splitX + a, hy);
+                ctx.moveTo(splitX - a + k, hy - k); ctx.lineTo(splitX - a, hy); ctx.lineTo(splitX - a + k, hy + k);
+                ctx.moveTo(splitX + a - k, hy - k); ctx.lineTo(splitX + a, hy); ctx.lineTo(splitX + a - k, hy + k);
+                ctx.stroke();
                 ctx.restore();
             }
         }
+
+        /** 화면 1px 이 캔버스 몇 px 인지 (캔버스는 사진 해상도, 화면엔 줄여 보인다) */
+        function canvasPxPerCss() {
+            try {
+                const w = canvas.getBoundingClientRect().width;
+                if (w > 0) return canvas.width / w;
+            } catch (e) {}
+            return 1;
+        }
+
+        /** 비교 손잡이 높이 (캔버스 좌표). 사진이 화면보다 길어 아래가 시트에 가리면
+         *  보이는 부분만 놓고 그 아래쪽 20% 에 둔다. */
+        function splitHandleY(h) {
+            try {
+                const cr = canvas.getBoundingClientRect();
+                const stage = canvas.closest('.mui-stage');
+                if (stage && cr.height > 0) {
+                    const sr = stage.getBoundingClientRect();
+                    const pad = parseFloat(getComputedStyle(stage).paddingBottom) || 0;
+                    const top = Math.max(cr.top, sr.top);
+                    const bot = Math.min(cr.bottom, sr.bottom - pad);
+                    if (bot > top) return ((top + (bot - top) * 0.8) - cr.top) / cr.height * h;
+                }
+            } catch (e) {}
+            return h * 0.8;
+        }
+        // 시트를 여닫거나 화면을 돌리면 보이는 높이가 바뀐다 — 비교 중이면 손잡이를 다시 그린다
+        (function () {
+            const again = () => { if (viewMode === 'split') requestRender(); };
+            window.addEventListener('resize', again);
+            if (typeof ResizeObserver === 'function') {
+                setTimeout(() => {
+                    const stage = canvas.closest('.mui-stage');
+                    if (stage) new ResizeObserver(again).observe(stage);
+                    const sheet = document.querySelector('.mui-sheet');
+                    if (sheet) new ResizeObserver(again).observe(sheet);
+                }, 0);
+            }
+        })();
 
         function getCanvasRawPos(clientX, clientY) {
             const rect = canvas.getBoundingClientRect();

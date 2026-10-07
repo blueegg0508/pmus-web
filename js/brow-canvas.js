@@ -1221,7 +1221,16 @@
             } catch(e) {
                 console.error("Draw error:", e);
             }
+            // 비교 화면의 '시술 전' 사진도 같은 확대·이동으로 다시 그리게 알린다
+            if (typeof window.__blAfterDraw === 'function') {
+                try { window.__blAfterDraw(); } catch (e) {}
+            }
         }
+
+        // 지금 사진 확대·이동 상태. 비교 화면이 '시술 전' 을 같은 배율로 맞추는 데 쓴다.
+        window.__blView = function () {
+            return { zoom: curImgZoom, panX: curImgPanX, panY: curImgPanY };
+        };
 
         function setupControls() {
             const rngScale = document.getElementById('rngScale');

@@ -18,7 +18,9 @@
 (function () {
     "use strict";
 
-    if (!window.matchMedia("(max-width: 820px)").matches) return;   // 폰에서만
+    // 폰, 그리고 손가락으로 쓰는 태블릿(아이패드를 가로로 눕힌 경우 포함).
+    // 마우스로 쓰는 PC 는 예전 3열 화면 그대로 둔다.
+    if (!window.matchMedia("(max-width: 820px), (pointer: coarse) and (max-width: 1400px)").matches) return;
     if (document.querySelector(".mui-shell")) return;               // 중복 실행 방지
 
     var KIND = document.getElementById("dragCanvas") ? "brow"
@@ -166,6 +168,52 @@
     document.body.appendChild(shell);
     document.documentElement.classList.add("mui-on");
 
+    /* 넓은 화면(아이패드): [사진·디자인 변경] 을 맨 위 가로 전체 줄에서 빼어
+     * 보기 전환 줄 왼쪽에 둔다. 맨 위 줄은 아이패드 상태표시줄(시간·배터리)에
+     * 가려 누르기 어려웠다. 보기 전환은 가운데, 되돌리기·초기화는 오른쪽.
+     * 상태표시줄 높이는 바깥 문서에서 잰다 — 이 iframe 안에서는 env() 가 0 이다.
+     * 폰은 예전 배치 그대로 둔다. */
+    function topInset() {
+        try {
+            var d = window.parent.document;
+            var probe = d.createElement("div");
+            probe.style.cssText = "position:fixed;visibility:hidden;pointer-events:none;top:0;left:0;padding-top:env(safe-area-inset-top);";
+            d.body.appendChild(probe);
+            var v = parseFloat(window.parent.getComputedStyle(probe).paddingTop) || 0;
+            probe.remove();
+            return Math.round(v);
+        } catch (e) { return 0; }
+    }
+    function layoutWide() {
+        var wide = window.innerWidth >= 600;
+        var root = document.documentElement;
+        if (wide) {
+            if (btnSettings.parentNode !== topbar) topbar.insertBefore(btnSettings, seg);
+            root.classList.add("mui-wide");
+            // 아이패드 OS 는 상태표시줄 아래로 그보다 더 넓게 흐림 띠를 깐다.
+            // 상태표시줄 높이만큼만 내리면 버튼이 그 띠에 걸려 흐릿하게 보였다 (2026-10-07).
+            // 상태표시줄이 겹칠 때(홈 화면 웹앱)만 24px 더 내린다.
+            // (44px 은 너무 내려왔다 — 2026-10-07 원장님 아이패드 화면으로 맞춤)
+            var ins = topInset();
+            root.style.setProperty("--top-inset", (ins ? ins + 24 : 0) + "px");
+        } else {
+            if (btnSettings.parentNode !== shell) shell.insertBefore(btnSettings, topbar);
+            root.classList.remove("mui-wide");
+            root.style.removeProperty("--top-inset");
+        }
+    }
+    layoutWide();
+    window.addEventListener("resize", layoutWide);
+
+    /* 가로 화면(태블릿을 눕혔을 때): 왼쪽 사진, 오른쪽 퀵·메뉴얼 패널.
+     * 시트를 아래에서 끌어올리는 대신 오른쪽에 붙박아 둔다. */
+    function isLand() { return window.innerWidth > window.innerHeight && window.innerWidth >= 900; }
+    function layoutLand() {
+        document.documentElement.classList.toggle("mui-land", isLand());
+    }
+    layoutLand();
+    window.addEventListener("resize", layoutLand);
+
     // ── 2. 사진 무대 + 보기 전환 ────────────────────────────────────────
     var canvas = isBrow ? $("dragCanvas") : $("lipCanvas");
 
@@ -181,8 +229,35 @@
         }
         var shot = el("div", "mui-shot");
         move(shot, beforeImg);
+        // '시술 전' 은 사진을 그대로 띄우지 않고 결과 캔버스와 똑같은 크기·
+        // 확대·이동으로 다시 그린다. 두 손가락으로 사진을 키운 뒤 비교하면
+        // 한쪽만 커져 보이던 문제(아이패드)를 막는다.
+        var beforeCv = document.createElement("canvas");
+        beforeCv.className = "mui-before";
+        shot.appendChild(beforeCv);
         move(shot, canvas);
         stage.appendChild(shot);
+
+        function drawBefore() {
+            if (!canvas || !beforeImg) return;
+            if (!shot.classList.contains("is-before") && !shot.classList.contains("is-compare")) return;
+            if (!beforeImg.complete || !beforeImg.naturalWidth) return;
+            var w = canvas.width, h = canvas.height;
+            if (!w || !h) return;
+            if (beforeCv.width !== w) beforeCv.width = w;
+            if (beforeCv.height !== h) beforeCv.height = h;
+            var v = (typeof window.__blView === "function") ? window.__blView() : { zoom: 100, panX: 0, panY: 0 };
+            var z = v.zoom / 100;
+            var bctx = beforeCv.getContext("2d");
+            bctx.setTransform(1, 0, 0, 1, 0, 0);
+            bctx.clearRect(0, 0, w, h);
+            bctx.translate(w / 2 + v.panX, h / 2 + v.panY);
+            bctx.scale(z, z);
+            bctx.translate(-w / 2, -h / 2);
+            bctx.drawImage(beforeImg, 0, 0, w, h);
+        }
+        window.__blAfterDraw = drawBefore;
+        if (beforeImg) beforeImg.addEventListener("load", drawBefore);
 
         // 비교용 가운데 선. 좌우로 끌면 경계가 움직여 사진 전체를
         // 시술 전으로도, 예상 디자인으로도 볼 수 있다.
@@ -201,8 +276,12 @@
             if (!cr.width || !cr.height) return;
             canvas.style.setProperty("--split", (splitRatio * 100) + "%");
             divider.style.left = (cr.left - sr.left + splitRatio * cr.width) + "px";
-            divider.style.top = (cr.top - sr.top) + "px";
-            divider.style.height = cr.height + "px";
+            // 사진이 무대보다 길면 아래가 시트에 가린다. 선과 손잡이는 보이는 부분에만 둔다
+            // (손잡이를 보이는 높이의 아래쪽 20% 에 두므로).
+            var top = Math.max(cr.top, sr.top), bottom = Math.min(cr.bottom, sr.bottom);
+            if (bottom <= top) { top = cr.top; bottom = cr.bottom; }
+            divider.style.top = (top - sr.top) + "px";
+            divider.style.height = (bottom - top) + "px";
         }
 
         /** 손가락 위치를 사진 안에서의 비율로 바꾼다 */
@@ -254,6 +333,7 @@
             if (which === "before") { segBefore.classList.add("is-active"); shot.classList.add("is-before"); }
             else if (which === "compare") { segComp.classList.add("is-active"); shot.classList.add("is-compare"); }
             else segAfter.classList.add("is-active");
+            drawBefore();
 
             if (which === "compare") {
                 hint.textContent = "가운데 선을 좌우로 끌어 비교하세요";
@@ -1466,6 +1546,11 @@
     /** 시트가 실제로 가리는 높이만큼 무대 아래에 여백을 줘서, 사진이 '보이는
      *  영역'의 한가운데 오도록 한다. (사진 크기 자체는 건드리지 않는다) */
     function syncStagePadding() {
+        // 가로 화면에서는 패널이 옆에 있으니 사진을 가리지 않는다
+        if (document.documentElement.classList.contains("mui-land")) {
+            stage.style.paddingBottom = "8px";
+            return;
+        }
         var top = sheet.getBoundingClientRect().top;
         var covered = Math.max(0, window.innerHeight - top);
         stage.style.paddingBottom = Math.max(8, Math.round(covered) + 8) + "px";

@@ -9,8 +9,8 @@
  *
  * clients.claim() 은 하지 않는다. 처음 연 날 화면이 한 번 더 새로 뜨는 것을 막는다.
  */
-const VERSION = "pmus-83";
-const PRECACHE = ["assets/eyebrow_refs/female_arch_combo.png","assets/eyebrow_refs/female_arch_gradation.png","assets/eyebrow_refs/female_arch_natural.png","assets/eyebrow_refs/female_semiarch_combo.png","assets/eyebrow_refs/female_semiarch_gradation.png","assets/eyebrow_refs/female_semiarch_natural.png","assets/eyebrow_refs/female_straight_combo.png","assets/eyebrow_refs/female_straight_gradation.png","assets/eyebrow_refs/female_straight_natural.png","assets/eyebrow_refs/male_straight_combo.png","assets/eyebrow_refs/male_straight_gradation.png","assets/eyebrow_refs/male_straight_natural.png","assets/icons/icon-180.png","assets/icons/icon-192.png","assets/icons/icon-512.png","assets/icons/icon-maskable-512.png","assets/logo-full.png","assets/logo.png","assets/models/female_20s.jpg","assets/models/female_30s.jpg","assets/models/female_40s.jpg","assets/models/female_50s.jpg","assets/models/female_60s.jpg","assets/models/male_20s.jpg","assets/models/male_30s.jpg","assets/models/male_40s.jpg","assets/models/male_50s.jpg","assets/models/male_60s.jpg","css/app.css","css/brow.css","css/lip.css","css/mobile-ui.css","index.html","js/app.js","js/brow-canvas.js","js/brow-erase.js","js/brow-markup.html","js/crm-store.js","js/crm-ui.js","js/custom-designs.js","js/face-detect.js","js/license.js","js/lip-canvas.js","js/lip-markup.html","js/mobile-ui.js","js/prepare-eyebrow.js","js/pwa.js","js/remind.js","js/update.js","manifest.webmanifest","models/face_landmarker.task","vendor/vision_bundle.mjs","vendor/wasm/vision_wasm_internal.js","vendor/wasm/vision_wasm_internal.wasm"];
+const VERSION = "pmuslab-84";
+const PRECACHE = ["assets/eyebrow_refs/female_arch_combo.png","assets/eyebrow_refs/female_arch_gradation.png","assets/eyebrow_refs/female_arch_natural.png","assets/eyebrow_refs/female_semiarch_combo.png","assets/eyebrow_refs/female_semiarch_gradation.png","assets/eyebrow_refs/female_semiarch_natural.png","assets/eyebrow_refs/female_straight_combo.png","assets/eyebrow_refs/female_straight_gradation.png","assets/eyebrow_refs/female_straight_natural.png","assets/eyebrow_refs/male_straight_combo.png","assets/eyebrow_refs/male_straight_gradation.png","assets/eyebrow_refs/male_straight_natural.png","assets/icons/icon-180.png","assets/icons/icon-192.png","assets/icons/icon-512.png","assets/icons/icon-maskable-512.png","assets/logo-full.png","assets/logo.png","assets/models/female_20s.jpg","assets/models/female_30s.jpg","assets/models/female_40s.jpg","assets/models/female_50s.jpg","assets/models/female_60s.jpg","assets/models/male_20s.jpg","assets/models/male_30s.jpg","assets/models/male_40s.jpg","assets/models/male_50s.jpg","assets/models/male_60s.jpg","changelog.json","css/app.css","css/brow.css","css/lip.css","css/mobile-ui.css","index.html","js/app.js","js/brow-canvas.js","js/brow-erase.js","js/brow-markup.html","js/crm-store.js","js/crm-ui.js","js/custom-designs.js","js/face-detect.js","js/license.js","js/lip-canvas.js","js/lip-markup.html","js/mobile-ui.js","js/prepare-eyebrow.js","js/pwa.js","js/remind.js","js/update.js","manifest.webmanifest","models/face_landmarker.task","vendor/vision_bundle.mjs","vendor/wasm/vision_wasm_internal.js","vendor/wasm/vision_wasm_internal.wasm"];
 
 self.addEventListener("install", (e) => {
     e.waitUntil(caches.open(VERSION).then((c) => c.addAll(PRECACHE.map((f) => "./" + f))));
@@ -18,7 +18,7 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
     e.waitUntil(caches.keys().then((keys) =>
-        Promise.all(keys.filter((k) => k.startsWith("pmus-") && k !== VERSION).map((k) => caches.delete(k)))));
+        Promise.all(keys.filter((k) => k.startsWith("pmuslab-") && k !== VERSION).map((k) => caches.delete(k)))));
 });
 
 self.addEventListener("message", (e) => {

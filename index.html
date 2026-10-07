@@ -12,12 +12,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
-<link rel="stylesheet" href="css/app.css?v=83">
+<link rel="stylesheet" href="css/app.css?v=84">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=83" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=84" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="diag-btn" class="diag-btn" type="button">버전</button>
@@ -28,7 +28,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=83" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=84" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -175,6 +175,11 @@
             <button class="btn btn-ghost btn-sm" id="ver-check">새 버전 확인</button>
             <button class="btn btn-primary btn-sm" id="ver-get" hidden>지금 받아서 설치</button>
         </div>
+
+        <details class="ver-diag ver-log" id="ver-log-box">
+            <summary>업데이트 내역</summary>
+            <ol id="ver-log" class="ver-log-list"></ol>
+        </details>
 
         <details class="ver-diag">
             <summary>기기 진단 (문제가 있을 때만)</summary>
@@ -378,13 +383,29 @@
     <div class="pwa-card" role="dialog" aria-labelledby="pwa-install-title">
         <h2 id="pwa-install-title" class="pwa-title">홈 화면에 추가해 주세요</h2>
         <p class="pwa-desc">앱처럼 아이콘으로 열리고, 한 번 연 뒤로는 인터넷 없이도 씁니다.</p>
-        <ol class="pwa-steps">
-            <li><b>1.</b> 사파리 아래쪽 <span class="pwa-k">공유 <span class="pwa-share" aria-hidden="true"></span></span> 버튼을 누릅니다.</li>
-            <li><b>2.</b> 목록을 내려 <span class="pwa-k">홈 화면에 추가</span>를 누릅니다.</li>
-            <li><b>3.</b> 오른쪽 위 <span class="pwa-k">추가</span>를 누르면 홈 화면에 PMUS 아이콘이 생깁니다.</li>
-            <li><b>4.</b> 앞으로는 <b>그 아이콘으로</b> 여세요. 라이선스도 거기서 등록합니다.</li>
-        </ol>
-        <p class="pwa-note">사파리가 아닌 다른 앱(카카오톡 등) 안에서 열었다면, 오른쪽 위 메뉴에서 <b>사파리로 열기</b>를 먼저 눌러 주세요.</p>
+        <!-- 아이폰·아이패드 (사파리) -->
+        <div id="pwa-guide-ios">
+            <ol class="pwa-steps">
+                <li><b>1.</b> 사파리 아래쪽 <span class="pwa-k">공유 <span class="pwa-share" aria-hidden="true"></span></span> 버튼을 누릅니다.</li>
+                <li><b>2.</b> 목록을 내려 <span class="pwa-k">홈 화면에 추가</span>를 누릅니다.</li>
+                <li><b>3.</b> 오른쪽 위 <span class="pwa-k">추가</span>를 누르면 홈 화면에 PMUS 아이콘이 생깁니다.</li>
+                <li><b>4.</b> 앞으로는 <b>그 아이콘으로</b> 여세요. 라이선스도 거기서 등록합니다.</li>
+            </ol>
+            <p class="pwa-note">사파리가 아닌 다른 앱(카카오톡 등) 안에서 열었다면, 오른쪽 위 메뉴에서 <b>사파리로 열기</b>를 먼저 눌러 주세요.</p>
+        </div>
+        <!-- 안드로이드 (크롬) -->
+        <div id="pwa-guide-android" hidden>
+            <button class="btn btn-primary pwa-install-go" id="pwa-install-go" type="button" hidden>📲 PMUS 앱 설치</button>
+            <p class="pwa-desc" id="pwa-install-or" hidden>버튼이 안 되면 아래처럼 해 주세요.</p>
+            <ol class="pwa-steps">
+                <li><b>1.</b> 크롬 오른쪽 위 <span class="pwa-k">⋮</span> (점 세 개)를 누릅니다.</li>
+                <li><b>2.</b> <span class="pwa-k">홈 화면에 추가</span> 또는 <span class="pwa-k">앱 설치</span>를 누릅니다.</li>
+                <li><b>3.</b> <span class="pwa-k">설치</span>를 누르면 홈 화면에 PMUS 아이콘이 생깁니다.</li>
+                <li><b>4.</b> 앞으로는 <b>그 아이콘으로</b> 여세요. 라이선스도 거기서 등록합니다.</li>
+            </ol>
+            <p class="pwa-note">카카오톡 등 다른 앱 안에서 열었다면, 메뉴(⋮)에서 <b>다른 브라우저로 열기 → Chrome</b>을 먼저 눌러 주세요.<br>
+            크롬의 <b>인터넷 사용 기록 삭제</b>에서 '쿠키 및 사이트 데이터'를 지우면 라이선스 등록이 풀립니다.</p>
+        </div>
         <button class="btn btn-primary" id="pwa-install-close" type="button">알겠습니다</button>
     </div>
 </div>
@@ -399,7 +420,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=83"></script>
-<script type="module" src="js/app.js?v=83"></script>
+<script type="module" src="js/pwa.js?v=84"></script>
+<script type="module" src="js/app.js?v=84"></script>
 </body>
 </html>

@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=83";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=83";
-import * as License from "./license.js?v=83";
-import * as Custom from "./custom-designs.js?v=83";
-import * as Update from "./update.js?v=83";
-import * as Crm from "./crm-ui.js?v=83";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=84";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=84";
+import * as License from "./license.js?v=84";
+import * as Custom from "./custom-designs.js?v=84";
+import * as Update from "./update.js?v=84";
+import * as Crm from "./crm-ui.js?v=84";
 
-const BUILD = "83";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "84";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -363,8 +363,10 @@ function saveToGallery(dataUrl, filename) {
 async function runSaveQueue() {
     // 아이폰 웹앱: 사진첩에 바로 못 쓴다. 모아서 '사진 앱에 저장' 창으로 넘긴다
     // (공유 창 → 이미지 저장). pwa.js 참고.
+    // 안드로이드 크롬은 공유 창에 '저장' 이 없으니 아래 내려받기로 바로 저장한다
+    // (갤러리의 Download 앨범에 들어간다).
     const web = window.PMUSWeb;
-    if (web && web.isWeb && web.canShareImages()) {
+    if (web && web.isWeb && web.isIOS && web.canShareImages()) {
         const jobs = saveQueue.splice(0);
         if (jobs.length) web.saveImages(jobs);
         return;
@@ -2027,6 +2029,36 @@ async function getUpdate() {
     }
 }
 
+/** 업데이트 내역 — www/changelog.json (빌드 업데이트 내역.md 에서 만든 것) 을 펼쳐 보인다.
+ *  못 읽으면 칸을 통째로 감춘다. 빈 상자를 보여 줄 이유가 없다. */
+let changelogDone = false;
+async function renderChangelog() {
+    if (changelogDone) return;
+    const box = $("ver-log-box"), list = $("ver-log");
+    try {
+        const items = await fetch("changelog.json?v=" + BUILD, { cache: "no-cache" }).then((r) => {
+            if (!r.ok) throw new Error(r.status);
+            return r.json();
+        });
+        if (!Array.isArray(items) || !items.length) throw new Error("empty");
+        list.textContent = "";
+        let marked = false;
+        for (const it of items) {
+            const li = document.createElement("li");
+            // 같은 번호가 두 줄이면(안드로이드 먼저, 웹앱 나중) 가장 최근 줄에만 표시한다
+            if (!marked && String(it.build) === String(BUILD)) { li.className = "is-now"; marked = true; }
+            const b = document.createElement("span"); b.className = "b"; b.textContent = it.build;
+            const t = document.createElement("span"); t.className = "t"; t.textContent = String(it.at).replace(/-/g, ".");
+            const x = document.createElement("span"); x.className = "x"; x.textContent = it.text;
+            li.append(b, t, x);
+            list.appendChild(li);
+        }
+        changelogDone = true;
+    } catch (err) {
+        box.hidden = true;
+    }
+}
+
 function bindDiag() {
     $("diag-btn").addEventListener("click", () => {
         $("diag-sheet").hidden = false;
@@ -2038,6 +2070,7 @@ function bindDiag() {
         }
         if (!pendingUpdate) verSay("새 버전이 있는지 확인해 보세요.");
         runSelfTest();
+        renderChangelog();
     });
     $("ver-check").addEventListener("click", () => checkUpdate(false));
     $("ver-get").addEventListener("click", getUpdate);

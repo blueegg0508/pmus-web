@@ -1,5 +1,5 @@
 /**
- * pwa.js — 아이폰용 웹앱(홈 화면에 추가)으로 열렸을 때만 하는 일
+ * pwa.js — 웹앱(아이폰·아이패드·안드로이드 크롬, 홈 화면에 추가)으로 열렸을 때만 하는 일
  * =========================================================================
  * 아이폰은 앱스토어 밖에서 앱을 깔 수 없다. 그래서 같은 앱을 인터넷 주소로
  * 열어 '홈 화면에 추가' 해서 쓴다. 안드로이드 앱(Capacitor) 안에서는
@@ -23,6 +23,7 @@ const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform
 const ua = navigator.userAgent || "";
 // 아이패드는 데스크톱 사파리처럼 자신을 밝힌다 — 터치 지점 수로 가린다
 const isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+const isAndroid = /Android/i.test(ua);
 const isStandalone = () =>
     window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 
@@ -105,11 +106,35 @@ function showInstallGuide(force) {
     try { sessionStorage.setItem("pwa.guideSeen", "1"); } catch (e) {}
 }
 
+// 안드로이드 크롬은 설치 창을 직접 띄울 수 있다 (beforeinstallprompt).
+// 그 기회를 잡아 두었다가 [PMUS 앱 설치] 버튼으로 연다.
+let installEvent = null;
+
 function bindInstallGuide() {
     const close = $("pwa-install-close");
     if (close) close.addEventListener("click", () => { $("pwa-install").hidden = true; });
-    // 아이폰 사파리로 열었고 아직 홈 화면 앱이 아니면 안내한다
-    if (isIOS && !isStandalone()) showInstallGuide(false);
+
+    if (isAndroid) {
+        $("pwa-guide-ios").hidden = true;
+        $("pwa-guide-android").hidden = false;
+        window.addEventListener("beforeinstallprompt", (e) => {
+            e.preventDefault();
+            installEvent = e;
+            $("pwa-install-go").hidden = false;
+            $("pwa-install-or").hidden = false;
+        });
+        $("pwa-install-go").addEventListener("click", async () => {
+            if (!installEvent) return;
+            installEvent.prompt();
+            try { await installEvent.userChoice; } catch (e) {}
+            installEvent = null;
+            $("pwa-install-go").hidden = true;
+        });
+        window.addEventListener("appinstalled", () => { $("pwa-install").hidden = true; });
+    }
+
+    // 브라우저로 열었고 아직 홈 화면 앱이 아니면 안내한다
+    if ((isIOS || isAndroid) && !isStandalone()) showInstallGuide(false);
 }
 
 // ── 사진 저장 (공유 창) ──────────────────────────────────────────────────
@@ -181,6 +206,7 @@ function bindSaveSheet() {
 window.PMUSWeb = {
     isWeb: !isNative,
     isIOS,
+    isAndroid,
     isStandalone,
     canShareImages,
     saveImages,

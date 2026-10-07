@@ -325,8 +325,10 @@ html.mui-on .mui-panes * { max-width: 100%; }
     letter-spacing: -.2px;
 }
 
-/* 데스크톱 미리보기에서는 이 레이아웃을 쓰지 않는다 */
-@media (min-width: 821px) {
+/* 데스크톱 미리보기에서는 이 레이아웃을 쓰지 않는다.
+   손가락으로 쓰는 태블릿(가로로 눕힌 아이패드 등)은 1400px 까지 이 레이아웃을 쓴다
+   — mobile-ui.js 맨 위의 조건과 짝을 맞출 것. */
+@media (min-width: 821px) and (pointer: fine), (min-width: 1401px) {
     html.mui-on .mui-shell { display: none; }
     html.mui-on #container { display: block !important; }
     html.mui-on, html.mui-on body { overflow: auto; height: auto; }
@@ -650,9 +652,20 @@ html.mui-on .mui-stage > .mui-shot {
     position: relative;
 }
 html.mui-on .mui-shot > .customer-photo,
+html.mui-on .mui-shot > .mui-before,
 html.mui-on .mui-shot > #dragCanvas {
     display: block !important;
     grid-area: 1 / 1;
+}
+/* '시술 전' 캔버스는 결과 캔버스와 같은 크기 규칙을 따른다 */
+html.mui-on .mui-shot > .mui-before {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 10px;
+    border: 1px solid #372F4A;
+    pointer-events: none;
 }
 
 /* 겹쳐 둔 두 장 중 지금 볼 것만 남긴다. 자리는 계속 차지하게 두어야
@@ -661,9 +674,11 @@ html.mui-on .mui-shot > #dragCanvas {
                   빈 자리로 뒤에 깔린 원본이 비쳐 두 장이 겹쳐 보인다.
      시술 전     — 사진만
      비교        — 둘 다 (캔버스를 반쪽만 남겨 좌우로 나눈다) */
+/* 사진 자체는 감춰 두고(불러오기용) 같은 배율로 다시 그린 캔버스를 보인다 */
 html.mui-on .mui-shot > .customer-photo { visibility: hidden; }
-html.mui-on .mui-shot.is-before > .customer-photo,
-html.mui-on .mui-shot.is-compare > .customer-photo { visibility: visible; }
+html.mui-on .mui-shot > .mui-before { visibility: hidden; }
+html.mui-on .mui-shot.is-before > .mui-before,
+html.mui-on .mui-shot.is-compare > .mui-before { visibility: visible; }
 html.mui-on .mui-shot.is-before > #dragCanvas { visibility: hidden; }
 
 /* 비교: 결과 캔버스에서 선 오른쪽만 남긴다 → 왼쪽 시술 전 / 오른쪽 예상.
@@ -691,24 +706,23 @@ html.mui-on .mui-shot.is-compare > .mui-split {
     content: "";
     position: absolute;
     left: 50%; top: 0; bottom: 0;
-    width: 2px;
-    margin-left: -1px;
-    background: rgba(255,255,255,.85);
-    box-shadow: 0 0 6px rgba(0,0,0,.6);
+    width: 1.5px;
+    margin-left: -0.75px;
+    background: rgba(255,255,255,.9);
+    box-shadow: 0 0 4px rgba(0,0,0,.55);
 }
+/* 손잡이 — 사진 아래쪽 20% 자리 (얼굴 가운데를 가리지 않게).
+   화살표는 글자(⇔) 대신 그림으로 그린다. 글자는 기기 글꼴마다 위아래가 틀어져 가운데가 안 맞았다. */
 .mui-split::after {
-    content: "⇔";
+    content: "";
     position: absolute;
-    left: 50%; top: 50%;
+    left: 50%; top: 80%;
     transform: translate(-50%, -50%);
-    width: 34px; height: 34px;
+    box-sizing: border-box;
+    width: 26px; height: 26px;
     border-radius: 50%;
-    background: rgba(20,17,28,.86);
+    background: rgba(20,17,28,.86) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4'/%3E%3C/svg%3E") center / 14px 14px no-repeat;
     border: 1.5px solid rgba(255,255,255,.9);
-    color: #FFF;
-    font-size: 15px;
-    line-height: 31px;
-    text-align: center;
 }
 
 /* ── 퀵 ↔ 메뉴얼 전환 줄 ────────────────────────────────────────────── */
@@ -1085,3 +1099,45 @@ html.mui-on .mui-panes .mui-histtools .mui-histbtn-wide {
     background: linear-gradient(135deg, #FFE066, #D4AF37);
     border-color: #FFD700;
 }
+
+/* ── 넓은 화면(아이패드): 사진·디자인 변경 | 보기 전환(가운데) | 되돌리기 ── */
+/* mobile-ui.js layoutWide() 가 600px 이상에서 .mui-wide 를 붙이고 버튼을 옮긴다. */
+html.mui-on.mui-wide .mui-topbar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding-top: calc(7px + var(--top-inset, 0px));
+}
+html.mui-on.mui-wide .mui-topbar > .mui-settings {
+    justify-self: start;
+    width: auto;
+    height: 34px;
+    padding: 0 calc(12px * var(--fit));
+    border: 1px solid #5A4A20;
+    border-radius: 8px;
+    font-size: calc(12.5px * var(--fit));
+    white-space: nowrap;
+}
+html.mui-on.mui-wide .mui-topbar > .mui-seg { justify-self: center; }
+html.mui-on.mui-wide .mui-topbar > .mui-actions { justify-self: end; margin-left: 0; }
+
+/* ── 가로 화면(태블릿을 눕혔을 때): 왼쪽 사진 | 오른쪽 퀵·메뉴얼 패널 ── */
+/* mobile-ui.js layoutLand() 가 가로 + 900px 이상에서 .mui-land 를 붙인다. */
+html.mui-on.mui-land { --panel-w: clamp(340px, 34vw, 440px); }
+html.mui-on.mui-land .mui-shell { padding-right: var(--panel-w); }
+html.mui-on.mui-land .mui-sheet,
+html.mui-on.mui-land .mui-sheet[data-snap] {
+    top: calc(var(--top-inset, 0px));
+    bottom: 0;
+    left: auto;
+    right: 0;
+    width: var(--panel-w);
+    height: auto;
+    border-top: 0;
+    border-left: 1px solid #4A3F63;
+    border-radius: 0;
+    box-shadow: -10px 0 30px rgba(0,0,0,.35);
+    transition: none;
+}
+html.mui-on.mui-land .mui-handle { display: none; }
+html.mui-on.mui-land .mui-hint { left: calc((100% - var(--panel-w)) / 2); }
