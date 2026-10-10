@@ -51,8 +51,54 @@ async function registerWorker() {
         applyUpdate();
         return;
     }
-    // 뒤에서 확인만 해 둔다. 받으면 다음에 열 때 적용된다.
+    // 뒤에서 확인한다. 받으면 — 작업 중이 아니면 바로, 작업 중이면 끝난 뒤에 적용한다.
+    watchForUpdate();
     registration.update().catch(() => {});
+}
+
+/**
+ * 지금 새 버전을 적용해도 되는가 — 사진을 고르기 전 첫 화면(또는 라이선스 화면)일 때만.
+ * 사진을 골랐거나 편집 중이면 화면이 새로 뜨면서 작업이 날아가므로 기다린다.
+ */
+function isIdle() {
+    if (document.visibilityState !== "visible") return false;
+    if (document.body.classList.contains("sim-fullscreen")) return false;    // 편집 중
+    const drop = $("drop-zone");
+    const preview = $("photo-preview");
+    const gate = $("license-gate");
+    if (gate && !gate.hidden) return true;                                   // 라이선스 등록 화면
+    return !!(drop && !drop.hidden && (!preview || preview.hidden));         // 사진 고르기 전
+}
+
+/** 받아 둔 새 버전이 있고 작업 중이 아니면 바로 적용한다 */
+function applyIfIdle() {
+    if (registration && registration.waiting && navigator.serviceWorker.controller && isIdle()) {
+        applyUpdate();
+    }
+}
+
+let watching = false;
+function watchForUpdate() {
+    if (watching || !registration) return;
+    watching = true;
+    // 새 버전을 다 받으면
+    registration.addEventListener("updatefound", () => {
+        const w = registration.installing;
+        if (!w) return;
+        w.addEventListener("statechange", () => {
+            if (w.state === "installed") applyIfIdle();
+        });
+    });
+    // 안드로이드는 앱을 닫아도 뒤에 살아 있다가 그대로 돌아온다 — 돌아올 때마다 다시 확인
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "visible") return;
+        applyIfIdle();
+        registration.update().catch(() => {});
+    });
+    // 편집을 마치고 첫 화면으로 돌아오면 그때 적용 (30초마다 살핀다)
+    setInterval(applyIfIdle, 30000);
+    // 오래 켜 둔 채 쓰는 경우를 위해 30분마다 새 버전 확인
+    setInterval(() => { if (document.visibilityState === "visible") registration.update().catch(() => {}); }, 30 * 60 * 1000);
 }
 
 // 새 버전을 적용하면(SKIP_WAITING) 화면을 한 번 새로 띄운다.
