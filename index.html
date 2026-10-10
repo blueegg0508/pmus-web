@@ -12,12 +12,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
-<link rel="stylesheet" href="css/app.css?v=88">
+<link rel="stylesheet" href="css/app.css?v=89">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=88" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=89" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="diag-btn" class="diag-btn" type="button">버전</button>
@@ -28,7 +28,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=88" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=89" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -134,7 +134,7 @@
     <p class="step-hint">디자인을 고르면 <strong>편집 화면</strong>으로 넘어갑니다.
        쓰시던 고유 디자인이 있으면 맨 아래 <strong>내 디자인 등록</strong>으로 추가하세요.</p>
     <div id="design-grid" class="design-grid"></div>
-    <input type="file" id="design-file" accept="image/png,.png" hidden>
+    <input type="file" id="design-file" accept="image/*" hidden>
 </section>
 
 <!-- ── 시뮬레이터 ─────────────────────────────────────────────────── -->
@@ -328,8 +328,9 @@
         <div id="design-dlg-error" class="lic-error" hidden></div>
 
         <p class="design-dlg-guide">
-            배경이 <strong>투명한 PNG</strong>, <strong>왼쪽 눈썹 한 쪽</strong>만 담아
-            주세요. 오른쪽은 자동으로 좌우 반전해서 만듭니다.
+            <strong>종이에 그린 디자인을 찍은 사진</strong>도 됩니다 — 종이 배경을 자동으로 지워 투명하게 만듭니다.
+            흰 종이에 <strong>왼쪽 눈썹 한 쪽</strong>만 진하게 그리고, 밝은 곳에서 위에서 똑바로 찍어 주세요.
+            배경이 투명한 PNG 도 그대로 됩니다. 오른쪽은 자동으로 좌우 반전해서 만들고,
             색은 편집 화면에서 다시 입히므로 모양과 농담만 있으면 됩니다.
         </p>
 
@@ -424,7 +425,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=88"></script>
-<script type="module" src="js/app.js?v=88"></script>
+<script type="module" src="js/pwa.js?v=89"></script>
+<script type="module" src="js/app.js?v=89"></script>
 </body>
 </html>

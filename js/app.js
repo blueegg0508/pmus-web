@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=88";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=88";
-import * as License from "./license.js?v=88";
-import * as Custom from "./custom-designs.js?v=88";
-import * as Update from "./update.js?v=88";
-import * as Crm from "./crm-ui.js?v=88";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=89";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=89";
+import * as License from "./license.js?v=89";
+import * as Custom from "./custom-designs.js?v=89";
+import * as Update from "./update.js?v=89";
+import * as Crm from "./crm-ui.js?v=89";
 
-const BUILD = "88";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "89";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -1412,8 +1412,9 @@ async function refreshPendingPreview() {
     try {
         pending.prepared = await Custom.prepare(pending.file, { flip: pending.flip });
         $("design-dlg-preview").src = pending.prepared.dataUrl;
-        $("design-dlg-size").textContent =
-            `${pending.prepared.width} × ${pending.prepared.height}px (여백 잘라냄)`;
+        $("design-dlg-size").textContent = pending.prepared.fromPhoto
+            ? `사진에서 종이 배경을 지웠습니다 · ${pending.prepared.width} × ${pending.prepared.height}px`
+            : `${pending.prepared.width} × ${pending.prepared.height}px (여백 잘라냄)`;
         $("design-dlg-save").disabled = false;
     } catch (e) {
         pending.prepared = null;
