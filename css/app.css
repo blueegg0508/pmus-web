@@ -1565,3 +1565,6 @@ body.is-free .lic-desc { margin-bottom: 4px; }
 
 /* 안드로이드 크롬: 설치 창을 바로 여는 버튼 */
 .pwa-install-go { display: block; width: 100%; margin: 4px 0 10px; }
+
+/* 안드로이드 설치 안내의 보충 설명 (작은 글씨) */
+.pwa-steps small { display: block; margin-top: 3px; font-size: .82em; line-height: 1.5; color: var(--muted); }

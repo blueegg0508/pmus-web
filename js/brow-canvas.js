@@ -87,11 +87,9 @@
         }
 
         function updateGuideRatios() {
-            const scaleFactor = (curScale / 100.0);
-            const wFactor = (curWidth / 100.0);
-            const hFactor = (curHeight / 100.0);
-            const targetW = rawLImg.width * scaleFactor * wFactor;
-            const targetH = rawLImg.height * scaleFactor * hFactor;
+            const gL = browGeom('left'), gR = browGeom('right');
+            const targetW = gL.w;
+            const targetH = (gL.h + gR.h) / 2.0;
 
             // 좌측 세로선
             const lDist1 = Math.abs(guideL2 - guideL1) * (targetW / 100.0);
@@ -108,8 +106,8 @@
             }
 
             // 우측 세로선
-            const rDist1 = Math.abs(guideR2 - guideR1) * (targetW / 100.0);
-            const rDist2 = Math.abs(guideR3 - guideR2) * (targetW / 100.0);
+            const rDist1 = Math.abs(guideR2 - guideR1) * (gR.w / 100.0);
+            const rDist2 = Math.abs(guideR3 - guideR2) * (gR.w / 100.0);
             const rTotal = rDist1 + rDist2;
             if (rTotal > 0) {
                 const rPct1 = (rDist1 / rTotal) * 100;
@@ -229,8 +227,8 @@
             if (browMoveTarget === 'left') return 'left';
             if (browMoveTarget === 'right') return 'right';
             if (browMoveTarget === 'auto') {
-                const lx = leftPos.x - (curSpacing / 2.0);
-                const rx = rightPos.x + (curSpacing / 2.0);
+                const lx = browGeom('left').x;
+                const rx = browGeom('right').x;
                 const distL = Math.hypot(pos.x - lx, pos.y - leftPos.y);
                 const distR = Math.hypot(pos.x - rx, pos.y - rightPos.y);
                 return (distL <= distR) ? 'left' : 'right';
@@ -254,6 +252,34 @@
         let curLRot = 0;
         let curRRot = 0;
         let curRound = 0;
+
+        // 왼쪽·오른쪽 눈썹 따로 맞추기 — 타고난 비대칭 얼굴은 같은 값이면 오히려 어색하다.
+        // 아래는 '함께' 값에 더하는 차이다. [왼쪽]/[오른쪽] 을 고른 채 조절바를 움직이면
+        // 그쪽 차이만 바뀌고, [함께] 로 움직이면 두 눈썹이 그 차이를 지닌 채 같이 바뀐다.
+        function zeroSide() { return { scale: 0, width: 0, height: 0, rot: 0, spacing: 0, vert: 0, opacity: 0, round: 0 }; }
+        let sideAdj = { left: zeroSide(), right: zeroSide() };
+        /** 조절바가 지금 어느 쪽만 움직이나 — 'left' | 'right' | null(함께·자동) */
+        function sliderSide() {
+            return (browMoveTarget === 'left' || browMoveTarget === 'right') ? browMoveTarget : null;
+        }
+        const clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+        /** 한쪽 눈썹의 실제 크기·자리·각도 (캔버스 좌표) */
+        function browGeom(side) {
+            const a = sideAdj[side];
+            const baseW = (rawLImg.naturalWidth || rawLImg.width || 500);
+            const baseH = (rawLImg.naturalHeight || rawLImg.height || 140);
+            const sc = (curScale + a.scale) / 100.0;
+            const isL = side === 'left';
+            return {
+                w: baseW * sc * ((curWidth + a.width) / 100.0),
+                h: baseH * sc * ((curHeight + a.height) / 100.0),
+                alpha: clampN(curOpacity + a.opacity, 0, 100) / 100.0,
+                round: clampN(curRound + a.round, 0, 100),
+                x: isL ? leftPos.x - ((curSpacing + a.spacing) / 2.0) : rightPos.x + ((curSpacing + a.spacing) / 2.0),
+                y: isL ? leftPos.y : rightPos.y,
+                rot: isL ? (curRot + a.rot + curLRot) : (-(curRot + a.rot) + curRRot),
+            };
+        }
 
         // 📐 눈썹 가이드선 상태 (세로선 + 가로선, 모두 흰색 실선) - 초기 비활성화, 체크 시에만 표시
         let show3Guides = false;  // 세로 3등분선 표시 여부 (선택 시에만 표시)
@@ -359,6 +385,11 @@
         let interactionInitialState = null;
         let sliderHistoryTimer = null;
 
+        /** 모바일 화면에 '왼쪽만 조절 중' 같은 안내를 띄우게 알린다 */
+        function notifySide() {
+            try { window.dispatchEvent(new CustomEvent('bl:side', { detail: sliderSide() })); } catch (e) {}
+        }
+
         function captureStateSnapshot() {
             return {
                 leftPos: { x: leftPos.x, y: leftPos.y },
@@ -374,6 +405,7 @@
                 curRound: curRound,
                 curLRot: curLRot,
                 curRRot: curRRot,
+                sideAdj: JSON.parse(JSON.stringify(sideAdj)),
                 curHex: curHex,
                 curBright: curBright,
                 curContrast: curContrast,
@@ -455,6 +487,7 @@
                 curRound = st.curRound;
                 curLRot = st.curLRot;
                 curRRot = st.curRRot;
+                sideAdj = st.sideAdj ? JSON.parse(JSON.stringify(st.sideAdj)) : { left: zeroSide(), right: zeroSide() };
                 curHex = st.curHex;
                 curBright = st.curBright;
                 curContrast = st.curContrast;
@@ -522,15 +555,18 @@
                 if (vEl) vEl.innerText = val + (suffix || '');
             };
 
-            setVal('rngScale', curScale, '%');
-            setVal('rngWidth', curWidth, '%');
-            setVal('rngHeight', curHeight, '%');
-            setVal('rngRot', curRot, '°');
-            setVal('rngSpacing', curSpacing, 'px');
-            setVal('rngVert', curVert, 'px');
-            setVal('rngOpacity', curOpacity, '%');
+            // [왼쪽]/[오른쪽] 을 골랐으면 그쪽 눈썹의 실제 값을 보여 준다
+            const sd = sliderSide();
+            const sv = (base, key) => sd ? base + sideAdj[sd][key] : base;
+            setVal('rngScale', sv(curScale, 'scale'), '%');
+            setVal('rngWidth', sv(curWidth, 'width'), '%');
+            setVal('rngHeight', sv(curHeight, 'height'), '%');
+            setVal('rngRot', sv(curRot, 'rot'), '°');
+            setVal('rngSpacing', sv(curSpacing, 'spacing'), 'px');
+            setVal('rngVert', sv(curVert, 'vert'), 'px');
+            setVal('rngOpacity', sv(curOpacity, 'opacity'), '%');
             setVal('rngNatBrow', curNatBrow, '%');
-            setVal('rngRound', curRound, '%');
+            setVal('rngRound', sv(curRound, 'round'), '%');
             setVal('rngLRot', curLRot, '°');
             setVal('rngRRot', curRRot, '°');
             setVal('rngBright', curBright, '%');
@@ -564,6 +600,7 @@
             document.querySelectorAll('.brow-move-target-btn').forEach(b => {
                 b.classList.toggle('active', b.getAttribute('data-target') === browMoveTarget);
             });
+            notifySide();
         }
 
         // 색상 상태 및 틴팅 캐시
@@ -890,40 +927,33 @@
                     }
                 }
 
-                // 실시간 눈썹 변형 계산 (사진 줌과 완벽 1:1 동기화)
-                const scaleFactor = (curScale / 100.0);
-                const wFactor = (curWidth / 100.0);
-                const hFactor = (curHeight / 100.0);
-
-                const baseW = (rawLImg.naturalWidth || rawLImg.width || 500);
-                const baseH = (rawLImg.naturalHeight || rawLImg.height || 140);
-                const targetW = baseW * scaleFactor * wFactor;
-                const targetH = baseH * scaleFactor * hFactor;
-
-                const alphaVal = curOpacity / 100.0;
+                // 실시간 눈썹 변형 계산 (사진 줌과 완벽 1:1 동기화) — 왼쪽·오른쪽 따로
+                const gL = browGeom('left'), gR = browGeom('right');
+                const targetW = gL.w;                  // 왼쪽 기준 (오른쪽은 gR 을 쓴다)
+                const targetH = (gL.h + gR.h) / 2.0;   // 가로 가이드처럼 두 눈썹에 걸친 것
 
                 // 2. 실시간 눈썹 렌더링
                 const isLReady = rawLImg.complete && (rawLImg.naturalWidth || rawLImg.width) > 0;
                 const isRReady = rawRImg.complete && (rawRImg.naturalWidth || rawRImg.width) > 0;
 
                 if (isLReady && isRReady) {
-                    const drawLImg = getProcessedEyebrow(rawLImg, curHex, curRound);
-                    const drawRImg = getProcessedEyebrow(rawRImg, curHex, curRound);
+                    const drawLImg = getProcessedEyebrow(rawLImg, curHex, gL.round);
+                    const drawRImg = getProcessedEyebrow(rawRImg, curHex, gR.round);
 
                     // 왼쪽 눈썹
                     ctx.save();
-                    ctx.translate(leftPos.x - (curSpacing / 2.0), leftPos.y);
-                    ctx.rotate((curRot + curLRot) * Math.PI / 180.0);
-                    ctx.globalAlpha = alphaVal;
-                    ctx.drawImage(drawLImg, -targetW / 2.0, -targetH / 2.0, targetW, targetH);
+                    ctx.translate(gL.x, gL.y);
+                    ctx.rotate(gL.rot * Math.PI / 180.0);
+                    ctx.globalAlpha = gL.alpha;
+                    ctx.drawImage(drawLImg, -gL.w / 2.0, -gL.h / 2.0, gL.w, gL.h);
                     ctx.restore();
 
                     // 오른쪽 눈썹
                     ctx.save();
-                    ctx.translate(rightPos.x + (curSpacing / 2.0), rightPos.y);
-                    ctx.rotate((-curRot + curRRot) * Math.PI / 180.0);
-                    ctx.globalAlpha = alphaVal;
-                    ctx.drawImage(drawRImg, -targetW / 2.0, -targetH / 2.0, targetW, targetH);
+                    ctx.translate(gR.x, gR.y);
+                    ctx.rotate(gR.rot * Math.PI / 180.0);
+                    ctx.globalAlpha = gR.alpha;
+                    ctx.drawImage(drawRImg, -gR.w / 2.0, -gR.h / 2.0, gR.w, gR.h);
                     ctx.restore();
                 }
 
@@ -933,14 +963,14 @@
                     ctx.setLineDash([6, 6]);
                     ctx.lineWidth = Math.max(1, 2 / zoomF);
                     
-                    const lx = leftPos.x - (curSpacing / 2.0);
-                    const rx = rightPos.x + (curSpacing / 2.0);
+                    const lx = browGeom('left').x;
+                    const rx = browGeom('right').x;
 
                     if (activeBrowDrag === 'left' || activeBrowDrag === 'both') {
-                        ctx.strokeRect(lx - targetW/2 - 4, leftPos.y - targetH/2 - 4, targetW + 8, targetH + 8);
+                        ctx.strokeRect(lx - gL.w/2 - 4, leftPos.y - gL.h/2 - 4, gL.w + 8, gL.h + 8);
                     }
                     if (activeBrowDrag === 'right' || activeBrowDrag === 'both') {
-                        ctx.strokeRect(rx - targetW/2 - 4, rightPos.y - targetH/2 - 4, targetW + 8, targetH + 8);
+                        ctx.strokeRect(rx - gR.w/2 - 4, rightPos.y - gR.h/2 - 4, gR.w + 8, gR.h + 8);
                     }
                     
                     if (activeBrowDrag === 'both') {
@@ -952,8 +982,8 @@
                 }
 
                 // 5. 📐 눈썹 가이드선 그리기 (선 굵기 & 투명도 사용자 조절 적용)
-                const lxCenter = leftPos.x - (curSpacing / 2.0);
-                const rxCenter = rightPos.x + (curSpacing / 2.0);
+                const lxCenter = browGeom('left').x;
+                const rxCenter = browGeom('right').x;
                 const yFaceCenter = (leftPos.y + rightPos.y) / 2.0;
 
                 const guideStrokeW = Math.max(0.4, guideLineWidth / zoomF);
@@ -966,14 +996,15 @@
                 const l3_X = lxCenter + (targetW * guideL3 / 100.0);
 
                 // 우측 3선 X 좌표
-                const r1_X = rxCenter + (targetW * guideR1 / 100.0);
-                const r2_X = rxCenter + (targetW * guideR2 / 100.0);
-                const r3_X = rxCenter + (targetW * guideR3 / 100.0);
+                const r1_X = rxCenter + (gR.w * guideR1 / 100.0);
+                const r2_X = rxCenter + (gR.w * guideR2 / 100.0);
+                const r3_X = rxCenter + (gR.w * guideR3 / 100.0);
 
                 if (show3Guides) {
                     function renderBrow3Lines(x1, x2, x3, yCenter, isLeft) {
-                        const topY = yCenter - targetH * 0.95;
-                        const botY = yCenter + targetH * 0.95;
+                        const sideH = isLeft ? gL.h : gR.h;
+                        const topY = yCenter - sideH * 0.95;
+                        const botY = yCenter + sideH * 0.95;
                         const dimY = topY - 32;
                         const badgeY = dimY - 54;
 
@@ -1064,7 +1095,7 @@
                     const h2_Y = yFaceCenter + (targetH * guideH2 / 100.0);
                     const h3_Y = yFaceCenter + (targetH * guideH3 / 100.0);
 
-                    const allXs = [l1_X, l2_X, l3_X, r1_X, r2_X, r3_X, lxCenter - targetW/2, rxCenter + targetW/2];
+                    const allXs = [l1_X, l2_X, l3_X, r1_X, r2_X, r3_X, lxCenter - gL.w/2, rxCenter + gR.w/2];
                     const minSpanX = Math.min(...allXs) - 20;
                     const maxSpanX = Math.max(...allXs) + 20;
 
@@ -1361,39 +1392,54 @@
 
             rngScale.oninput = function() {
                 onSliderInputStart();
-                curScale = parseFloat(this.value);
-                document.getElementById('valScale').innerText = curScale + '%';
+                const v = parseFloat(this.value);
+                const side = sliderSide();
+                if (side) sideAdj[side].scale = v - curScale;
+                else curScale = v;
+                document.getElementById('valScale').innerText = v + '%';
                 updateGuideRatios();
                 requestDraw();
             };
 
             rngWidth.oninput = function() {
                 onSliderInputStart();
-                curWidth = parseFloat(this.value);
-                document.getElementById('valWidth').innerText = curWidth + '%';
+                const v = parseFloat(this.value);
+                const side = sliderSide();
+                if (side) sideAdj[side].width = v - curWidth;
+                else curWidth = v;
+                document.getElementById('valWidth').innerText = v + '%';
                 updateGuideRatios();
                 requestDraw();
             };
 
             rngHeight.oninput = function() {
                 onSliderInputStart();
-                curHeight = parseFloat(this.value);
-                document.getElementById('valHeight').innerText = curHeight + '%';
+                const v = parseFloat(this.value);
+                const side = sliderSide();
+                if (side) sideAdj[side].height = v - curHeight;
+                else curHeight = v;
+                document.getElementById('valHeight').innerText = v + '%';
                 updateGuideRatios();
                 requestDraw();
             };
 
             rngRot.oninput = function() {
                 onSliderInputStart();
-                curRot = parseFloat(this.value);
-                document.getElementById('valRot').innerText = curRot + '°';
+                const v = parseFloat(this.value);
+                const side = sliderSide();
+                if (side) sideAdj[side].rot = v - curRot;
+                else curRot = v;
+                document.getElementById('valRot').innerText = v + '°';
                 requestDraw();
             };
 
             rngSpacing.oninput = function() {
                 onSliderInputStart();
-                curSpacing = parseFloat(this.value);
-                document.getElementById('valSpacing').innerText = curSpacing + 'px';
+                const v = parseFloat(this.value);
+                const side = sliderSide();
+                if (side) sideAdj[side].spacing = v - curSpacing;
+                else curSpacing = v;
+                document.getElementById('valSpacing').innerText = v + 'px';
                 requestDraw();
             };
 
@@ -1403,10 +1449,18 @@
                 rngVert.oninput = function() {
                     onSliderInputStart();
                     const v = parseFloat(this.value);
-                    const d = v - curVert;
-                    curVert = v;
-                    leftPos.y += d;
-                    rightPos.y += d;
+                    const side = sliderSide();
+                    if (side) {
+                        // 고른 쪽만 위아래로
+                        const d = v - (curVert + sideAdj[side].vert);
+                        sideAdj[side].vert += d;
+                        if (side === 'left') leftPos.y += d; else rightPos.y += d;
+                    } else {
+                        const d = v - curVert;
+                        curVert = v;
+                        leftPos.y += d;
+                        rightPos.y += d;
+                    }
                     document.getElementById('valVert').innerText = Math.round(v) + 'px';
                     requestDraw();
                 };
@@ -1414,8 +1468,11 @@
 
             rngOpacity.oninput = function() {
                 onSliderInputStart();
-                curOpacity = parseFloat(this.value);
-                document.getElementById('valOpacity').innerText = curOpacity + '%';
+                const v = parseFloat(this.value);
+                const side = sliderSide();
+                if (side) sideAdj[side].opacity = v - curOpacity;
+                else curOpacity = v;
+                document.getElementById('valOpacity').innerText = v + '%';
                 requestDraw();
             };
 
@@ -1437,8 +1494,11 @@
 
             rngRound.oninput = function() {
                 onSliderInputStart();
-                curRound = parseFloat(this.value);
-                document.getElementById('valRound').innerText = curRound + '%';
+                const v = parseFloat(this.value);
+                const side = sliderSide();
+                if (side) sideAdj[side].round = v - curRound;
+                else curRound = v;
+                document.getElementById('valRound').innerText = v + '%';
                 requestDraw();
             };
 
@@ -1509,6 +1569,7 @@
                 curScale = 100; curWidth = 100; curHeight = 100;
                 curRot = 0; curSpacing = 0; curVert = 0; curOpacity = 85; curNatBrow = 100;
                 curRound = 0; curLRot = 0; curRRot = 0;
+                sideAdj = { left: zeroSide(), right: zeroSide() };
 
                 curBright = 100; curContrast = 100; curSaturate = 100;
                 curImgZoom = 100; curImgPanX = 0; curImgPanY = 0;
@@ -1538,6 +1599,8 @@
                     document.querySelectorAll('.brow-move-target-btn').forEach(b => {
                         b.classList.toggle('active', b.getAttribute('data-target') === target);
                     });
+                    syncAllControlsFromState();
+                    notifySide();
                     requestDraw();
                 }
             }
@@ -2262,14 +2325,12 @@
         let startPanY = 0;
 
         function findHoveredGuideLine(pos) {
-            const scaleFactor = (curScale / 100.0);
-            const wFactor = (curWidth / 100.0);
-            const hFactor = (curHeight / 100.0);
-            const targetW = rawLImg.width * scaleFactor * wFactor;
-            const targetH = rawLImg.height * scaleFactor * hFactor;
+            const gL = browGeom('left'), gR = browGeom('right');
+            const targetW = gL.w;
+            const targetH = (gL.h + gR.h) / 2.0;
 
-            const lxCenter = leftPos.x - (curSpacing / 2.0);
-            const rxCenter = rightPos.x + (curSpacing / 2.0);
+            const lxCenter = browGeom('left').x;
+            const rxCenter = browGeom('right').x;
             const yFaceCenter = (leftPos.y + rightPos.y) / 2.0;
 
             const tol = Math.max(10, 14 / (curImgZoom / 100.0));
@@ -2286,9 +2347,9 @@
                 }
 
                 if (Math.abs(pos.y - rightPos.y) <= targetH * 1.5) {
-                    const r1_X = rxCenter + (targetW * guideR1 / 100.0);
-                    const r2_X = rxCenter + (targetW * guideR2 / 100.0);
-                    const r3_X = rxCenter + (targetW * guideR3 / 100.0);
+                    const r1_X = rxCenter + (gR.w * guideR1 / 100.0);
+                    const r2_X = rxCenter + (gR.w * guideR2 / 100.0);
+                    const r3_X = rxCenter + (gR.w * guideR3 / 100.0);
                     if (Math.abs(pos.x - r1_X) <= tol) return 'R1';
                     if (Math.abs(pos.x - r2_X) <= tol) return 'R2';
                     if (Math.abs(pos.x - r3_X) <= tol) return 'R3';
@@ -2391,8 +2452,8 @@
                 const hFactor = (curHeight / 100.0);
                 const targetW = rawLImg.width * scaleFactor * wFactor;
                 const targetH = rawLImg.height * scaleFactor * hFactor;
-                const lxCenter = leftPos.x - (curSpacing / 2.0);
-                const rxCenter = rightPos.x + (curSpacing / 2.0);
+                const lxCenter = browGeom('left').x;
+                const rxCenter = browGeom('right').x;
                 const yFaceCenter = (leftPos.y + rightPos.y) / 2.0;
 
                 if (activeGuideDrag === 'L1') {

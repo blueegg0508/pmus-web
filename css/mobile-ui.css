@@ -1141,3 +1141,20 @@ html.mui-on.mui-land .mui-sheet[data-snap] {
 }
 html.mui-on.mui-land .mui-handle { display: none; }
 html.mui-on.mui-land .mui-hint { left: calc((100% - var(--panel-w)) / 2); }
+
+/* 왼쪽/오른쪽 눈썹만 조절 중 안내 — 조절바가 한쪽만 바꾼다는 걸 늘 보이게 */
+.mui-sidenote {
+    flex: 0 0 auto;
+    margin: 0 10px 6px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: rgba(201, 162, 39, .14);
+    border: 1px solid rgba(201, 162, 39, .55);
+    color: #F2E3B0;
+    font-size: 12.5px;
+    line-height: 1.4;
+}
+.mui-sidenote b { color: #FFD866; }
+.mui-sidenote.is-right { text-align: right; }
+.mui-sidenote[hidden] { display: none; }
+

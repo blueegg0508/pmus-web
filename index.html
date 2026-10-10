@@ -12,12 +12,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
-<link rel="stylesheet" href="css/app.css?v=84">
+<link rel="stylesheet" href="css/app.css?v=85">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=84" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=85" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="diag-btn" class="diag-btn" type="button">버전</button>
@@ -28,7 +28,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=84" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=85" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -396,12 +396,14 @@
         <!-- 안드로이드 (크롬) -->
         <div id="pwa-guide-android" hidden>
             <button class="btn btn-primary pwa-install-go" id="pwa-install-go" type="button" hidden>📲 PMUS 앱 설치</button>
-            <p class="pwa-desc" id="pwa-install-or" hidden>버튼이 안 되면 아래처럼 해 주세요.</p>
+            <p class="pwa-desc" id="pwa-install-or" hidden>위 버튼이 가장 쉽습니다. 버튼이 안 되면 아래처럼 해 주세요.</p>
             <ol class="pwa-steps">
                 <li><b>1.</b> 크롬 오른쪽 위 <span class="pwa-k">⋮</span> (점 세 개)를 누릅니다.</li>
-                <li><b>2.</b> <span class="pwa-k">홈 화면에 추가</span> 또는 <span class="pwa-k">앱 설치</span>를 누릅니다.</li>
-                <li><b>3.</b> <span class="pwa-k">설치</span>를 누르면 홈 화면에 PMUS 아이콘이 생깁니다.</li>
-                <li><b>4.</b> 앞으로는 <b>그 아이콘으로</b> 여세요. 라이선스도 거기서 등록합니다.</li>
+                <li><b>2.</b> 메뉴 아래쪽의 <span class="pwa-k">설치 및 바로가기 만들기</span>를 누릅니다.<br>
+                    <small>크롬 버전에 따라 <b>앱 설치</b> 또는 <b>홈 화면에 추가</b>로 보일 수 있습니다.</small></li>
+                <li><b>3.</b> 뜨는 창에서 <span class="pwa-k">설치</span>를 누릅니다.<br>
+                    <small><b>바로가기 만들기</b>가 아니라 <b>설치</b>를 골라야 앱처럼 열립니다.</small></li>
+                <li><b>4.</b> 홈 화면에 생긴 <b>PMUS 아이콘</b>으로 여세요. 라이선스도 거기서 등록합니다.</li>
             </ol>
             <p class="pwa-note">카카오톡 등 다른 앱 안에서 열었다면, 메뉴(⋮)에서 <b>다른 브라우저로 열기 → Chrome</b>을 먼저 눌러 주세요.<br>
             크롬의 <b>인터넷 사용 기록 삭제</b>에서 '쿠키 및 사이트 데이터'를 지우면 라이선스 등록이 풀립니다.</p>
@@ -420,7 +422,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=84"></script>
-<script type="module" src="js/app.js?v=84"></script>
+<script type="module" src="js/pwa.js?v=85"></script>
+<script type="module" src="js/app.js?v=85"></script>
 </body>
 </html>

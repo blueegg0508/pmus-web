@@ -156,7 +156,21 @@
     var panes = el("div", "mui-panes");
     // 퀵 패널도 .mui-panes 로 두어 조절바·± 버튼 모양 규칙을 그대로 물려받는다
     var quick = el("div", "mui-panes mui-quick");
-    sheet.appendChild(handle); sheet.appendChild(modeBar);
+    // 눈썹을 [왼쪽]/[오른쪽] 으로 골랐을 때 조절바가 그쪽만 바꾼다는 안내 (brow-canvas.js 가 bl:side 를 보낸다)
+    var sideNote = el("div", "mui-sidenote");
+    sideNote.hidden = true;
+    window.addEventListener("bl:side", function (e) {
+        var side = e.detail;
+        if (side === "left" || side === "right") {
+            sideNote.innerHTML = (side === "left" ? "👈 <b>왼쪽 눈썹만</b>" : "<b>오른쪽 눈썹만</b> 👉") +
+                " 조절 중 · 두 눈썹을 같이 바꾸려면 <b>[함께]</b>";
+            sideNote.className = "mui-sidenote is-" + side;
+            sideNote.hidden = false;
+        } else {
+            sideNote.hidden = true;
+        }
+    });
+    sheet.appendChild(handle); sheet.appendChild(modeBar); sheet.appendChild(sideNote);
     sheet.appendChild(tabs); sheet.appendChild(panes); sheet.appendChild(quick);
 
     shell.appendChild(btnSettings);
