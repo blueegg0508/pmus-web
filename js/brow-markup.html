@@ -180,11 +180,11 @@
 
                     <!-- 👈 좌측 눈썹 3등분선 조절 -->
                     <div style="background:#241E19; border:1px solid #483A2C; border-radius:7px; padding:7px 8px; margin-bottom:8px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:4px 8px; margin-bottom:8px;">
                             <span style="font-size:0.78rem; font-weight:800; color:#FFFFFF;">👈 좌측 세로 3선 (꼬리 · 산 · 앞머리)</span>
                             <span id="badgeRatioLeft" style="font-size:0.72rem; color:#FFFFFF; font-weight:800; background:#333; padding:1px 6px; border-radius:4px; border:1px solid #666;">비율 60% : 40% (1:0.67)</span>
                         </div>
-                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:4px;">
+                        <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:6px;">
                             <div class="ctrl-row" style="margin-bottom:0;">
                                 <label style="font-size:0.74rem;">① 꼬리선 <span id="valGuideL1">-48%</span></label>
                                 <input type="range" id="rngGuideL1" min="-70" max="0" value="-48">
@@ -203,11 +203,11 @@
 
                     <!-- 👉 우측 눈썹 3등분선 조절 -->
                     <div style="background:#241E19; border:1px solid #483A2C; border-radius:7px; padding:7px 8px; margin-bottom:10px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:4px 8px; margin-bottom:8px;">
                             <span style="font-size:0.78rem; font-weight:800; color:#FFFFFF;">👉 우측 세로 3선 (앞머리 · 산 · 꼬리)</span>
                             <span id="badgeRatioRight" style="font-size:0.72rem; color:#FFFFFF; font-weight:800; background:#333; padding:1px 6px; border-radius:4px; border:1px solid #666;">비율 40% : 60% (1:1.50)</span>
                         </div>
-                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:4px;">
+                        <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:6px;">
                             <div class="ctrl-row" style="margin-bottom:0;">
                                 <label style="font-size:0.74rem;">① 앞머리 <span id="valGuideR1">-48%</span></label>
                                 <input type="range" id="rngGuideR1" min="-70" max="0" value="-48">
@@ -233,11 +233,11 @@
                             <button type="button" class="btn-reset-guide" id="btnResetHGuides">🔄 가로선 초기화</button>
                         </div>
                         <div style="background:#241E19; border:1px solid #483A2C; border-radius:7px; padding:7px 8px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                            <div style="display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:4px 8px; margin-bottom:8px;">
                                 <span style="font-size:0.78rem; font-weight:800; color:#FFFFFF;">↕️ 가로 3선 (상단 · 중심 · 하단)</span>
                                 <span id="badgeRatioH" style="font-size:0.72rem; color:#FFFFFF; font-weight:800; background:#333; padding:1px 6px; border-radius:4px; border:1px solid #666;">비율 50% : 50% (1:1.00)</span>
                             </div>
-                            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-bottom:4px;">
+                            <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:6px;">
                                 <div class="ctrl-row" style="margin-bottom:0;">
                                     <label style="font-size:0.74rem;">① 상단선 <span id="valGuideH1">-48%</span></label>
                                     <input type="range" id="rngGuideH1" min="-80" max="0" value="-48">
