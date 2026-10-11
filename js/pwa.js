@@ -53,7 +53,7 @@ async function registerWorker() {
     }
     // 뒤에서 확인한다. 받으면 — 작업 중이 아니면 바로, 작업 중이면 끝난 뒤에 적용한다.
     watchForUpdate();
-    registration.update().catch(() => {});
+    checkUpdate().then(applyIfIdle).catch(() => {});
 }
 
 /**
@@ -93,7 +93,7 @@ function watchForUpdate() {
     document.addEventListener("visibilitychange", () => {
         if (document.visibilityState !== "visible") return;
         applyIfIdle();
-        registration.update().catch(() => {});
+        checkUpdate().then(applyIfIdle).catch(() => {});
     });
     // 편집을 마치고 첫 화면으로 돌아오면 그때 적용 (30초마다 살핀다)
     setInterval(applyIfIdle, 30000);
@@ -125,9 +125,38 @@ function applyUpdate() {
  * @returns {Promise<"latest"|"ready"|"unsupported">}
  *   ready = 새 버전을 받아 두었다. applyUpdate() 를 부르면 적용된다.
  */
+/** 지금 이 화면의 판 번호 (스크립트 주소의 ?v=NN) */
+function currentBuild() {
+    const s = document.querySelector('script[src*="app.js?v="]');
+    const m = s && s.getAttribute("src").match(/v=(\d+)/);
+    return m ? parseInt(m[1], 10) : 0;
+}
+
+/**
+ * 서버에 올라간 최신 판 번호.
+ * 깃허브 페이지 서버는 sw.js 를 최대 10분 들고 있다가 내준다. 그래서 올린 직후에
+ * registration.update() 만 하면 예전 sw.js 를 받아 '최신 버전입니다' 가 나왔다 (2026-10-11).
+ * 주소 끝에 매번 다른 값을 붙이면 서버가 들고 있던 것을 건너뛰고 새로 준다.
+ */
+async function serverBuild() {
+    try {
+        const r = await fetch("sw.js?fresh=" + Date.now(), { cache: "no-store" });
+        const m = (await r.text()).match(/const VERSION = "[a-z]+-(\d+)"/);
+        return m ? parseInt(m[1], 10) : 0;
+    } catch (e) { return 0; }
+}
+
 async function checkUpdate() {
     if (!registration) return "unsupported";
-    try { await registration.update(); } catch (e) { /* 인터넷이 없으면 그대로 */ }
+    const latest = await serverBuild();
+    try {
+        if (latest > currentBuild()) {
+            // 서버에 새 판이 있다 — 매번 다른 주소로 다시 등록해 그 판을 확실히 받는다
+            registration = await navigator.serviceWorker.register("sw.js?v=" + latest);
+        } else {
+            await registration.update();
+        }
+    } catch (e) { /* 인터넷이 없으면 그대로 */ }
     // 받는 중이면 끝날 때까지 잠깐 기다린다
     const installing = registration.installing;
     if (installing) {
