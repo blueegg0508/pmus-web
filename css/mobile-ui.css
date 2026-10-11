@@ -1158,3 +1158,66 @@ html.mui-on.mui-land .mui-hint { left: calc((100% - var(--panel-w)) / 2); }
 .mui-sidenote.is-right { text-align: right; }
 .mui-sidenote[hidden] { display: none; }
 
+/* ── 퀵 화면 디자인 탭: 인덱스 파일철 ─────────────────────────────────── */
+.mui-idx { margin: 2px 0 10px; }
+.mui-idx-tabs {
+    display: flex;
+    align-items: flex-end;
+    padding: 0 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.mui-idx-tabs::-webkit-scrollbar { display: none; }
+.mui-idx-tab {
+    appearance: none;
+    position: relative;
+    flex: 0 0 auto;
+    margin-right: -6px;
+    padding: 7px 13px 8px;
+    border: 1px solid #4A3F63;
+    border-bottom: 0;
+    border-radius: 10px 10px 0 0;
+    background: linear-gradient(180deg, #2E2741, #241E33);
+    color: #A79DC0;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transform: translateY(4px);
+    box-shadow: -3px -2px 6px rgba(0,0,0,.25);
+    z-index: calc(10 - var(--i, 0));
+}
+.mui-idx-tab.is-on {
+    background: #1F1A2C;
+    color: #F2D57A;
+    border-color: #6A5A3A;
+    transform: none;
+    padding-bottom: 11px;
+    z-index: 20;
+}
+.mui-idx-tab.is-on::before {
+    content: "";
+    position: absolute;
+    left: 9px; right: 9px; top: -1px;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: #C9A227;
+}
+.mui-idx-panel {
+    position: relative;
+    z-index: 15;
+    padding: 10px 8px 6px;
+    border: 1px solid #6A5A3A;
+    border-radius: 0 12px 12px 12px;
+    background: #1F1A2C;
+}
+.mui-idx-panel .mui-qdesigns { margin: 0; }
+.mui-qdesigns-empty {
+    padding: 14px 8px;
+    color: #A79DC0;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: center;
+}
+.mui-qdesigns-empty b { color: #E8C65A; }

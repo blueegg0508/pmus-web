@@ -1368,15 +1368,45 @@
         var strip = el("div", "mui-qdesigns");
         var made = [];
 
+        // 인덱스 파일철 모양 탭 — 고른 탭의 디자인만 보인다
+        var tabsDef = (window.CFG && window.CFG.design_tabs) || [];
+        var tabsBar = el("div", "mui-idx-tabs");
+        var tabBtns = [];
+        var empty = el("div", "mui-qdesigns-empty",
+            "등록한 디자인이 없습니다. <b>[사진 · 디자인 변경]</b> → 3단계 <b>[내 디자인]</b> 탭에서 등록하세요.");
+        var curTab = null;
+        function showTab(id) {
+            curTab = id;
+            tabBtns.forEach(function (b) { b.classList.toggle("is-on", b.getAttribute("data-tab") === id); });
+            var n = 0;
+            made.forEach(function (b) {
+                var on = b.getAttribute("data-tab") === id;
+                b.style.display = on ? "" : "none";
+                if (on) n++;
+            });
+            empty.style.display = n ? "none" : "";
+            strip.style.display = n ? "" : "none";
+        }
+        tabsDef.forEach(function (t, i) {
+            var b = el("button", "mui-idx-tab", t.label);
+            b.type = "button";
+            b.setAttribute("data-tab", t.id);
+            b.style.setProperty("--i", i);
+            b.addEventListener("click", function () { showTab(t.id); });
+            tabsBar.appendChild(b);
+            tabBtns.push(b);
+        });
+
         list.forEach(function (d) {
             var b = el("button", "mui-qdesign");
             b.type = "button";
             b.setAttribute("data-key", d.key);
+            b.setAttribute("data-tab", d.tab || "");
             var im = document.createElement("img");
             im.src = d.url;
             im.alt = "";
             b.appendChild(im);
-            b.appendChild(el("em", null, d.label));
+            b.appendChild(el("em", null, d.short || d.label));
             b.addEventListener("click", function () {
                 if (b.classList.contains("is-active")) return;
                 made.forEach(function (o) { o.classList.remove("is-active"); });
@@ -1400,6 +1430,19 @@
             }
         };
         strip.mark(window.CFG.design_key);
+        // 지금 고른 디자인이 들어 있는 탭을 연다
+        if (tabsDef.length) {
+            var cur = list.filter(function (d) { return d.key === window.CFG.design_key; })[0];
+            showTab(cur && cur.tab ? cur.tab : tabsDef[0].id);
+            var box = el("div", "mui-idx");
+            var panel = el("div", "mui-idx-panel");
+            panel.appendChild(strip);
+            panel.appendChild(empty);
+            box.appendChild(tabsBar);
+            box.appendChild(panel);
+            box.mark = strip.mark;
+            return box;
+        }
         return strip;
     }
 
@@ -1409,7 +1452,7 @@
     var qExtra = [];
 
     if (qStrip) {
-        quick.appendChild(qhead("눈썹 디자인 · 좌우로 넘겨 고르기"));
+        quick.appendChild(qhead("눈썹 디자인 · 탭을 고르고 좌우로 넘겨 고르기"));
         quick.appendChild(qStrip);
     }
 

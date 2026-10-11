@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=89";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=89";
-import * as License from "./license.js?v=89";
-import * as Custom from "./custom-designs.js?v=89";
-import * as Update from "./update.js?v=89";
-import * as Crm from "./crm-ui.js?v=89";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=90";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=90";
+import * as License from "./license.js?v=90";
+import * as Custom from "./custom-designs.js?v=90";
+import * as Update from "./update.js?v=90";
+import * as Crm from "./crm-ui.js?v=90";
 
-const BUILD = "89";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "90";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -37,19 +37,28 @@ const MAX_SIZE = (() => {
 const DEFAULT_BROW_COLOR = "#3D2B1F";
 const DEFAULT_LIP_COLOR  = "#E25B6F";
 
+const DEFAULT_DESIGN = "female_arch_natural.png";
+// 디자인은 탭(인덱스 파일철)으로 나눠 보여 준다 — DESIGN_TABS. 여성 9장은 2026-10-11 원장님이 준 그림으로 바꿨다.
+const DESIGN_TABS = [
+    { id: "natural",   label: "자연결" },
+    { id: "gradation", label: "그라데이션" },
+    { id: "combo",     label: "콤보" },
+    { id: "male",      label: "남성" },
+    { id: "mine",      label: "내 디자인" },
+];
 const EYEBROW_DESIGNS = [
-    { file: "female_arch_natural.png",       label: "아치 · 내추럴" },
-    { file: "female_arch_gradation.png",     label: "아치 · 그라데이션" },
-    { file: "female_arch_combo.png",         label: "아치 · 콤보" },
-    { file: "female_semiarch_natural.png",   label: "세미아치 · 내추럴" },
-    { file: "female_semiarch_gradation.png", label: "세미아치 · 그라데이션" },
-    { file: "female_semiarch_combo.png",     label: "세미아치 · 콤보" },
-    { file: "female_straight_natural.png",   label: "일자 · 내추럴" },
-    { file: "female_straight_gradation.png", label: "일자 · 그라데이션" },
-    { file: "female_straight_combo.png",     label: "일자 · 콤보" },
-    { file: "male_straight_natural.png",     label: "남성 일자 · 내추럴" },
-    { file: "male_straight_gradation.png",   label: "남성 일자 · 그라데이션" },
-    { file: "male_straight_combo.png",       label: "남성 일자 · 콤보" },
+    { file: "female_straight_natural.png",   label: "자연결 · 일자",       tab: "natural",   short: "일자" },
+    { file: "female_semiarch_natural.png",   label: "자연결 · 세미아치",   tab: "natural",   short: "세미아치" },
+    { file: "female_arch_natural.png",       label: "자연결 · 아치",       tab: "natural",   short: "아치" },
+    { file: "female_straight_gradation.png", label: "그라데이션 · 일자",   tab: "gradation", short: "일자" },
+    { file: "female_semiarch_gradation.png", label: "그라데이션 · 세미아치", tab: "gradation", short: "세미아치" },
+    { file: "female_arch_gradation.png",     label: "그라데이션 · 아치",   tab: "gradation", short: "아치" },
+    { file: "female_straight_combo.png",     label: "콤보 · 일자",         tab: "combo",     short: "일자" },
+    { file: "female_semiarch_combo.png",     label: "콤보 · 세미아치",     tab: "combo",     short: "세미아치" },
+    { file: "female_arch_combo.png",         label: "콤보 · 아치",         tab: "combo",     short: "아치" },
+    { file: "male_straight_natural.png",     label: "남성 · 자연결",       tab: "male",      short: "자연결" },
+    { file: "male_straight_gradation.png",   label: "남성 · 그라데이션",   tab: "male",      short: "그라데이션" },
+    { file: "male_straight_combo.png",       label: "남성 · 콤보",         tab: "male",      short: "콤보" },
 ];
 
 /** 직접 등록한 디자인은 state.design 에 "custom:<id>" 로 들어간다. */
@@ -92,7 +101,7 @@ const state = {
     brows: null,          // detectFaceGeometry().brows — 실제로 잰 눈썹 자리
     lipInfo: null,        // detectLipLandmarks 결과
     mode: "brow",
-    design: EYEBROW_DESIGNS[0].file,
+    design: DEFAULT_DESIGN,
     lic: null,          // License.getLicense() 결과
     mountedKind: null,  // 지금 iframe 에 떠 있는 시뮬레이터 ("brow" | "lip" | null)
     standardLipOnly: loadStandardLipOnly(),   // 인식 건너뛰고 기본 입술선으로
@@ -751,7 +760,8 @@ async function designListForQuick() {
     };
 
     const list = EYEBROW_DESIGNS.map((d) => ({
-        key: d.file, label: d.label, url: abs(`assets/eyebrow_refs/${d.file}?v=${BUILD}`),
+        key: d.file, label: d.label, short: d.short, tab: d.tab,
+        url: abs(`assets/eyebrow_refs/${d.file}?v=${BUILD}`),
     }));
 
     for (const c of customDesigns) {
@@ -767,7 +777,7 @@ async function designListForQuick() {
             url = cv.toDataURL("image/png");
             cv.width = 0; cv.height = 0;
         } catch (e) { /* 원본을 그대로 쓴다 */ }
-        list.push({ key: CUSTOM_PREFIX + c.id, label: c.label, url: url });
+        list.push({ key: CUSTOM_PREFIX + c.id, label: c.label, short: c.label, tab: "mine", url: url });
     }
 
     quickDesignCache = { sig: sig, list: list };
@@ -851,7 +861,7 @@ function resetEverything() {
     state.lipInfo = null;
     state.bases = [];
     state.baseChoice = null;
-    state.design = EYEBROW_DESIGNS[0].file;
+    state.design = DEFAULT_DESIGN;
     state.mode = "brow";
     state.editMode = "quick";
 
@@ -1158,6 +1168,7 @@ async function renderBrow(retried) {
         // 퀵에서는 편집 화면 안에서 바로 디자인을 넘겨 고를 수 있어야 한다
         cfg.designs = await designListForQuick();
         cfg.design_key = state.design;
+        cfg.design_tabs = DESIGN_TABS;
         if (my !== renderToken) return;      // 그 사이에 화면을 벗어났다
         await mountSimulator("brow", cfg);
     } catch (err) {
@@ -1332,9 +1343,45 @@ async function usePhoto(img, dataUrl) {
 
 // ── 초기화 ──────────────────────────────────────────────────────────────
 
+/** 지금 보고 있는 디자인 탭. 처음엔 고른 디자인이 들어 있는 탭을 연다. */
+let designTab = null;
+function tabOfDesign(key) {
+    if (String(key).startsWith(CUSTOM_PREFIX)) return "mine";
+    const d = EYEBROW_DESIGNS.find((x) => x.file === key);
+    return d ? d.tab : DESIGN_TABS[0].id;
+}
+
 async function buildDesignGrid() {
     const grid = $("design-grid");
     grid.innerHTML = "";
+    if (!designTab) designTab = tabOfDesign(state.design);
+
+    // 인덱스 파일철 모양 탭
+    let tabs = $("design-tabs");
+    if (!tabs) {
+        tabs = document.createElement("div");
+        tabs.id = "design-tabs";
+        tabs.className = "idx-tabs";
+        tabs.setAttribute("role", "tablist");
+        grid.parentNode.insertBefore(tabs, grid);
+        grid.classList.add("idx-panel");
+    }
+    tabs.innerHTML = "";
+    DESIGN_TABS.forEach((t, i) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "idx-tab" + (t.id === designTab ? " is-on" : "");
+        b.style.setProperty("--i", i);
+        b.setAttribute("role", "tab");
+        b.setAttribute("aria-selected", t.id === designTab ? "true" : "false");
+        b.textContent = t.label;
+        b.addEventListener("click", () => {
+            if (designTab === t.id) return;
+            designTab = t.id;
+            buildDesignGrid();
+        });
+        tabs.appendChild(b);
+    });
 
     try {
         customDesigns = await Custom.list();
@@ -1343,10 +1390,10 @@ async function buildDesignGrid() {
         console.error(err);
     }
 
-    const cards = EYEBROW_DESIGNS.map((d) => ({
-        key: d.file, label: d.label,
+    const cards = EYEBROW_DESIGNS.filter((d) => d.tab === designTab).map((d) => ({
+        key: d.file, label: d.short,
         src: `assets/eyebrow_refs/${d.file}?v=${BUILD}`, custom: false,
-    })).concat(customDesigns.map((c) => ({
+    })).concat(designTab !== "mine" ? [] : customDesigns.map((c) => ({
         key: CUSTOM_PREFIX + c.id, label: c.label,
         src: c.dataUrl, custom: true, id: c.id,
     })));
@@ -1369,7 +1416,7 @@ async function buildDesignGrid() {
                 e.stopPropagation();      // 카드 선택으로 번지지 않게
                 if (!confirm(`'${d.label}' 디자인을 삭제할까요?`)) return;
                 await Custom.remove(d.id);
-                if (state.design === d.key) state.design = EYEBROW_DESIGNS[0].file;
+                if (state.design === d.key) state.design = DEFAULT_DESIGN;
                 await buildDesignGrid();
                 toast("삭제했습니다");
             });
@@ -1392,7 +1439,8 @@ async function buildDesignGrid() {
         grid.appendChild(btn);
     });
 
-    // 맨 끝에 '내 디자인 등록' 카드
+    // '내 디자인' 탭 끝에만 '내 디자인 등록' 카드
+    if (designTab !== "mine") return;
     const add = document.createElement("button");
     add.className = "design-card design-add";
     add.type = "button";
@@ -1461,6 +1509,7 @@ function bindDesignRegister() {
         try {
             const saved = await Custom.add($("design-dlg-name").value, pending.prepared);
             state.design = CUSTOM_PREFIX + saved.id;
+            designTab = "mine";
             closeDesignDialog();
             await buildDesignGrid();
             toast("디자인을 등록했습니다");

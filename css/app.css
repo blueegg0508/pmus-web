@@ -1568,3 +1568,62 @@ body.is-free .lic-desc { margin-bottom: 4px; }
 
 /* 안드로이드 설치 안내의 보충 설명 (작은 글씨) */
 .pwa-steps small { display: block; margin-top: 3px; font-size: .82em; line-height: 1.5; color: var(--muted); }
+
+/* ── 디자인 탭: 인덱스 파일철 ──────────────────────────────────────────
+   서류철 칸막이처럼 탭 머리가 패널 위로 솟고, 고른 탭만 패널과 이어진다. */
+.idx-tabs {
+    display: flex;
+    align-items: flex-end;
+    gap: 0;
+    padding: 0 6px;
+    margin-top: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.idx-tabs::-webkit-scrollbar { display: none; }
+.idx-tab {
+    appearance: none;
+    position: relative;
+    flex: 0 0 auto;
+    margin-right: -6px;
+    padding: 8px 15px 9px;
+    border: 1px solid #4A3F63;
+    border-bottom: 0;
+    border-radius: 11px 11px 0 0;
+    background: linear-gradient(180deg, #2E2741, #241E33);
+    color: #A79DC0;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transform: translateY(4px);
+    box-shadow: -3px -2px 6px rgba(0,0,0,.25);
+    z-index: calc(10 - var(--i, 0));
+}
+.idx-tab.is-on {
+    background: var(--surface);
+    color: #F2D57A;
+    border-color: #6A5A3A;
+    transform: none;
+    padding-bottom: 12px;
+    z-index: 20;
+}
+.idx-tab.is-on::before {
+    /* 고른 탭 머리의 금색 띠 */
+    content: "";
+    position: absolute;
+    left: 10px; right: 10px; top: -1px;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
+    background: var(--accent);
+}
+.idx-panel {
+    position: relative;
+    z-index: 15;
+    padding: 12px;
+    border: 1px solid #6A5A3A;
+    border-radius: 0 12px 12px 12px;
+    background: var(--surface);
+}
+.idx-panel .design-card { background: rgba(255,255,255,.02); }

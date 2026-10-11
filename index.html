@@ -12,12 +12,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
-<link rel="stylesheet" href="css/app.css?v=89">
+<link rel="stylesheet" href="css/app.css?v=90">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=89" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=90" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="diag-btn" class="diag-btn" type="button">버전</button>
@@ -28,7 +28,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=89" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=90" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -131,8 +131,8 @@
 <!-- ── 3단계: 눈썹 디자인 ─────────────────────────────────────────── -->
 <section id="step-design" class="step" hidden>
     <h2 class="step-title"><span class="step-num">3</span> 눈썹 디자인</h2>
-    <p class="step-hint">디자인을 고르면 <strong>편집 화면</strong>으로 넘어갑니다.
-       쓰시던 고유 디자인이 있으면 맨 아래 <strong>내 디자인 등록</strong>으로 추가하세요.</p>
+    <p class="step-hint">탭을 고르고 디자인을 누르면 <strong>편집 화면</strong>으로 넘어갑니다.
+       쓰시던 고유 디자인은 <strong>[내 디자인]</strong> 탭에서 등록하세요 (종이에 그린 그림 사진도 됩니다).</p>
     <div id="design-grid" class="design-grid"></div>
     <input type="file" id="design-file" accept="image/*" hidden>
 </section>
@@ -425,7 +425,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=89"></script>
-<script type="module" src="js/app.js?v=89"></script>
+<script type="module" src="js/pwa.js?v=90"></script>
+<script type="module" src="js/app.js?v=90"></script>
 </body>
 </html>
