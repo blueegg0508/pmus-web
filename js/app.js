@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=90";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=90";
-import * as License from "./license.js?v=90";
-import * as Custom from "./custom-designs.js?v=90";
-import * as Update from "./update.js?v=90";
-import * as Crm from "./crm-ui.js?v=90";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=91";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=91";
+import * as License from "./license.js?v=91";
+import * as Custom from "./custom-designs.js?v=91";
+import * as Update from "./update.js?v=91";
+import * as Crm from "./crm-ui.js?v=91";
 
-const BUILD = "90";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "91";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *

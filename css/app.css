@@ -1627,3 +1627,7 @@ body.is-free .lic-desc { margin-bottom: 4px; }
     background: var(--surface);
 }
 .idx-panel .design-card { background: rgba(255,255,255,.02); }
+
+/* 탭 다섯 개가 좁은 폰에서도 한 줄에 다 보이게 (옆으로 밀려 '남성' 이 안 보이던 것) */
+.idx-tabs { overflow: visible; padding: 0 2px; }
+.idx-tab { flex: 1 1 auto; min-width: 0; padding-left: 4px; padding-right: 4px; margin-right: -3px; text-align: center; font-size: clamp(10.5px, 3.1vw, 12.5px); }

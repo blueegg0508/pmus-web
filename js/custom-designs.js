@@ -276,7 +276,7 @@ function photoToTransparent(src) {
 
     // 2. 진하기
     const A = new Uint8ClampedArray(N);
-    const lo = 0.10, hi = 0.55;
+    const lo = 0.07, hi = 0.42;     // 옅은 연필 획도 놓치지 않게
     for (let y = 0; y < H; y++) {
         for (let x = 0; x < W; x++) {
             const i = y * W + x;
@@ -312,23 +312,56 @@ function photoToTransparent(src) {
         }
         comps[id] = cm;
     }
-    // 가장자리에 닿지 않은 가장 큰 덩어리 = 눈썹
-    let main = 0;
-    for (let j = 1; j <= id; j++) {
-        if (comps[j].edge) continue;
-        if (!main || comps[j].area > comps[main].area) main = j;
+    // 털 한 올 한 올이 떨어져 있어도 한 눈썹이다 — 가까운 획끼리 묶은 '무리' 를 만든다.
+    // 작게 줄인 격자(칸 = 묶는 거리)에서 이웃 칸을 이어 무리를 나눈다.
+    const gs = Math.max(4, Math.round(Math.max(W, H) * 0.012));
+    const GW = Math.ceil(W / gs), GH = Math.ceil(H / gs);
+    const occ = new Uint8Array(GW * GH);
+    for (let i = 0; i < N; i++) {
+        if (label[i]) occ[((i / W | 0) / gs | 0) * GW + ((i % W) / gs | 0)] = 1;
     }
+    const grp = new Int32Array(GW * GH);
+    const gEdge = [false], gInk = [0];
+    let gid = 0;
+    const q = new Int32Array(GW * GH);
+    for (let s0 = 0; s0 < GW * GH; s0++) {
+        if (!occ[s0] || grp[s0]) continue;
+        gid++; gEdge[gid] = false; gInk[gid] = 0;
+        let h = 0, tl = 0; q[tl++] = s0; grp[s0] = gid;
+        while (h < tl) {
+            const c0 = q[h++], cx = c0 % GW, cy = (c0 / GW) | 0;
+            for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+                const nx = cx + dx, ny = cy + dy;
+                if (nx < 0 || ny < 0 || nx >= GW || ny >= GH) continue;
+                const nb = ny * GW + nx;
+                if (occ[nb] && !grp[nb]) { grp[nb] = gid; q[tl++] = nb; }
+            }
+        }
+    }
+    // 무리마다: 진하기 합, 사진 가장자리에 닿은 덩어리가 들었는지
+    for (let j = 1; j <= id; j++) comps[j].grp = 0;
+    for (let i = 0; i < N; i++) {
+        const lb = label[i];
+        if (!lb) continue;
+        const g2 = grp[((i / W | 0) / gs | 0) * GW + ((i % W) / gs | 0)];
+        comps[lb].grp = g2;
+        gInk[g2] += A[i];
+    }
+    for (let j = 1; j <= id; j++) if (comps[j].edge) gEdge[comps[j].grp] = true;
+    // 가장자리에 닿지 않은 가장 진한 무리 = 눈썹
+    let main = 0;
+    for (let g2 = 1; g2 <= gid; g2++) {
+        if (gEdge[g2]) continue;
+        if (!main || gInk[g2] > gInk[main]) main = g2;
+    }
+    let maxArea = 0;
+    for (let j = 1; j <= id; j++) if (comps[j].grp === main && comps[j].area > maxArea) maxArea = comps[j].area;
     const keep = new Uint8Array(id + 1);
     if (main) {
-        const m = comps[main];
-        const padX = (m.x1 - m.x0) * 0.25 + 6, padY = (m.y1 - m.y0) * 0.6 + 6;
-        const ex0 = m.x0 - padX, ex1 = m.x1 + padX, ey0 = m.y0 - padY, ey1 = m.y1 + padY;
-        const minArea = Math.max(4, m.area * 0.0015);
+        const minArea = Math.max(4, maxArea * 0.002);
         for (let j = 1; j <= id; j++) {
             const cm = comps[j];
-            if (cm.edge || cm.area < minArea) continue;
-            if (cm.x1 < ex0 || cm.x0 > ex1 || cm.y1 < ey0 || cm.y0 > ey1) continue;
-            keep[j] = 1;           // 눈썹 근처의 털 한 올 한 올은 남긴다
+            if (cm.grp === main && !cm.edge && cm.area >= minArea) keep[j] = 1;   // 무리 안의 작은 점은 뺀다
         }
     }
 
