@@ -1472,14 +1472,15 @@
     if (isBrow) {
         // 현장에서 실제로 만지는 네 가지. 나머지는 메뉴얼에 그대로 남는다.
         // 원래 눈썹이 진한 고객은 이것부터 낮춰야 디자인이 보인다 — 맨 위에 둔다.
-        borrow(rowOf("rngNatBrow"), "🔅 기존 눈썹 진하기 ");
-        borrow(rowOf("rngHeight"), "↕️ 굵기 ");
-        borrow(rowOf("rngWidth"), "↔️ 길이 ");
-        borrow(rowOf("rngSpacing"), "↔️ 눈썹 간격 ");
-        borrow(rowOf("rngVert"), "↕️ 위아래 ");
-        borrow(rowOf("rngRot"), "↗️ 각도 ");
-        // 색상 진하기. 고른 색 바로 아래에 붙인다.
+        // 순서 (2026-10-11 원장님): 컬러 → 투명도 → 기존 눈썹 진하기 → 간격 → 길이 → 두께 → 각도 → 위아래
+        // 색상 진하기(투명도)와 기존 눈썹 진하기는 고른 색 바로 아래에 붙인다.
         borrow(rowOf("rngOpacity"), null, qColorSlot);
+        borrow(rowOf("rngNatBrow"), "🔅 기존 눈썹 진하기 ", qColorSlot);
+        borrow(rowOf("rngSpacing"), "↔️ 눈썹 간격 ");
+        borrow(rowOf("rngWidth"), "↔️ 길이 ");
+        borrow(rowOf("rngHeight"), "↕️ 두께 ");
+        borrow(rowOf("rngRot"), "↗️ 각도 ");
+        borrow(rowOf("rngVert"), "↕️ 위아래 ");
     } else {
         fullnessRows().forEach(function (r) {
             qSlot.appendChild(r); qExtra.push(r);
