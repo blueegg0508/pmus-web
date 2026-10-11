@@ -15,8 +15,8 @@
  * =========================================================================
  */
 
-import * as Store from "./crm-store.js?v=93";
-import * as Remind from "./remind.js?v=93";
+import * as Store from "./crm-store.js?v=94";
+import * as Remind from "./remind.js?v=94";
 
 const $ = (id) => document.getElementById(id);
 
