@@ -401,6 +401,25 @@ export async function detectFaceGeometry(imgEl) {
     geo.brows.left.nose = at(HEAD_ANCHOR_L);
     geo.brows.right.nose = at(HEAD_ANCHOR_R);
 
+    // 눈썹산 위치를 상담할 때 보는 두 기준 (2026-10-12):
+    //   눈동자 끝 = 홍채의 바깥쪽 가장자리, 눈꼬리 = 바깥 눈꼬리(33 / 263)
+    // 홍채 점(468~477)이 없는 모델이면 눈동자 끝은 빼고 눈꼬리만 준다.
+    const irisOuter = (outerIdx, innerIdx) => {
+        if (marks.length < 478) return null;
+        const outer = at(outerIdx), inner = at(innerIdx);
+        const cx = (outer.x + inner.x) / 2;
+        let best = null;
+        for (const g of [[468, 469, 470, 471, 472], [473, 474, 475, 476, 477]]) {
+            const pts = g.map(at);
+            const gx = pts.reduce((a, p) => a + p.x, 0) / pts.length;
+            if (!best || Math.abs(gx - cx) < Math.abs(best.gx - cx)) best = { gx, pts };
+        }
+        const dir = Math.sign(outer.x - inner.x) || 1;      // 바깥쪽 방향
+        return best.pts.reduce((m, p) => (dir * p.x > dir * m.x ? p : m), best.pts[0]);
+    };
+    geo.brows.left.peakRef  = { pupil: irisOuter(33, 133),  corner: at(33) };
+    geo.brows.right.peakRef = { pupil: irisOuter(263, 362), corner: at(263) };
+
     // 마지막으로 한 번 더 본다. 여기서 내보낸 값은 눈썹 자리·크기와
     // 입술선의 기준이 되므로, 사진 밖의 값이 새어 나가면 아무것도 안 보인다.
     // 그럴 바에는 '못 찾았다'고 하는 편이 낫다 — 기본 자리로 넘어가서

@@ -1481,6 +1481,8 @@
         borrow(rowOf("rngHeight"), "↕️ 두께 ");
         borrow(rowOf("rngRot"), "↗️ 각도 ");
         borrow(rowOf("rngVert"), "↕️ 위아래 ");
+        // 눈썹산 위치 — 골격에 따라 같은 디자인도 산이 달라 보인다. 눈동자 끝·눈꼬리 기준선을 보며 맞춘다.
+        borrow(rowOf("rngPeak"), "⛰️ 눈썹산 위치 ");
     } else {
         fullnessRows().forEach(function (r) {
             qSlot.appendChild(r); qExtra.push(r);

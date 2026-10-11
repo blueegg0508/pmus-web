@@ -1225,3 +1225,7 @@ html.mui-on.mui-land .mui-hint { left: calc((100% - var(--panel-w)) / 2); }
 /* 탭 다섯 개가 좁은 폰에서도 한 줄에 다 보이게 */
 .mui-idx-tabs { overflow: visible; padding: 0 2px; }
 .mui-idx-tab { flex: 1 1 auto; min-width: 0; padding-left: 3px; padding-right: 3px; margin-right: -3px; text-align: center; font-size: clamp(10px, 3vw, 12px); }
+
+/* 눈썹산 위치 조절바 양 끝 안내 */
+.peak-ends { display: flex; justify-content: space-between; margin-top: 2px; font-size: 10.5px; color: #A79DC0; }
+

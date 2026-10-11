@@ -256,7 +256,80 @@
         // 왼쪽·오른쪽 눈썹 따로 맞추기 — 타고난 비대칭 얼굴은 같은 값이면 오히려 어색하다.
         // 아래는 '함께' 값에 더하는 차이다. [왼쪽]/[오른쪽] 을 고른 채 조절바를 움직이면
         // 그쪽 차이만 바뀌고, [함께] 로 움직이면 두 눈썹이 그 차이를 지닌 채 같이 바뀐다.
-        function zeroSide() { return { scale: 0, width: 0, height: 0, rot: 0, spacing: 0, vert: 0, opacity: 0, round: 0 }; }
+        function zeroSide() { return { scale: 0, width: 0, height: 0, rot: 0, spacing: 0, vert: 0, opacity: 0, round: 0, peak: 0 }; }
+
+        // ⛰️ 눈썹산 위치 — 눈썹 폭의 % 만큼 산을 앞(-) / 뒤(+) 로 옮긴다. 앞머리·꼬리 끝은 그대로.
+        let curPeak = 0;
+        let peakGuideUntil = 0;           // 조절바를 만진 뒤 잠깐 기준선(눈동자 끝·눈꼬리)을 보여 준다
+        const peakInfoCache = new Map();  // 디자인 그림별 산 자리
+        /** 디자인 그림에서 눈썹산(윗선이 가장 높은 곳)의 가로 위치와 그 높이 (0~1) */
+        function peakInfo(img) {
+            const key = img.src || img;
+            if (peakInfoCache.has(key)) return peakInfoCache.get(key);
+            let info = { x: 0.5, top: 0.2 };
+            try {
+                const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+                const c = document.createElement('canvas'); c.width = w; c.height = h;
+                const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+                const d = g.getImageData(0, 0, w, h).data;
+                let maxA = 0;
+                for (let i = 3; i < d.length; i += 4) if (d[i] > maxA) maxA = d[i];
+                const thr = maxA * 0.35;
+                let x0 = -1, x1 = -1;
+                const top = new Array(w).fill(h);
+                for (let x = 0; x < w; x++) {
+                    for (let y = 0; y < h; y++) {
+                        if (d[(y * w + x) * 4 + 3] > thr) { top[x] = y; if (x0 < 0) x0 = x; x1 = x; break; }
+                    }
+                }
+                if (x0 >= 0) {
+                    // 윗선을 고르게 편 뒤 가운데 쪽(양 끝 15% 제외)에서 가장 높은 곳
+                    const k = Math.max(2, Math.round((x1 - x0) * 0.04));
+                    let best = -1, bestY = h;
+                    for (let x = Math.round(x0 + (x1 - x0) * 0.15); x <= x1 - (x1 - x0) * 0.15; x++) {
+                        let s = 0, n = 0;
+                        for (let j = -k; j <= k; j++) { const t = top[x + j]; if (t < h) { s += t; n++; } }
+                        const y = n ? s / n : h;
+                        if (y < bestY) { bestY = y; best = x; }
+                    }
+                    if (best >= 0) info = { x: best / w, top: bestY / h, x0: x0 / w, x1: x1 / w };
+                }
+            } catch (e) {}
+            peakInfoCache.set(key, info);
+            return info;
+        }
+        const peakWarpCache = new Map();
+        /**
+         * 눈썹산을 옮긴 그림. 가로 방향으로만 늘이고 줄인다 — 산에서 가장 많이,
+         * 앞머리·꼬리 쪽으로 갈수록 덜 움직여 양 끝은 제자리다.
+         * @param shiftPct 눈썹 폭의 % (+ 는 꼬리 쪽)
+         * @param tailLeft 그림에서 꼬리가 왼쪽이면 true
+         */
+        function peakWarp(src, rawImg, shiftPct, tailLeft, key) {
+            if (!shiftPct) return src;
+            const ck = key + '|' + shiftPct;
+            if (peakWarpCache.has(ck)) return peakWarpCache.get(ck);
+            const info = peakInfo(rawImg);
+            const w = src.width, h = src.height;
+            const p = info.x * w;
+            const d = (tailLeft ? -1 : 1) * shiftPct / 100 * w * ((info.x1 || 1) - (info.x0 || 0));
+            const f = (x) => x + (x <= p ? d * Math.sin(Math.PI / 2 * (x / p))
+                                         : d * Math.sin(Math.PI / 2 * ((w - x) / (w - p))));
+            const out = document.createElement('canvas'); out.width = w; out.height = h;
+            const g = out.getContext('2d');
+            const N = 48;
+            for (let i = 0; i < N; i++) {
+                const sx0 = w * i / N, sx1 = w * (i + 1) / N;
+                const dx0 = f(sx0), dx1 = f(sx1);
+                if (dx1 - dx0 < 0.5) continue;
+                // 이음새가 벌어지지 않게 반 픽셀씩 겹쳐 그린다
+                g.drawImage(src, sx0, 0, sx1 - sx0, h, dx0 - 0.5, 0, dx1 - dx0 + 1, h);
+            }
+            if (peakWarpCache.size > 12) peakWarpCache.clear();
+            peakWarpCache.set(ck, out);
+            return out;
+        }
+
         let sideAdj = { left: zeroSide(), right: zeroSide() };
         /** 조절바가 지금 어느 쪽만 움직이나 — 'left' | 'right' | null(함께·자동) */
         function sliderSide() {
@@ -275,6 +348,7 @@
                 h: baseH * sc * ((curHeight + a.height) / 100.0),
                 alpha: clampN(curOpacity + a.opacity, 0, 100) / 100.0,
                 round: clampN(curRound + a.round, 0, 100),
+                peak: clampN(curPeak + a.peak, -30, 30),
                 x: isL ? leftPos.x - ((curSpacing + a.spacing) / 2.0) : rightPos.x + ((curSpacing + a.spacing) / 2.0),
                 y: isL ? leftPos.y : rightPos.y,
                 rot: isL ? (curRot + a.rot + curLRot) : (-(curRot + a.rot) + curRRot),
@@ -405,6 +479,7 @@
                 curRound: curRound,
                 curLRot: curLRot,
                 curRRot: curRRot,
+                curPeak: curPeak,
                 sideAdj: JSON.parse(JSON.stringify(sideAdj)),
                 curHex: curHex,
                 curBright: curBright,
@@ -487,6 +562,7 @@
                 curRound = st.curRound;
                 curLRot = st.curLRot;
                 curRRot = st.curRRot;
+                curPeak = st.curPeak || 0;
                 sideAdj = st.sideAdj ? JSON.parse(JSON.stringify(st.sideAdj)) : { left: zeroSide(), right: zeroSide() };
                 curHex = st.curHex;
                 curBright = st.curBright;
@@ -567,6 +643,11 @@
             setVal('rngOpacity', sv(curOpacity, 'opacity'), '%');
             setVal('rngNatBrow', curNatBrow, '%');
             setVal('rngRound', sv(curRound, 'round'), '%');
+            {
+                const pv = sv(curPeak, 'peak');
+                const el = document.getElementById('rngPeak'); if (el) el.value = pv;
+                const vEl = document.getElementById('valPeak'); if (vEl) vEl.innerText = peakLabel(pv);
+            }
             setVal('rngLRot', curLRot, '°');
             setVal('rngRRot', curRRot, '°');
             setVal('rngBright', curBright, '%');
@@ -937,8 +1018,9 @@
                 const isRReady = rawRImg.complete && (rawRImg.naturalWidth || rawRImg.width) > 0;
 
                 if (isLReady && isRReady) {
-                    const drawLImg = getProcessedEyebrow(rawLImg, curHex, gL.round);
-                    const drawRImg = getProcessedEyebrow(rawRImg, curHex, gR.round);
+                    // 왼쪽 그림은 꼬리가 왼쪽, 오른쪽 그림은 꼬리가 오른쪽
+                    const drawLImg = peakWarp(getProcessedEyebrow(rawLImg, curHex, gL.round), rawLImg, gL.peak, true, 'L' + curHex + gL.round + (rawLImg.src || '').length);
+                    const drawRImg = peakWarp(getProcessedEyebrow(rawRImg, curHex, gR.round), rawRImg, gR.peak, false, 'R' + curHex + gR.round + (rawRImg.src || '').length);
 
                     // 왼쪽 눈썹
                     ctx.save();
@@ -955,6 +1037,8 @@
                     ctx.globalAlpha = gR.alpha;
                     ctx.drawImage(drawRImg, -gR.w / 2.0, -gR.h / 2.0, gR.w, gR.h);
                     ctx.restore();
+
+                    if (Date.now() < peakGuideUntil) drawPeakGuides(gL, gR, zoomF);
                 }
 
                 // 4. 마우스 드래그 중 정렬 가이드 라인 및 대상 눈썹 박스
@@ -1263,6 +1347,58 @@
             return { zoom: curImgZoom, panX: curImgPanX, panY: curImgPanY };
         };
 
+        function peakLabel(v) {
+            v = Math.round(v);
+            return v === 0 ? '기본' : (v < 0 ? '앞으로 ' + (-v) + '%' : '뒤로 ' + v + '%');
+        }
+
+        /** 눈동자 끝·눈꼬리 기준선과 지금 눈썹산 자리 */
+        function drawPeakGuides(gL, gR, zoomF) {
+            const R = CFG.peak_refs;
+            const k = R && R.w ? canvas.width / R.w : 1;
+            const lw = Math.max(1, 1.6 / zoomF);
+            const fs = Math.max(13, Math.round(17 / zoomF));
+            const one = (g, ref, rawImg, tailLeft) => {
+                const yTop = g.y - g.h * 1.25, yBot = g.y + g.h * 1.9;
+                ctx.save();
+                ctx.setLineDash([6 / zoomF, 5 / zoomF]);
+                ctx.lineWidth = lw;
+                ctx.font = 'bold ' + fs + 'px Pretendard, sans-serif';
+                ctx.textAlign = 'center';
+                const lines = [];
+                // 두 선이 가까워 이름표가 겹치지 않게: 눈동자 끝은 아래, 눈꼬리는 위
+                if (ref && ref.pupil) lines.push({ x: ref.pupil.x * k, c: '#7FD3FF', t: '눈동자 끝', below: true });
+                if (ref && ref.corner) lines.push({ x: ref.corner.x * k, c: '#FFB37A', t: '눈꼬리', below: false });
+                lines.forEach((L) => {
+                    ctx.strokeStyle = L.c;
+                    ctx.beginPath(); ctx.moveTo(L.x, yTop); ctx.lineTo(L.x, yBot); ctx.stroke();
+                    ctx.fillStyle = 'rgba(15,12,20,.78)';
+                    const tw = ctx.measureText(L.t).width + 10;
+                    const by = L.below ? yBot + 2 : yTop - fs - 10;
+                    ctx.fillRect(L.x - tw / 2, by, tw, fs + 8);
+                    ctx.fillStyle = L.c;
+                    ctx.fillText(L.t, L.x, by + fs + 2);
+                });
+                ctx.restore();
+                // 지금 눈썹산 자리 (금색 점)
+                const info = peakInfo(rawImg);
+                const span = (info.x1 || 1) - (info.x0 || 0);
+                let px = info.x + (tailLeft ? -1 : 1) * g.peak / 100 * span;
+                const lx = (px - 0.5) * g.w, ly = (info.top - 0.5) * g.h;
+                ctx.save();
+                ctx.translate(g.x, g.y);
+                ctx.rotate(g.rot * Math.PI / 180);
+                ctx.fillStyle = '#FFD24A';
+                ctx.strokeStyle = '#1A1422';
+                ctx.lineWidth = Math.max(1, 2 / zoomF);
+                ctx.beginPath(); ctx.arc(lx, ly - 4 / zoomF, Math.max(4, 6 / zoomF), 0, Math.PI * 2);
+                ctx.fill(); ctx.stroke();
+                ctx.restore();
+            };
+            one(gL, R && R.left, rawLImg, true);
+            one(gR, R && R.right, rawRImg, false);
+        }
+
         function setupControls() {
             const rngScale = document.getElementById('rngScale');
             const rngWidth = document.getElementById('rngWidth');
@@ -1445,6 +1581,21 @@
 
             // 위아래 위치 — 옮긴 '차이' 만큼 두 눈썹을 같이 움직인다.
             // 절대 위치로 두면 손으로 끌어 옮겼을 때 조절바와 어긋난다.
+            const rngPeak = document.getElementById('rngPeak');
+            if (rngPeak) {
+                rngPeak.oninput = function() {
+                    onSliderInputStart();
+                    const v = parseFloat(this.value);
+                    const side = sliderSide();
+                    if (side) sideAdj[side].peak = v - curPeak;
+                    else curPeak = v;
+                    document.getElementById('valPeak').innerText = peakLabel(v);
+                    peakGuideUntil = Date.now() + 3000;
+                    setTimeout(requestDraw, 3050);
+                    requestDraw();
+                };
+            }
+
             if (rngVert) {
                 rngVert.oninput = function() {
                     onSliderInputStart();
@@ -1568,7 +1719,7 @@
                 rightPos = { x: initRX, y: initRY };
                 curScale = 100; curWidth = 100; curHeight = 100;
                 curRot = 0; curSpacing = 0; curVert = 0; curOpacity = 85; curNatBrow = 100;
-                curRound = 0; curLRot = 0; curRRot = 0;
+                curRound = 0; curLRot = 0; curRRot = 0; curPeak = 0;
                 sideAdj = { left: zeroSide(), right: zeroSide() };
 
                 curBright = 100; curContrast = 100; curSaturate = 100;
