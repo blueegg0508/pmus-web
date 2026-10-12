@@ -58,6 +58,12 @@ const PUBLIC_KEY = {
 const KEY_TOKEN = "blic.token";
 const KEY_SEEN = "blic.lastSeen";     // 시계 되돌리기 감지용
 const KEY_EDU_START = "blic.eduStart";   // 교육용 무료판을 처음 연 시각
+const KEY_REVOKED = "blic.revoked";       // 공식 주소에서 받아 둔 사용 중지 목록 (lic → 사유)
+const KEY_LAST_CHECK = "blic.lastCheck";  // 사용 중지 목록을 마지막으로 확인한 시각
+/** 사용 중지 목록 — 라이선스 관리의 [환불 · 사용 중지] 가 공식 주소에 올린다. 라이선스 번호만 담긴다. */
+const REVOKE_URL = "https://blueegg0508.github.io/pmus/revoked.json";
+/** 이 기간 넘게 목록을 확인하지 못하면 인터넷 연결을 요청한다 */
+const OFFLINE_GRACE_DAYS = 7;
 const KEY_TRIAL_START = "blic.trialStart"; // 정식 웹앱 7일 무료 체험을 시작한 시각
 /** 정식 웹앱을 처음 열면 주는 무료 체험 기간 (2026-10-12 원장님) */
 const TRIAL_DAYS = 7;
@@ -387,6 +393,28 @@ export async function getLicense() {
     const p = res.payload;
     const now = Math.floor(Date.now() / 1000);
 
+    // 원격 사용 중지 (환불 등)
+    const revoked = await revokedInfo(p.lic);
+    if (revoked) {
+        return {
+            active: false, revoked: true, revokeReason: revoked.reason || "",
+            reason: "이용이 종료되었습니다",
+            payload: p, features: [], daysLeft: null, deviceCode,
+        };
+    }
+    // 오래 확인하지 못했으면 인터넷 연결을 요청한다
+    const last = parseInt((await Preferences.get({ key: KEY_LAST_CHECK })).value || "0", 10);
+    if (!last) {
+        await Preferences.set({ key: KEY_LAST_CHECK, value: String(Date.now()) });
+    } else if (Date.now() - last > OFFLINE_GRACE_DAYS * 86400000) {
+        return {
+            active: false, needsOnline: true,
+            reason: "라이선스 확인이 필요합니다",
+            detail: OFFLINE_GRACE_DAYS + "일 넘게 인터넷에 연결되지 않았습니다. 인터넷에 연결한 뒤 앱을 다시 열어 주세요.",
+            payload: p, features: [], daysLeft: null, deviceCode,
+        };
+    }
+
     if (p.exp && now > p.exp) {
         return {
             active: false,
@@ -405,11 +433,47 @@ export async function getLicense() {
     };
 }
 
+/** 받아 둔 사용 중지 목록에 이 라이선스가 있으면 { reason } */
+async function revokedInfo(lic) {
+    if (!lic) return null;
+    try {
+        const list = JSON.parse((await Preferences.get({ key: KEY_REVOKED })).value || "{}");
+        return list[lic] || null;
+    } catch (e) { return null; }
+}
+
+/**
+ * 공식 주소에서 사용 중지 목록을 받아 둔다. 인터넷이 없으면 그대로 둔다.
+ * 깃허브 서버가 파일을 10분쯤 들고 있으므로 주소 끝에 매번 다른 값을 붙인다.
+ * @returns 목록을 새로 받았으면 true
+ */
+export async function syncRevocations() {
+    try {
+        const ctrl = typeof AbortController === "function" ? new AbortController() : null;
+        const timer = ctrl ? setTimeout(() => ctrl.abort(), 5000) : 0;
+        const r = await fetch(REVOKE_URL + "?fresh=" + Date.now(), { cache: "no-store", signal: ctrl ? ctrl.signal : undefined });
+        if (timer) clearTimeout(timer);
+        if (!r.ok) return false;
+        const data = await r.json();
+        const map = {};
+        (data.revoked || []).forEach((x) => { if (x && x.lic) map[x.lic] = { reason: x.reason || "", at: x.at || "" }; });
+        await Preferences.set({ key: KEY_REVOKED, value: JSON.stringify(map) });
+        await Preferences.set({ key: KEY_LAST_CHECK, value: String(Date.now()) });
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
 /** 토큰을 저장(활성화)합니다. 검증에 실패하면 저장하지 않습니다. */
 export async function activate(token) {
     const deviceCode = await getDeviceCode();
     const res = await verifyToken(token, deviceCode);
     if (!res.ok) return res;
+    await syncRevocations();
+    if (await revokedInfo(res.payload.lic)) {
+        return { ok: false, reason: "이용이 종료된 라이선스입니다", detail: "새 라이선스를 등록해 주세요" };
+    }
 
     const now = Math.floor(Date.now() / 1000);
     if (res.payload.exp && now > res.payload.exp) {

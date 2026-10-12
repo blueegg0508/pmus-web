@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=101";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=101";
-import * as License from "./license.js?v=101";
-import * as Custom from "./custom-designs.js?v=101";
-import * as Update from "./update.js?v=101";
-import * as Crm from "./crm-ui.js?v=101";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=102";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=102";
+import * as License from "./license.js?v=102";
+import * as Custom from "./custom-designs.js?v=102";
+import * as Update from "./update.js?v=102";
+import * as Crm from "./crm-ui.js?v=102";
 
-const BUILD = "101";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "102";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -574,6 +574,17 @@ function hasFeature(f) {
     return !!(state.lic && state.lic.active && License.grants(state.lic.features, f));
 }
 
+/** 사용 중지 목록을 받아 보고, 상태가 바뀌었으면 화면에 반영한다 (앱을 열 때·돌아올 때·30분마다) */
+async function checkRevocation() {
+    const was = state.lic && state.lic.active;
+    if (!(await License.syncRevocations())) return;
+    const lic = await License.getLicense();
+    if (!!lic.active !== !!was || lic.revoked) {
+        if (!lic.active) unmountSimulator();
+        await refreshLicense();
+    }
+}
+
 /** 라이선스 상태를 다시 읽어 화면(게이트·배지·탭 잠금)에 반영한다. */
 async function refreshLicense() {
     state.lic = await License.getLicense();
@@ -598,6 +609,24 @@ async function refreshLicense() {
                 "교육용 무료 체험 시간이 끝났습니다.<br>" +
                 "계속 쓰시려면 <strong>정식판</strong>을 판매처에 문의해 주세요.";
         }
+        if (lic.revoked) {
+            // 환불 등으로 원격 사용 중지 — 정중하게 작별 인사
+            document.querySelector(".lic-title").textContent = "이용이 종료되었습니다";
+            $("lic-message").innerHTML =
+                "그동안 PMUS를 이용해 주셔서 진심으로 감사드립니다.<br>" +
+                (lic.revokeReason === "refund"
+                    ? "요청하신 환불이 처리되어, 이 기기의 라이선스 이용이 종료되었습니다.<br><br>"
+                    : "라이선스 이용이 종료되었습니다.<br><br>") +
+                "원장님의 상담에 PMUS가 작은 도움이 되었기를 바랍니다.<br>" +
+                "다음 기회에 더 좋은 모습으로 다시 뵙겠습니다.<br>" +
+                "<span class=\"lic-sign\">— PMUS 드림</span><br>" +
+                "<small>다시 이용하시려면 새 라이선스를 등록해 주세요.</small>";
+        } else if (lic.needsOnline) {
+            document.querySelector(".lic-title").textContent = "라이선스 확인이 필요합니다";
+            $("lic-message").innerHTML =
+                "7일 넘게 인터넷에 연결되지 않아 라이선스를 확인하지 못했습니다.<br>" +
+                "<strong>인터넷(와이파이·데이터)에 연결한 뒤 앱을 다시 열어 주세요.</strong> 등록 키를 다시 넣을 필요는 없습니다.";
+        }
         if (lic.trialEnded) {
             document.querySelector(".lic-title").textContent = "무료 체험이 끝났습니다";
             $("lic-message").innerHTML =
@@ -605,7 +634,7 @@ async function refreshLicense() {
                 "계속 쓰시려면 라이선스를 구매하신 뒤, 아래 <strong>기기 코드</strong>를 보내 주시고 받은 등록 키를 넣어 주세요.";
         }
         $("lic-back-trial").hidden = true;
-        if (lic.reason && lic.reason !== "미등록" && !lic.trialEnded) {
+        if (lic.reason && lic.reason !== "미등록" && !lic.trialEnded && !lic.revoked && !lic.needsOnline) {
             showLicError(lic.reason, lic.detail);
         }
         return;
@@ -743,6 +772,11 @@ function watchTrial() {
 }
 
 function bindLicenseUI() {
+    // 사용 중지 확인 — 처음, 앱으로 돌아올 때, 인터넷이 다시 연결될 때, 30분마다
+    setTimeout(checkRevocation, 1500);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkRevocation(); });
+    window.addEventListener("online", checkRevocation);
+    setInterval(checkRevocation, 30 * 60 * 1000);
     document.querySelectorAll("[data-open-policy]").forEach((b) => b.addEventListener("click", openPolicy));
     $("policy-close").addEventListener("click", () => { $("policy-sheet").hidden = true; });
     $("trial-ok").addEventListener("click", () => { $("trial-sheet").hidden = true; });
