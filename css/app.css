@@ -1631,3 +1631,23 @@ body.is-free .lic-desc { margin-bottom: 4px; }
 /* 탭 다섯 개가 좁은 폰에서도 한 줄에 다 보이게 (옆으로 밀려 '남성' 이 안 보이던 것) */
 .idx-tabs { overflow: visible; padding: 0 2px; }
 .idx-tab { flex: 1 1 auto; min-width: 0; padding-left: 4px; padding-right: 4px; margin-right: -3px; text-align: center; font-size: clamp(10.5px, 3.1vw, 12.5px); }
+
+/* ── 결제 · 환불 규정 / 무료 체험 안내 ───────────────────────────────── */
+.lic-policy-link, #lic-back-trial { display: block; width: 100%; margin-top: 10px; }
+.ver-policy { display: block; width: 100%; margin-top: 10px; }
+.trial-desc { margin: 0 0 10px; font-size: 13.5px; line-height: 1.65; color: var(--text, #EDE7F6); }
+.policy-box { max-height: 86vh; display: flex; flex-direction: column; }
+.policy-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    font-size: 13px;
+    line-height: 1.7;
+    padding-right: 4px;
+}
+.policy-body h2 { font-size: 17px; margin: 0 0 4px; color: #E8C65A; }
+.policy-body h3 { font-size: 14px; margin: 16px 0 4px; color: #F2D57A; }
+.policy-body ul { margin: 0; padding-left: 18px; }
+.policy-body li { margin: 3px 0; }
+.policy-body .policy-meta { font-size: 11.5px; color: var(--muted, #A79DC0); margin: 0 0 6px; }
+.policy-body .policy-todo { color: #F3A0A0; font-size: 12px; }
+
