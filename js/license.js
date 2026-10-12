@@ -58,6 +58,12 @@ const PUBLIC_KEY = {
 const KEY_TOKEN = "blic.token";
 const KEY_SEEN = "blic.lastSeen";     // 시계 되돌리기 감지용
 const KEY_EDU_START = "blic.eduStart";   // 교육용 무료판을 처음 연 시각
+const KEY_TRIAL_START = "blic.trialStart"; // 정식 웹앱 7일 무료 체험을 시작한 시각
+/** 정식 웹앱을 처음 열면 주는 무료 체험 기간 (2026-10-12 원장님) */
+const TRIAL_DAYS = 7;
+/** 앱(APK) 이 아닌 웹앱인가 */
+const isWebApp = () => !(globalThis.Capacitor && (globalThis.Capacitor.isNativePlatform
+    ? globalThis.Capacitor.isNativePlatform() : globalThis.Capacitor.Plugins));
 
 /**
  * 판매 가능한 기능 목록.
@@ -317,6 +323,40 @@ async function freeLicense(deviceCode) {
     };
 }
 
+/**
+ * 정식 웹앱 7일 무료 체험. 처음 연 때부터 센다.
+ * 끝나면 라이선스 등록 화면으로 바뀐다 (reason 을 남겨 등록 화면이 알려 준다).
+ * 체험 중에도 등록 키를 넣으면 바로 정식으로 바뀐다.
+ */
+async function trialLicense(deviceCode) {
+    const now = Date.now();
+    let start = parseInt((await Preferences.get({ key: KEY_TRIAL_START })).value, 10);
+    let fresh = false;
+    if (!isFinite(start) || start <= 0 || start > now + 60000) {
+        start = now;
+        fresh = true;
+        await Preferences.set({ key: KEY_TRIAL_START, value: String(start) });
+    }
+    const endsAt = start + TRIAL_DAYS * 86400 * 1000;
+    const msLeft = endsAt - now;
+    if (msLeft <= 0) {
+        return {
+            active: false, trial: true, trialEnded: true,
+            reason: TRIAL_DAYS + "일 무료 체험이 끝났습니다",
+            detail: "계속 쓰시려면 라이선스를 구매해 등록해 주세요",
+            features: [], daysLeft: 0, endsAt, deviceCode,
+        };
+    }
+    return {
+        active: true, trial: true, trialFresh: fresh,
+        features: ["*"],
+        payload: { shop: TRIAL_DAYS + "일 무료 체험", plan: "trial", feat: ["*"] },
+        daysLeft: Math.ceil(msLeft / 86400000),
+        hoursLeft: Math.ceil(msLeft / 3600000),
+        endsAt, deviceCode,
+    };
+}
+
 export async function getLicense() {
     const deviceCode = await getDeviceCode();
 
@@ -324,6 +364,9 @@ export async function getLicense() {
     if ((await edition()).free) return freeLicense(deviceCode);
 
     const token = (await Preferences.get({ key: KEY_TOKEN })).value;
+
+    // 정식 웹앱: 아직 등록하지 않았으면 7일 무료 체험
+    if (!token && isWebApp()) return trialLicense(deviceCode);
 
     if (!token) return { active: false, reason: "미등록", features: [], daysLeft: null, deviceCode };
 

@@ -12,12 +12,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
-<link rel="stylesheet" href="css/app.css?v=98">
+<link rel="stylesheet" href="css/app.css?v=99">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=98" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=99" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="diag-btn" class="diag-btn" type="button">버전</button>
@@ -28,7 +28,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=98" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=99" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -49,6 +49,8 @@
         <div id="lic-error" class="lic-error" hidden></div>
 
         <button class="btn btn-primary" id="lic-activate">등록하기</button>
+        <button type="button" class="btn btn-ghost btn-sm lic-policy-link" data-open-policy>📄 결제 · 환불 규정</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="lic-back-trial" hidden>무료 체험으로 돌아가기</button>
     </div>
 </section>
 
@@ -159,6 +161,31 @@
     </div>
 </div>
 
+<!-- ── 무료 체험 안내 (처음 열었을 때 한 번) ───────────────────────── -->
+<div id="trial-sheet" class="lic-sheet" hidden>
+    <div class="lic-sheet-box">
+        <h3 class="lic-sheet-title">🎁 7일 무료 체험을 시작합니다</h3>
+        <p class="trial-desc">오늘부터 <strong id="trial-until">7일</strong> 동안 모든 기능을 무료로 써 보실 수 있습니다.
+           체험이 끝나면 라이선스 등록 화면으로 바뀝니다.</p>
+        <p class="trial-desc">구매 전에 <strong>결제 · 환불 규정</strong>을 꼭 확인해 주세요.
+           라이선스 키를 등록해 이용을 시작한 뒤에는 단순 변심 환불이 되지 않습니다.</p>
+        <div class="lic-sheet-actions">
+            <button class="btn btn-ghost btn-sm" data-open-policy>📄 결제 · 환불 규정</button>
+            <button class="btn btn-primary btn-sm" id="trial-ok">시작하기</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── 결제 · 환불 규정 (내용은 policy.html 한 곳에서 가져온다) ───────── -->
+<div id="policy-sheet" class="lic-sheet" hidden>
+    <div class="lic-sheet-box policy-box">
+        <div id="policy-body" class="policy-body">불러오는 중…</div>
+        <div class="lic-sheet-actions">
+            <button class="btn btn-primary btn-sm" id="policy-close">닫기</button>
+        </div>
+    </div>
+</div>
+
 <!-- ── 버전 & 진단 ────────────────────────────────────────────────── -->
 <div id="diag-sheet" class="lic-sheet" hidden>
     <div class="lic-sheet-box">
@@ -177,6 +204,8 @@
             <button class="btn btn-ghost btn-sm" id="ver-check">새 버전 확인</button>
             <button class="btn btn-primary btn-sm" id="ver-get" hidden>지금 받아서 설치</button>
         </div>
+
+        <button type="button" class="btn btn-ghost ver-policy" data-open-policy>📄 결제 · 환불 규정</button>
 
         <details class="ver-diag ver-log" id="ver-log-box">
             <summary>업데이트 내역</summary>
@@ -425,7 +454,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=98"></script>
-<script type="module" src="js/app.js?v=98"></script>
+<script type="module" src="js/pwa.js?v=99"></script>
+<script type="module" src="js/app.js?v=99"></script>
 </body>
 </html>
