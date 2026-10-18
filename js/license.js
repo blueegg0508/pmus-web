@@ -262,6 +262,8 @@ async function edition() {
         //           하루마다 다시 깔게 만들 수 없다.
         beta: /\.beta$/.test(pkg),
         free: /\.(edu|beta)$/.test(pkg),
+        // 직원용(판매 · 교육) — pmus.io/app. 실험판에서는 쓰지 않지만 정식판 코드와 맞춰 둔다.
+        staff: typeof window !== "undefined" && window.PMUS_EDITION === "staff",
     };
     return _edition;
 }
@@ -274,6 +276,83 @@ export async function isFree() {
 /** 기한 없는 테스트판인가 */
 export async function isBeta() {
     return (await edition()).beta;
+}
+
+/* -------------------------------------------------------------------
+ * 직원용 (판매 · 직원 교육) — https://pmus.io/app
+ * 라이선스를 묻지 않는다. 대신 같은 주소(pmus.io)의 웹 관리자에 로그인한
+ * '승인된 아이디' 인지 열 때마다 인터넷으로 확인한다.
+ *   · 로그인 정보는 웹 관리자(supabase-js)가 저장해 둔 것을 함께 쓴다 (같은 주소라 공유된다).
+ *   · 인터넷이 안 되면 열리지 않는다 — 전국 어디서든 인터넷만 되면 된다.
+ *   · 관리자 승인을 취소하면 다음에 열 때(또는 30분 안에) 막힌다.
+ * ------------------------------------------------------------------- */
+const SB_URL = "https://qkdpzsmipwtlzabsfagi.supabase.co";
+const SB_KEY = "sb_publishable_bCCohNIlpyFaCOL0MFn-ow_SAs8-YpX";        // 공개 키 (웹페이지에 들어가도 되는 키)
+const SB_STORE = "sb-qkdpzsmipwtlzabsfagi-auth-token";                  // supabase-js 가 로그인 정보를 두는 이름
+
+/** 서버(pmus.io/app 잠금)가 보는 쿠키에 로그인 표를 넣는다. 없으면 지운다. */
+function staffCookie(sess) {
+    try {
+        const left = sess && sess.expires_at ? sess.expires_at - Math.floor(Date.now() / 1000) : 0;
+        document.cookie = sess && sess.access_token && left > 0
+            ? "pmus_at=" + sess.access_token + "; path=/; max-age=" + left + "; secure; samesite=lax"
+            : "pmus_at=; path=/; max-age=0; secure; samesite=lax";
+    } catch (e) { /* 미리보기 */ }
+}
+
+async function staffLicense(deviceCode) {
+    const deny = (reason, detail, extra) => Object.assign({
+        active: false, staff: true, reason, detail, features: [], daysLeft: null, deviceCode,
+    }, extra || {});
+    let sess = null;
+    try { sess = JSON.parse(localStorage.getItem(SB_STORE) || "null"); } catch (e) { /* 깨진 값 */ }
+    if (!sess || !sess.refresh_token) {
+        staffCookie(null);
+        return deny("직원 로그인이 필요합니다", "pmus.io/admin 에서 승인된 아이디로 로그인해 주세요", { needsLogin: true });
+    }
+    try {
+        // 로그인 표(access token, 1시간짜리)가 35분 안에 끝나면 새로 받는다. 30분마다 다시 보므로
+        // 표가 늘 30분 넘게 남아, 쓰는 도중 서버 잠금(쿠키)에 걸리지 않는다.
+        // 받은 것은 웹 관리자와 함께 쓰도록 같은 자리에 둔다.
+        if (!sess.access_token || !sess.expires_at || sess.expires_at < Date.now() / 1000 + 35 * 60) {
+            const r = await fetch(SB_URL + "/auth/v1/token?grant_type=refresh_token", {
+                method: "POST", headers: { apikey: SB_KEY, "content-type": "application/json" },
+                body: JSON.stringify({ refresh_token: sess.refresh_token }), cache: "no-store",
+            });
+            if (r.status === 400 || r.status === 401) {
+                localStorage.removeItem(SB_STORE);
+                staffCookie(null);
+                return deny("직원 로그인이 필요합니다", "로그인이 끝났습니다. pmus.io/admin 에서 다시 로그인해 주세요", { needsLogin: true });
+            }
+            if (!r.ok) throw new Error("token " + r.status);
+            const j = await r.json();
+            if (!j.expires_at) j.expires_at = Math.floor(Date.now() / 1000) + (j.expires_in || 3600);
+            localStorage.setItem(SB_STORE, JSON.stringify(j));
+            sess = j;
+        }
+        const r2 = await fetch(SB_URL + "/rest/v1/admins?select=email", {
+            headers: { apikey: SB_KEY, authorization: "Bearer " + sess.access_token }, cache: "no-store",
+        });
+        if (!r2.ok) throw new Error("admins " + r2.status);
+        staffCookie(sess);
+        const list = await r2.json();
+        if (!list.length) {
+            return deny("승인되지 않은 아이디입니다", "개발자에게 승인을 요청해 주세요", { needsLogin: true });
+        }
+        const email = (sess.user && sess.user.email) || "";
+        return {
+            active: true, staff: true, features: ["*"],
+            payload: { shop: "PMUS 직원용 (판매 · 교육)", plan: "perpetual", feat: ["*"], staff: email },
+            daysLeft: null, deviceCode,
+        };
+    } catch (e) {
+        return deny("인터넷 연결이 필요합니다", "직원용은 인터넷에 연결된 곳에서만 열립니다", { staffOffline: true });
+    }
+}
+
+/** 직원용인가 */
+export async function isStaff() {
+    return (await edition()).staff;
 }
 
 /** 무료판의 남은 시간을 잰다. 처음이면 그때부터 세기 시작한다. */
@@ -334,7 +413,146 @@ async function freeLicense(deviceCode) {
  * 끝나면 라이선스 등록 화면으로 바뀐다 (reason 을 남겨 등록 화면이 알려 준다).
  * 체험 중에도 등록 키를 넣으면 바로 정식으로 바뀐다.
  */
+/* -------------------------------------------------------------------
+ * 7일 체험을 서버에 기록한다 — 카카오 로그인 (2026-10-16)
+ * 예전에는 시작일을 브라우저에만 적어 두어, 브라우저를 바꾸거나 다시 깔면
+ * 7일이 새로 시작됐다. 이제 카카오 계정 하나에 체험 한 번, 시작일은 서버
+ * (수파베이스 trials 표, start_trial 함수 — license/supabase-trial.sql) 가 정한다.
+ *   · 같은 기기 코드로 다른 카카오 계정을 써도 그 기기의 첫 시작일을 따른다.
+ *   · 수파베이스에서 카카오 로그인을 켜기 전에는 예전처럼 브라우저 기록으로 돈다
+ *     (켜는 순간 저절로 서버 방식으로 바뀐다 — kakaoReady()).
+ * ------------------------------------------------------------------- */
+const KEY_TRIAL_SESS = "pmus.trialSess";     // 카카오 로그인 정보 (수파베이스 로그인 표)
+const KEY_TRIAL_SRV = "blic.trialServer";    // 서버가 정한 체험 시작 시각 (ms)
+let _kakaoOn = null;
+
+async function kakaoReady() {
+    if (_kakaoOn !== null) return _kakaoOn;
+    try {
+        const r = await fetch(SB_URL + "/auth/v1/settings", { headers: { apikey: SB_KEY }, cache: "no-store" });
+        const j = await r.json();
+        _kakaoOn = !!(j.external && j.external.kakao);
+        localStorage.setItem("pmus.kakaoOn", _kakaoOn ? "1" : "0");
+    } catch (e) {
+        _kakaoOn = localStorage.getItem("pmus.kakaoOn") === "1";    // 인터넷이 안 되면 지난번 값
+    }
+    return _kakaoOn;
+}
+
+/** 카카오 로그인 주소 — 로그인하면 지금 화면으로 돌아온다 */
+export function kakaoLoginUrl() {
+    const back = location.origin + location.pathname;
+    return SB_URL + "/auth/v1/authorize?provider=kakao&redirect_to=" + encodeURIComponent(back);
+}
+
+/** 카카오 로그인에서 돌아왔으면 주소 끝(#)의 로그인 정보를 저장하고 주소를 깨끗이 한다 */
+export function takeLoginFromUrl() {
+    if (!/access_token=/.test(location.hash)) return false;
+    const q = new URLSearchParams(location.hash.slice(1));
+    const sess = {
+        access_token: q.get("access_token"),
+        refresh_token: q.get("refresh_token"),
+        expires_at: Number(q.get("expires_at")) || Math.floor(Date.now() / 1000) + Number(q.get("expires_in") || 3600),
+    };
+    if (sess.access_token && sess.refresh_token) localStorage.setItem(KEY_TRIAL_SESS, JSON.stringify(sess));
+    history.replaceState(null, "", location.pathname + location.search);
+    try { sessionStorage.setItem("pmus.trialJustStarted", "1"); } catch (e) { /* 개인 모드 */ }
+    return true;
+}
+
+/** 로그인 표가 2분 안에 끝나면 새로 받는다. 로그인이 끝났으면 null, 인터넷이 안 되면 오류 */
+async function trialSession() {
+    let s = null;
+    try { s = JSON.parse(localStorage.getItem(KEY_TRIAL_SESS) || "null"); } catch (e) { /* 깨진 값 */ }
+    if (!s || !s.refresh_token) return null;
+    if (s.expires_at && s.expires_at > Date.now() / 1000 + 120) return s;
+    const r = await fetch(SB_URL + "/auth/v1/token?grant_type=refresh_token", {
+        method: "POST", headers: { apikey: SB_KEY, "content-type": "application/json" },
+        body: JSON.stringify({ refresh_token: s.refresh_token }), cache: "no-store",
+    });
+    if (r.status === 400 || r.status === 401) { localStorage.removeItem(KEY_TRIAL_SESS); return null; }
+    if (!r.ok) throw new Error("token " + r.status);
+    const j = await r.json();
+    s = { access_token: j.access_token, refresh_token: j.refresh_token,
+          expires_at: j.expires_at || Math.floor(Date.now() / 1000) + (j.expires_in || 3600) };
+    localStorage.setItem(KEY_TRIAL_SESS, JSON.stringify(s));
+    return s;
+}
+
+/**
+ * 서버에 체험 시작일을 묻는다 (처음이면 서버가 정한다).
+ * 이 브라우저에 예전 방식 시작일이 있으면 넘긴다 — 서버는 그보다 늦추지 않는다.
+ */
+export async function syncTrial() {
+    let s;
+    try { s = await trialSession(); } catch (e) { return null; }
+    if (!s) return null;
+    const local = parseInt((await Preferences.get({ key: KEY_TRIAL_START })).value, 10);
+    try {
+        const r = await fetch(SB_URL + "/rest/v1/rpc/start_trial", {
+            method: "POST",
+            headers: { apikey: SB_KEY, authorization: "Bearer " + s.access_token, "content-type": "application/json" },
+            body: JSON.stringify({
+                hint: isFinite(local) && local > 0 ? new Date(local).toISOString() : null,
+                device: await getDeviceCode(),
+            }),
+            cache: "no-store",
+        });
+        if (!r.ok) return null;
+        const ms = Date.parse(await r.json());
+        if (!isFinite(ms)) return null;
+        await Preferences.set({ key: KEY_TRIAL_SRV, value: String(ms) });
+        await Preferences.set({ key: KEY_TRIAL_START, value: String(ms) });
+        return ms;
+    } catch (e) {
+        return null;
+    }
+}
+
+/** 시작 시각으로 체험 상태를 만든다 */
+function trialFrom(start, deviceCode, fresh) {
+    const now = Date.now();
+    const endsAt = start + TRIAL_DAYS * 86400 * 1000;
+    const msLeft = endsAt - now;
+    if (msLeft <= 0) {
+        return {
+            active: false, trial: true, trialEnded: true,
+            reason: TRIAL_DAYS + "일 무료 체험이 끝났습니다",
+            detail: "계속 쓰시려면 라이선스를 구매해 등록해 주세요",
+            features: [], daysLeft: 0, endsAt, deviceCode,
+        };
+    }
+    return {
+        active: true, trial: true, trialFresh: fresh,
+        features: ["*"],
+        payload: { shop: TRIAL_DAYS + "일 무료 체험", plan: "trial", feat: ["*"] },
+        daysLeft: Math.ceil(msLeft / 86400000),
+        hoursLeft: Math.ceil(msLeft / 3600000),
+        endsAt, deviceCode,
+    };
+}
+
 async function trialLicense(deviceCode) {
+    // 카카오 로그인이 켜져 있으면 서버 기록으로 — 로그인 정보와 서버 시작일이 함께 있어야 한다
+    if (await kakaoReady()) {
+        let sess = null;
+        try { sess = JSON.parse(localStorage.getItem(KEY_TRIAL_SESS) || "null"); } catch (e) { /* 깨진 값 */ }
+        let srv = parseInt((await Preferences.get({ key: KEY_TRIAL_SRV })).value, 10);
+        if (sess && !isFinite(srv)) srv = await syncTrial();
+        if (!sess || !isFinite(srv) || !srv) {
+            return {
+                active: false, trial: true, needsTrialLogin: true,
+                reason: "카카오 로그인으로 7일 무료 체험을 시작합니다",
+                features: [], daysLeft: null, deviceCode,
+            };
+        }
+        let fresh = false;
+        try { fresh = sessionStorage.getItem("pmus.trialJustStarted") === "1"; sessionStorage.removeItem("pmus.trialJustStarted"); } catch (e) { /* 개인 모드 */ }
+        // '체험 시작' 안내는 정말 처음 시작한 때만 (다른 기기에서 다시 로그인한 경우는 안내하지 않는다)
+        return trialFrom(srv, deviceCode, fresh && Date.now() - srv < 10 * 60 * 1000);
+    }
+
+    // (카카오를 켜기 전) 예전처럼 이 브라우저 기록으로
     const now = Date.now();
     let start = parseInt((await Preferences.get({ key: KEY_TRIAL_START })).value, 10);
     let fresh = false;
@@ -365,6 +583,9 @@ async function trialLicense(deviceCode) {
 
 export async function getLicense() {
     const deviceCode = await getDeviceCode();
+
+    // 직원용은 라이선스 대신 승인된 아이디를 본다
+    if ((await edition()).staff) return staffLicense(deviceCode);
 
     // 무료판은 토큰을 보지 않는다. 등록이라는 절차 자체가 없다.
     if ((await edition()).free) return freeLicense(deviceCode);
@@ -448,6 +669,12 @@ async function revokedInfo(lic) {
  * @returns 목록을 새로 받았으면 true
  */
 export async function syncRevocations() {
+    // 직원용은 사용 중지 목록 대신 열 때마다 승인을 다시 본다 — 그대로 getLicense 로 넘긴다
+    if ((await edition()).staff) return true;
+    // 체험 중인 웹앱은 서버 시작일도 다시 받아 둔다 (브라우저 기록을 고쳐 늘리는 것 막기)
+    if (isWebApp() && !(await Preferences.get({ key: KEY_TOKEN })).value && localStorage.getItem(KEY_TRIAL_SESS)) {
+        await syncTrial();
+    }
     try {
         const ctrl = typeof AbortController === "function" ? new AbortController() : null;
         const timer = ctrl ? setTimeout(() => ctrl.abort(), 5000) : 0;

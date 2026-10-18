@@ -329,9 +329,9 @@ html.mui-on .mui-panes * { max-width: 100%; }
    손가락으로 쓰는 태블릿(가로로 눕힌 아이패드 등)은 1400px 까지 이 레이아웃을 쓴다
    — mobile-ui.js 맨 위의 조건과 짝을 맞출 것. */
 @media (min-width: 821px) and (pointer: fine), (min-width: 1401px) {
-    html.mui-on .mui-shell { display: none; }
-    html.mui-on #container { display: block !important; }
-    html.mui-on, html.mui-on body { overflow: auto; height: auto; }
+    html.mui-on:not(.mui-force) .mui-shell { display: none; }
+    html.mui-on:not(.mui-force) #container { display: block !important; }
+    html.mui-on:not(.mui-force), html.mui-on:not(.mui-force) body { overflow: auto; height: auto; }
 }
 
 
@@ -642,8 +642,11 @@ html.mui-on .mui-panes .mui-step .mui-step-btn:active {
    getBoundingClientRect 도 원래대로 남아 드래그 좌표가 어긋나지 않는다. */
 html.mui-on .mui-stage > .mui-shot {
     display: grid !important;
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
+    /* minmax(0, …) — 그냥 1fr 이면 칸이 사진 원래 높이만큼 늘어나 세로로 긴 사진이
+       가로 화면(PC · 눕힌 태블릿)에서 아래가 잘렸다. 칸을 무대 크기에 묶어야
+       사진의 max-height:100% 가 먹어 처음부터 사진 전체가 보인다 (2026-10-15). */
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
     align-self: stretch;
     flex: 1 1 auto;
     place-items: center;

@@ -239,9 +239,32 @@ function photoToTransparent(src) {
     const N = W * H;
 
     // 밝기
-    const L = new Float32Array(N);
+    const L0 = new Float32Array(N);
     for (let i = 0; i < N; i++) {
-        L[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
+        L0[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
+    }
+    // 종이 결(오돌토돌한 질감 · 점)을 누그러뜨린다 — 가로 · 세로로 한 번씩 고르게 편다.
+    // 결이 그대로 남으면 잡티 점이 사진 전체에 깔려 눈썹 무리가 가장자리까지 이어지고,
+    // 그 바람에 눈썹이 통째로 빠져 엉뚱한 점 하나만 남았다 (2026-10-15, 원장님 연필 그림).
+    const br = Math.max(1, Math.round(Math.max(W, H) / 800));
+    const L = new Float32Array(N), tmp = new Float32Array(N);
+    for (let y = 0; y < H; y++) {
+        let acc = 0, cnt = 0;
+        for (let x = -br; x < W; x++) {
+            const xa = x + br, xr = x - br - 1;
+            if (xa < W) { acc += L0[y * W + xa]; cnt++; }
+            if (xr >= 0) { acc -= L0[y * W + xr]; cnt--; }
+            if (x >= 0) tmp[y * W + x] = acc / cnt;
+        }
+    }
+    for (let x = 0; x < W; x++) {
+        let acc = 0, cnt = 0;
+        for (let y = -br; y < H; y++) {
+            const ya = y + br, yr = y - br - 1;
+            if (ya < H) { acc += tmp[ya * W + x]; cnt++; }
+            if (yr >= 0) { acc -= tmp[yr * W + x]; cnt--; }
+            if (y >= 0) L[y * W + x] = acc / cnt;
+        }
     }
 
     // 1. 종이 밝기 지도
@@ -316,9 +339,15 @@ function photoToTransparent(src) {
     // 작게 줄인 격자(칸 = 묶는 거리)에서 이웃 칸을 이어 무리를 나눈다.
     const gs = Math.max(4, Math.round(Math.max(W, H) * 0.012));
     const GW = Math.ceil(W / gs), GH = Math.ceil(H / gs);
+    // 무리를 이을 때는 '획' 만 쓴다 — 종이 결의 작은 점은 다리 노릇을 못 하게 뺀다.
+    // 사진 가장자리에 닿은 덩어리(종이 끝 · 그림자)도 빼서, 눈썹이 그것과 이어져 함께 빠지지 않게 한다.
+    let bigArea = 0;
+    for (let j = 1; j <= id; j++) if (!comps[j].edge && comps[j].area > bigArea) bigArea = comps[j].area;
+    const seedMin = Math.max(12, bigArea * 0.01);
     const occ = new Uint8Array(GW * GH);
     for (let i = 0; i < N; i++) {
-        if (label[i]) occ[((i / W | 0) / gs | 0) * GW + ((i % W) / gs | 0)] = 1;
+        const cm = label[i] ? comps[label[i]] : null;
+        if (cm && !cm.edge && cm.area >= seedMin) occ[((i / W | 0) / gs | 0) * GW + ((i % W) / gs | 0)] = 1;
     }
     const grp = new Int32Array(GW * GH);
     const gEdge = [false], gInk = [0];
@@ -358,7 +387,7 @@ function photoToTransparent(src) {
     for (let j = 1; j <= id; j++) if (comps[j].grp === main && comps[j].area > maxArea) maxArea = comps[j].area;
     const keep = new Uint8Array(id + 1);
     if (main) {
-        const minArea = Math.max(4, maxArea * 0.002);
+        const minArea = Math.max(8, maxArea * 0.004);
         for (let j = 1; j <= id; j++) {
             const cm = comps[j];
             if (cm.grp === main && !cm.edge && cm.area >= minArea) keep[j] = 1;   // 무리 안의 작은 점은 뺀다

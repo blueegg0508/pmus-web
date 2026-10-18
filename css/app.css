@@ -201,6 +201,10 @@ body {
     cursor: pointer;
 }
 .mode-tab.is-active { background: var(--accent); color: #221c33; }
+/* 아이라인 · 헤어라인(SMP) — 준비 중. 넓으면 네 칸 한 줄, 좁은 폰은 두 칸 두 줄 */
+@media (min-width: 480px) { .mode-tabs { grid-template-columns: repeat(4, 1fr); } }
+.mode-tab small { display: block; margin-top: 2px; font-size: 10.5px; font-weight: 600; opacity: .8; }
+.mode-tab.is-soon { color: var(--muted); opacity: .6; border: 1px dashed var(--line); padding: 7px 6px; }
 
 /* ── 디자인 선택 ── */
 .design-grid {
@@ -237,7 +241,9 @@ body {
     background: rgba(201,162,39,.12);
     color: var(--accent-2);
 }
-.design-card.is-active img { filter: none; }
+/* 고른 카드도 흰 그림으로 — filter:none 이면 짙은 갈색 '내 디자인' 이 어두운 카드에 묻혀
+   안 보였다 (2026-10-15). 고른 표시는 테두리 · 바탕색으로 충분하다. */
+.design-card.is-active img { filter: brightness(0) invert(1); }
 
 /* 사진을 올린 뒤 어떻게 진행하는지 알려주는 안내 */
 .step-hint {
@@ -534,11 +540,12 @@ body.sim-fullscreen.settings-open .settings-toggle { display: flex; }
     padding: 10px;
     border: 1px solid var(--line);
     border-radius: 10px;
-    /* 투명 배경이 보이도록 체크무늬를 깐다 */
-    background-color: #2a2440;
+    /* 투명 배경이 보이도록 밝은 체크무늬를 깐다 — 눈썹은 짙은 갈색이라
+       어두운 바탕에서는 추출이 안 된 것처럼 보였다 (2026-10-15) */
+    background-color: #f4f1ec;
     background-image:
-        linear-gradient(45deg, #201b31 25%, transparent 25%, transparent 75%, #201b31 75%),
-        linear-gradient(45deg, #201b31 25%, transparent 25%, transparent 75%, #201b31 75%);
+        linear-gradient(45deg, #e4dfd7 25%, transparent 25%, transparent 75%, #e4dfd7 75%),
+        linear-gradient(45deg, #e4dfd7 25%, transparent 25%, transparent 75%, #e4dfd7 75%);
     background-size: 14px 14px;
     background-position: 0 0, 7px 7px;
 }
@@ -1654,3 +1661,21 @@ body.is-free .lic-desc { margin-bottom: 4px; }
 /* 이용 종료 인사 */
 .lic-sign { display: inline-block; margin-top: 6px; color: var(--accent-2, #E8C65A); font-weight: 700; }
 
+
+/* ── 직원용(판매 · 교육) — PC 에서 열 때 ───────────────────────────────
+   시뮬레이터 안은 mobile-ui.js 가 '왼쪽 사진 · 오른쪽 조절' 로 놓는다 (2026-10-15).
+   바깥 페이지는 시뮬레이터가 화면을 꼭 채우게 하고, 페이지 전체 스크롤은 막는다
+   (전에는 페이지 전체를 내려야 아래 메뉴가 보였다). */
+html.ed-staff body.sim-fullscreen { overflow: hidden; height: 100vh; padding-bottom: 0; }
+html.ed-staff body.sim-fullscreen #sim-frame { height: 100vh !important; display: block; }
+/* 직원용 '사진 · 디자인 변경'(설정) 화면은 처음 화면과 같은 폭(720px)으로 가운데에 —
+   전체화면용 max-width:none 이 그대로 남아 PC 에서 가로로 길게 늘어났다 (2026-10-15). */
+html.ed-staff body.sim-fullscreen.settings-open { max-width: 720px; overflow: visible; height: auto; }
+html.ed-staff body.sim-fullscreen.settings-open .settings-toggle { left: 0; right: 0; margin: 0 auto; max-width: 720px; }
+
+/* 카카오로 7일 체험 시작 (카카오 안내 색) */
+.kakao-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 220px; padding: 13px 22px; border-radius: 12px;
+    background: #FEE500; color: #191919 !important; font-weight: 800; text-decoration: none;
+}

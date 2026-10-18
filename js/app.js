@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=102";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=102";
-import * as License from "./license.js?v=102";
-import * as Custom from "./custom-designs.js?v=102";
-import * as Update from "./update.js?v=102";
-import * as Crm from "./crm-ui.js?v=102";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=103";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=103";
+import * as License from "./license.js?v=103";
+import * as Custom from "./custom-designs.js?v=103";
+import * as Update from "./update.js?v=103";
+import * as Crm from "./crm-ui.js?v=103";
 
-const BUILD = "102";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "103";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -602,7 +602,27 @@ async function refreshLicense() {
         $("lic-badge").hidden = true;
         // 무료판은 등록이라는 절차가 없다. 기기 코드를 보내 키를 받으라는
         // 안내를 그대로 두면, 무료로 나눠 준 판에서 엉뚱한 길을 알려 주게 된다.
-        document.body.classList.toggle("is-free", !!lic.free);
+        document.body.classList.toggle("is-free", !!lic.free || !!lic.staff);
+        if (lic.staff) {
+            // 직원용 — 등록 키 대신 웹 관리자 로그인
+            document.querySelector(".lic-title").textContent = lic.reason || "직원 로그인이 필요합니다";
+            $("lic-message").innerHTML = lic.staffOffline
+                ? "직원용(판매 · 교육)은 <strong>인터넷에 연결된 곳</strong>에서만 열립니다.<br>와이파이 · 데이터를 켠 뒤 다시 열어 주세요."
+                : (lic.detail || "") + "<br><br><a class=\"btn btn-primary\" style=\"display:inline-block;text-decoration:none\" href=\"/admin?next=app\">직원 로그인</a>";
+            $("lic-back-trial").hidden = true;
+            return;
+        }
+        if (lic.needsTrialLogin) {
+            // 7일 체험 — 카카오 로그인으로 시작 (한 분당 한 번, 서버 기록)
+            document.querySelector(".lic-title").textContent = "7일 무료 체험 시작하기";
+            $("lic-message").innerHTML =
+                "카카오 계정으로 로그인하시면 <strong>7일 동안 모든 기능</strong>을 무료로 쓰실 수 있습니다.<br>" +
+                "체험은 <strong>한 분당 한 번</strong>이며, 휴대폰 · 태블릿 · 브라우저를 바꿔도 남은 기간이 그대로 이어집니다.<br><br>" +
+                "<a class=\"btn kakao-btn\" href=\"" + License.kakaoLoginUrl() + "\">카카오로 시작하기</a>" +
+                "<br><small>이미 구매하셨다면 아래에 등록 키를 넣어 주세요.</small>";
+            $("lic-back-trial").hidden = true;
+            return;
+        }
         if (lic.free) {
             document.querySelector(".lic-title").textContent = "교육용 무료 체험 종료";
             $("lic-message").innerHTML =
@@ -640,7 +660,7 @@ async function refreshLicense() {
         return;
     }
     $("lic-back-trial").hidden = true;
-    document.body.classList.toggle("is-free", !!lic.free);
+    document.body.classList.toggle("is-free", !!lic.free || !!lic.staff);
     document.body.classList.toggle("is-trial", !!lic.trial);
     if (lic.trialFresh) $("trial-sheet").hidden = false;
     if (lic.trial) {
@@ -655,7 +675,10 @@ async function refreshLicense() {
     // 상단 배지
     const badge = $("lic-badge");
     badge.hidden = false;
-    if (lic.free) {
+    if (lic.staff) {
+        badge.textContent = "직원용";
+        badge.className = "lic-badge is-free";
+    } else if (lic.free) {
         // 무료로 쓰고 있다는 것이 늘 보여야 한다.
         // 남은 시간까지 늘 붙이면 상단 자리를 먹어 '버전' 이 두 줄로 접힌다.
         // 테스트판은 기한이 없다. 남은 시간을 보여 줄 것이 없다.
@@ -688,7 +711,7 @@ async function refreshLicense() {
     Crm.setEnabled(hasFeature("crm"));
 
     // 구매하지 않은 부위 탭 잠금
-    document.querySelectorAll(".mode-tab").forEach((tab) => {
+    document.querySelectorAll(".mode-tab:not(.is-soon)").forEach((tab) => {
         const f = tab.dataset.feat;
         const ok = hasFeature(f);
         tab.classList.toggle("is-locked", !ok);
@@ -776,6 +799,8 @@ function bindLicenseUI() {
     setTimeout(checkRevocation, 1500);
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkRevocation(); });
     window.addEventListener("online", checkRevocation);
+    // 직원용: 다른 창(웹 관리자)에서 로그아웃하면 바로 잠근다
+    window.addEventListener("storage", (e) => { if (e.key && e.key.indexOf("-auth-token") > 0) checkRevocation(); });
     setInterval(checkRevocation, 30 * 60 * 1000);
     document.querySelectorAll("[data-open-policy]").forEach((b) => b.addEventListener("click", openPolicy));
     $("policy-close").addEventListener("click", () => { $("policy-sheet").hidden = true; });
@@ -810,6 +835,10 @@ function bindLicenseUI() {
     });
 
     $("lic-badge").addEventListener("click", () => {
+        if (state.lic && state.lic.staff) {
+            toast("직원용(판매 · 교육) — " + (state.lic.payload.staff || "") + " 로 로그인", 3600);
+            return;
+        }
         if (state.lic && state.lic.trial) {
             openRegisterFromTrial();
             return;
@@ -1918,6 +1947,11 @@ function bindEvents() {
 
     document.querySelectorAll(".mode-tab").forEach((tab) => {
         tab.addEventListener("click", async () => {
+            // 아이라인 · 헤어라인(SMP) — 시뮬레이터를 만드는 중. 고르지는 않고 안내만 한다.
+            if (tab.dataset.soon) {
+                toast(tab.dataset.soon + " 시뮬레이터는 준비 중입니다 — 완성되면 업데이트로 바로 추가됩니다", 3200);
+                return;
+            }
             if (!hasFeature(tab.dataset.feat)) {
                 toast(`${License.featureLabel(tab.dataset.feat)}는 별도 구매가 필요합니다`);
                 return;
@@ -2237,7 +2271,8 @@ function bindDiag() {
         $("diag-sheet").hidden = false;
         const free = state.lic && state.lic.free;
         const webTag = window.PMUSWeb && window.PMUSWeb.isWeb ? "웹앱 · " : "";
-        $("ver-current").textContent = webTag + (free ? "무료 교육용 · " : "") + "Build " + BUILD;
+        const staff = state.lic && state.lic.staff;
+        $("ver-current").textContent = webTag + (staff ? "직원용 · " : "") + (free ? "무료 교육용 · " : "") + "Build " + BUILD;
         if (free) {
             verSay("교육용 무료판입니다. " + state.lic.hoursLeft + "시간 뒤에 끝납니다.", "new");
         }
@@ -2296,6 +2331,8 @@ function bindDiag() {
         },
     });
     $("carry-go").addEventListener("click", startEditing);
+    // 카카오 로그인에서 돌아왔으면 로그인 정보를 받아 서버에 체험 시작을 기록한다
+    if (License.takeLoginFromUrl()) await License.syncTrial();
     await refreshLicense();
     if (!state.lic.active) {            // 등록 전에는 무거운 초기화를 하지 않는다
         hideSplash();

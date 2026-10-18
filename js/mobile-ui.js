@@ -20,7 +20,12 @@
 
     // 폰, 그리고 손가락으로 쓰는 태블릿(아이패드를 가로로 눕힌 경우 포함).
     // 마우스로 쓰는 PC 는 예전 3열 화면 그대로 둔다.
-    if (!window.matchMedia("(max-width: 820px), (pointer: coarse) and (max-width: 1400px)").matches) return;
+    // 직원용(pmus.io/app — 판매 · 교육)은 PC 에서 열어도 태블릿 화면을 쓴다.
+    // PC 창은 가로라 아래 layoutLand() 가 '왼쪽 사진 · 오른쪽 조절' 로 놓는다 (2026-10-15).
+    var FORCE = false;
+    try { FORCE = window.parent && window.parent !== window && window.parent.PMUS_EDITION === "staff"; } catch (e) { /* 다른 출처 */ }
+    if (FORCE) document.documentElement.classList.add("mui-force");
+    if (!FORCE && !window.matchMedia("(max-width: 820px), (pointer: coarse) and (max-width: 1400px)").matches) return;
     if (document.querySelector(".mui-shell")) return;               // 중복 실행 방지
 
     var KIND = document.getElementById("dragCanvas") ? "brow"
