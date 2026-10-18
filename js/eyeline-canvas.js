@@ -34,10 +34,10 @@
 
     // ── 디자인 · 색 · 조절바 정의 ──────────────────────────────────────
     var STYLES = [
-        { key: "natural", label: "점막 채우기", p: { thick: 16, tail: 0, angle: 10, start: 12, front: 60, tip: 30, dy: 0, soft: 45, under: 0 } },
-        { key: "basic", label: "기본 라인", p: { thick: 32, tail: 10, angle: 12, start: 18, front: 35, tip: 20, dy: 0, soft: 35, under: 0 } },
-        { key: "wing", label: "윙 라인", p: { thick: 48, tail: 34, angle: 18, start: 14, front: 25, tip: 8, dy: 0, soft: 25, under: 0 } },
-        { key: "under", label: "꼬리 + 언더", p: { thick: 32, tail: 14, angle: 12, start: 20, front: 35, tip: 20, dy: 0, soft: 35, under: 55 } },
+        { key: "natural", label: "점막 채우기", p: { thick: 16, tail: 0, angle: 0, start: 12, front: 60, tip: 30, dy: 0, soft: 45, under: 0, join: 55 } },
+        { key: "basic", label: "기본 라인", p: { thick: 32, tail: 10, angle: 4, start: 18, front: 35, tip: 20, dy: 0, soft: 35, under: 0, join: 55 } },
+        { key: "wing", label: "윙 라인", p: { thick: 48, tail: 34, angle: 10, start: 14, front: 25, tip: 8, dy: 0, soft: 25, under: 0, join: 55 } },
+        { key: "under", label: "꼬리 + 언더", p: { thick: 32, tail: 14, angle: 4, start: 20, front: 35, tip: 20, dy: 0, soft: 35, under: 55, join: 55 } },
     ];
     var COLORS = [["#15110f", "블랙"], ["#2a1b14", "브라운 블랙"], ["#3d281c", "다크 브라운"], ["#38383d", "그레이"]];
 
@@ -46,7 +46,8 @@
         opacity: { label: "진하기", min: 20, max: 100, side: false, unit: "%" },
         thick: { label: "두께", min: 0, max: 100, side: true },
         tail: { label: "꼬리 길이", min: 0, max: 100, side: true },
-        angle: { label: "꼬리 각도", min: 0, max: 40, side: true, unit: "°" },
+        angle: { label: "꼬리 들림 각도", min: -20, max: 30, side: true, unit: "°", hint: "0 = 눈매 끝 방향 그대로 · + 위로 들어 올림 · − 아래로" },
+        join: { label: "꼬리 연결 곡선 (R)", min: 0, max: 100, side: true, hint: "기존 라인에서 꼬리로 넘어가는 곡선 — 클수록 완만하게 이어짐" },
         start: { label: "시작 위치", min: 0, max: 100, side: true, hint: "눈 앞머리 쪽에서 어디부터 그릴지" },
         front: { label: "앞쪽 두께", min: 0, max: 100, side: true, unit: "%", hint: "앞은 가늘게 · 뒤로 갈수록 두껍게" },
         tip: { label: "꼬리 끝 둥글기", min: 0, max: 100, side: true },
@@ -55,8 +56,8 @@
         under: { label: "언더 라인 (아래 꼬리)", min: 0, max: 100, side: true },
         lash: { label: "속눈썹 살리기", min: 0, max: 100, side: false, unit: "%", hint: "속눈썹이 라인 위로 지나가게 보이는 정도" },
     };
-    var QUICK_KEYS = ["opacity", "thick", "tail", "angle"];
-    var MANUAL_KEYS = ["thick", "tail", "angle", "start", "front", "tip", "dy", "soft", "under", "opacity", "lash"];
+    var QUICK_KEYS = ["opacity", "thick", "tail", "angle", "join"];
+    var MANUAL_KEYS = ["thick", "tail", "angle", "join", "start", "front", "tip", "dy", "soft", "under", "opacity", "lash"];
 
     function styleOf(key) { for (var i = 0; i < STYLES.length; i++) if (STYLES[i].key === key) return STYLES[i]; return STYLES[1]; }
     function copy(o) { return JSON.parse(JSON.stringify(o)); }
@@ -144,6 +145,15 @@
         }
         return out;
     }
+    function cubic(a, c1, c2, b, n) {
+        var out = [];
+        for (var i = 1; i <= n; i++) {
+            var t = i / n, u = 1 - t;
+            out.push([u * u * u * a[0] + 3 * u * u * t * c1[0] + 3 * u * t * t * c2[0] + t * t * t * b[0],
+                      u * u * u * a[1] + 3 * u * u * t * c1[1] + 3 * u * t * t * c2[1] + t * t * t * b[1]]);
+        }
+        return out;
+    }
     function quad(a, c, b, n) {
         var out = [];
         for (var i = 1; i <= n; i++) {
@@ -202,30 +212,56 @@
         if (top.length < 2) return null;
 
         var O = P[N - 1];
-        var E = top[top.length - 1], B = base[base.length - 1];
+        var E = top[top.length - 1];
         var poly = top.slice();
+        var baseEnd = base.length - 1;           // 아래 테두리를 어디까지 쓸지 (꼬리가 있으면 눈꼬리 앞에서 꺾지 않고 곡선으로 빠진다)
         if (hasTail) {
             var tl = p.tail / 100 * 0.45 * len;
+            // 꼬리 방향은 '눈매 끝' 을 따른다 (2026-10-19 원장님 요청):
+            // 윗 눈꺼풀 끝의 기울기와 아래 눈꺼풀 끝의 기울기가 만나는 눈꼬리의 방향이 기본이고,
+            // '꼬리 들림 각도' 는 거기서 위로 더 들어 올리는 양이다 (0 = 눈매 끝 그대로).
+            var Lw = smoothOpen(eye.lower, N);
+            var uv = function (a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; };
+            var tUp = uv(P[N - 5], P[N - 1]), tLo = uv(Lw[N - 5], Lw[N - 1]);
+            var nat = uv([0, 0], [tUp[0] + tLo[0] + ax[0] * 0.3, tUp[1] + tLo[1] + ax[1] * 0.3]);
             var ang = p.angle * Math.PI / 180;
             var c = Math.cos(ang), s = Math.sin(ang);
-            var d1 = [ax[0] * c - ax[1] * s, ax[0] * s + ax[1] * c];
-            var d2 = [ax[0] * c + ax[1] * s, -ax[0] * s + ax[1] * c];
-            var dir = (d1[0] * up[0] + d1[1] * up[1]) > (d2[0] * up[0] + d2[1] * up[1]) ? d1 : d2;   // 위로 들리는 쪽
+            var d1 = [nat[0] * c - nat[1] * s, nat[0] * s + nat[1] * c];
+            var d2 = [nat[0] * c + nat[1] * s, -nat[0] * s + nat[1] * c];
+            var lift = ang >= 0 ? 1 : -1;
+            var dir = ((d1[0] * up[0] + d1[1] * up[1]) - (d2[0] * up[0] + d2[1] * up[1])) * lift > 0 ? d1 : d2;
             var tip = [O[0] + dir[0] * tl, O[1] + dir[1] * tl];
             var r = p.tip / 100 * T * 0.55;
             var tipTop = [tip[0] + up[0] * r, tip[1] + up[1] * r];
             var tipBot = [tip[0] - up[0] * r * 0.35, tip[1] - up[1] * r * 0.35];
-            var cTop = [E[0] + ax[0] * tl * 0.55, E[1] + ax[1] * tl * 0.55];
-            poly = poly.concat(quad(E, cTop, tipTop, 14));
+
+            // 꼬리 연결 R (2026-10-19 원장님 요청): 기존 라인과 꼬리가 꺾이지 않고 둥글게 이어지게.
+            // R 이 클수록 눈꼬리보다 앞에서부터 아래 테두리가 꼬리 쪽으로 완만하게 빠져나간다.
+            var R = (p.join == null ? 55 : p.join) / 100;
+            var unit = function (a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; };
+
+            // 윗 테두리: 눈꺼풀 선의 기울기를 그대로 이어 꼬리 끝으로 (꺾임 없음)
+            var tE = unit(top[Math.max(0, top.length - 3)], E);
+            var k1 = tl * (0.3 + 0.35 * R);
+            poly = poly.concat(cubic(E, [E[0] + tE[0] * k1, E[1] + tE[1] * k1],
+                [tipTop[0] - dir[0] * tl * 0.3, tipTop[1] - dir[1] * tl * 0.3], tipTop, 18));
             if (r > 0.3) poly = poly.concat(quad(tipTop, [tip[0] + dir[0] * r * 0.8, tip[1] + dir[1] * r * 0.8], tipBot, 6));
-            var cBot = [B[0] + dir[0] * tl * 0.5 - up[0] * tl * 0.04, B[1] + dir[1] * tl * 0.5 - up[1] * tl * 0.04];
-            var back = quad(tipBot, cBot, B, 14);
-            poly = poly.concat(back);
+
+            // 아래 테두리: 눈꼬리 앞(R 만큼)에서 아래 테두리를 떠나 꼬리 끝으로 — 그 자리의 기울기를 맞춘다
+            var back = Math.round(clamp(0.04 + 0.30 * R, 0.02, 0.4) * (N - 1));
+            baseEnd = Math.max(1, base.length - 1 - back);
+            var Bj = base[baseEnd];
+            var tB0 = unit(base[Math.max(0, baseEnd - 2)], base[Math.min(base.length - 1, baseEnd + 2)]);
+            var tB = unit([0, 0], [tB0[0] + tLo[0] * 0.6, tB0[1] + tLo[1] * 0.6]);
+            var span = Math.hypot(tipBot[0] - Bj[0], tipBot[1] - Bj[1]);
+            var k2 = span * (0.25 + 0.35 * R), k3 = span * (0.25 + 0.2 * R);
+            poly = poly.concat(cubic(tipBot, [tipBot[0] - dir[0] * k3, tipBot[1] - dir[1] * k3],
+                [Bj[0] + tB[0] * k2, Bj[1] + tB[1] * k2], Bj, 22));
         } else {
             var end = [O[0] + ax[0] * 0.02 * len, O[1] + ax[1] * 0.02 * len];
             poly.push(end);
         }
-        poly = poly.concat(base.slice().reverse());
+        poly = poly.concat(base.slice(0, baseEnd + 1).reverse());
 
         // 언더 라인: 아래 속눈썹 선의 눈꼬리 쪽만
         var under = null;
