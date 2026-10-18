@@ -577,6 +577,73 @@ function openSettings(open) {
 
 // ── 라이선스 ────────────────────────────────────────────────────────────
 
+/**
+ * 체험 신청 양식 (2026-10-18).
+ * 받는 것: 상호 · 성함 · 연락처 (+ 소개해 준 판매처, 선택).
+ * 동의: 수집 · 이용은 필수(체험 제공 · 중복 확인 · 구매 때 바로 발급에 꼭 필요),
+ *       판매처 제공 · 구매 안내 연락은 선택 — 개인정보 보호법상 꼭 필요하지 않은 동의는
+ *       거부해도 서비스를 막으면 안 된다.
+ * 다 채우면 신청 정보를 기기에 잠깐 담아 두고 카카오 로그인으로 보낸다.
+ * 돌아오면 syncTrial() 이 서버(start_trial)로 함께 보내고 지운다.
+ */
+function renderTrialForm() {
+    const prev = License.trialProfile() || {};
+    const ref = License.rememberRef() || prev.ref || "";
+    const esc = (v) => escapeHtml(String(v || ""));
+    $("lic-message").innerHTML =
+        "카카오 계정으로 시작하시면 <strong>7일 동안 모든 기능</strong>을 무료로 쓰실 수 있습니다.<br>" +
+        "체험은 <strong>한 분당 한 번</strong>이며, 기기 · 브라우저를 바꿔도 남은 기간이 이어집니다." +
+        '<div class="trial-form">' +
+        '<label><span>상호 <b>*</b></span><input id="tf-shop" maxlength="60" placeholder="예) ○○브로우 강남점" value="' + esc(prev.shop) + '"></label>' +
+        '<label><span>원장님 성함 <b>*</b></span><input id="tf-name" maxlength="30" placeholder="예) 김○○" value="' + esc(prev.name) + '"></label>' +
+        '<label><span>연락처 <b>*</b></span><input id="tf-phone" type="tel" inputmode="tel" maxlength="16" placeholder="010-1234-5678" value="' + esc(prev.phone) + '"></label>' +
+        '<label><span>소개해 주신 곳 <i>(선택)</i></span><input id="tf-ref" maxlength="40" placeholder="판매처 · 엠버서더 원장님 이름" value="' + esc(ref) + '"></label>' +
+        '<div class="trial-consents">' +
+        '<label class="tc-all"><input type="checkbox" id="tc-all"> <strong>아래 내용에 모두 동의합니다</strong></label>' +
+        '<label><input type="checkbox" id="tc-privacy"> <span><b class="req">[필수]</b> 개인정보 수집 · 이용 동의</span></label>' +
+        '<details><summary>내용 보기</summary><p>' +
+        "· 수집 항목: 상호, 성함, 연락처, 카카오 계정(이메일), 기기 코드<br>" +
+        "· 목적: 무료 체험 제공 · 중복 체험 확인, 정식 구매 시 라이선스 발급, 문의 응대<br>" +
+        "· 보유 기간: 체험 종료 후 1년 (정식 구매 시 거래 기록 보존 기간까지) · 동의를 철회하면 바로 파기<br>" +
+        "· 동의를 거부할 수 있으나, 거부하시면 무료 체험을 이용하실 수 없습니다.</p></details>" +
+        '<label><input type="checkbox" id="tc-third"> <span><b class="opt">[선택]</b> 개인정보 제3자 제공 동의 (판매처)</span></label>' +
+        '<details><summary>내용 보기</summary><p>' +
+        "· 제공받는 자: PMUS 공식 판매처 (총판 · 엠버서더 등 원장님께 PMUS 를 소개했거나 해당 지역을 맡은 판매처)<br>" +
+        "· 제공 항목: 상호, 성함, 연락처<br>" +
+        "· 목적: 구매 상담, 설치 · 사용 안내<br>" +
+        "· 보유 기간: 목적 달성 후 즉시 파기 (최대 1년)<br>" +
+        "· 동의하지 않으셔도 무료 체험은 그대로 이용하실 수 있습니다.</p></details>" +
+        '<label><input type="checkbox" id="tc-mkt"> <span><b class="opt">[선택]</b> 구매 · 업데이트 안내 연락 받기 (문자 · 카카오톡)</span></label>' +
+        '<a class="tc-policy" href="https://www.pmus.io/privacy" target="_blank" rel="noopener">개인정보처리방침 전문 보기</a>' +
+        "</div>" +
+        '<div class="lic-error" id="tf-err" hidden></div>' +
+        '<button type="button" class="btn kakao-btn" id="tf-go">카카오로 체험 시작하기</button>' +
+        "<small>이미 구매하셨다면 아래에 등록 키를 넣어 주세요.</small>" +
+        "</div>";
+
+    const ids = ["tc-privacy", "tc-third", "tc-mkt"];
+    $("tc-all").addEventListener("change", (e) => ids.forEach((i) => { $(i).checked = e.target.checked; }));
+    ids.forEach((i) => $(i).addEventListener("change", () => { $("tc-all").checked = ids.every((x) => $(x).checked); }));
+    $("tf-phone").addEventListener("input", (e) => {
+        const d = e.target.value.replace(/\D/g, "").slice(0, 11);
+        e.target.value = d.length < 4 ? d : d.length < 8 ? d.slice(0, 3) + "-" + d.slice(3) : d.slice(0, 3) + "-" + d.slice(3, d.length - 4) + "-" + d.slice(-4);
+    });
+    $("tf-go").addEventListener("click", () => {
+        const shop = $("tf-shop").value.trim(), name = $("tf-name").value.trim();
+        const digits = $("tf-phone").value.replace(/\D/g, "");
+        const err = (m, el) => { $("tf-err").textContent = m; $("tf-err").hidden = false; if (el) el.focus(); };
+        if (!shop) return err("상호를 입력해 주세요", $("tf-shop"));
+        if (!name) return err("원장님 성함을 입력해 주세요", $("tf-name"));
+        if (!/^01\d{8,9}$/.test(digits) && !/^0\d{8,10}$/.test(digits)) return err("연락처를 정확히 입력해 주세요 (예: 010-1234-5678)", $("tf-phone"));
+        if (!$("tc-privacy").checked) return err("[필수] 개인정보 수집 · 이용에 동의해 주셔야 체험을 시작할 수 있습니다", $("tc-privacy"));
+        License.saveTrialProfile({
+            shop, name, phone: digits, ref: $("tf-ref").value.trim(),
+            consent_privacy: true, consent_third: $("tc-third").checked, consent_marketing: $("tc-mkt").checked,
+        });
+        location.href = License.kakaoLoginUrl();
+    });
+}
+
 function hasFeature(f) {
     if (!(state.lic && state.lic.active)) return false;
     // 아이라인 · 헤어라인은 따로 팔지 않는다 — 지금 이용권(눈썹 · 입술)에 포함 (2026-10-18 결정)
