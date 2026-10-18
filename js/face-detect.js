@@ -860,3 +860,51 @@ export function standardLipLandmarks(w, h, measured, eyes) {
         img_h: h,
     };
 }
+
+// ── 아이라인: 눈꺼풀 선 ─────────────────────────────────────────────────
+// 478점 중 눈꺼풀 가장자리(속눈썹이 나는 선) 점들. 각 줄은 앞눈머리 → 눈꼬리 차례.
+// 사진 왼쪽에 보이는 눈(고객의 오른눈)과 사진 오른쪽 눈을 따로 둔다.
+const EYE_LID_IDX = [
+    { side: "L", inner: 133, outer: 33,
+      upper: [133, 173, 157, 158, 159, 160, 161, 246, 33],
+      lower: [133, 155, 154, 153, 145, 144, 163, 7, 33] },
+    { side: "R", inner: 362, outer: 263,
+      upper: [362, 398, 384, 385, 386, 387, 388, 466, 263],
+      lower: [362, 382, 381, 380, 374, 373, 390, 249, 263] },
+];
+
+/**
+ * 아이라인을 그릴 눈꺼풀 선을 찾는다.
+ * 눈은 얼굴에서 작은 자리라 얼굴만 잘라 한 번 더 본다 (_detectFine).
+ * 눈 감은 사진도 같은 점이 나온다 — 위아래 선이 붙어 있을 뿐이다.
+ *
+ * @returns {{img_w, img_h, eyes: Array<{side, inner, outer, upper, lower, iris, open}>} | null}
+ *          좌표는 사진 픽셀, open = 눈 뜬 정도(세로 틈 ÷ 눈 길이)
+ */
+export async function detectEyeLandmarks(imgEl) {
+    const marks = await _detectFine(imgEl);
+    if (!marks) return null;
+    const w = imgEl.naturalWidth || imgEl.width;
+    const h = imgEl.naturalHeight || imgEl.height;
+    const at = (i) => [r1(marks[i].x * w), r1(marks[i].y * h)];
+
+    const eyes = EYE_LID_IDX.map((d) => {
+        const inner = at(d.inner), outer = at(d.outer);
+        const len = Math.hypot(outer[0] - inner[0], outer[1] - inner[1]) || 1;
+        const up = d.upper.map(at), lo = d.lower.map(at);
+        const gap = Math.hypot(up[4][0] - lo[4][0], up[4][1] - lo[4][1]);
+        let iris = null;
+        if (marks.length >= 478) {
+            const cx = (inner[0] + outer[0]) / 2;
+            const groups = [[468, 469, 470, 471, 472], [473, 474, 475, 476, 477]].map((g) => g.map(at));
+            const best = groups.reduce((a, g) => (Math.abs(g[0][0] - cx) < Math.abs(a[0][0] - cx) ? g : a));
+            const r = best.slice(1).reduce((s, p) => s + Math.hypot(p[0] - best[0][0], p[1] - best[0][1]), 0) / 4;
+            iris = { x: best[0][0], y: best[0][1], r: r1(r) };
+        }
+        return { side: d.side, inner, outer, upper: up, lower: lo, iris, open: r4(gap / len) };
+    });
+
+    const inFrame = (p) => isFinite(p[0]) && isFinite(p[1]) && p[0] > -w * 0.1 && p[0] < w * 1.1 && p[1] > -h * 0.1 && p[1] < h * 1.1;
+    if (!eyes.every((e) => inFrame(e.inner) && inFrame(e.outer))) return null;
+    return { img_w: w, img_h: h, eyes };
+}

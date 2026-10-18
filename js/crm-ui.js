@@ -15,8 +15,8 @@
  * =========================================================================
  */
 
-import * as Store from "./crm-store.js?v=103";
-import * as Remind from "./remind.js?v=103";
+import * as Store from "./crm-store.js?v=104";
+import * as Remind from "./remind.js?v=104";
 
 const $ = (id) => document.getElementById(id);
 
@@ -245,7 +245,7 @@ export async function openCard(id) {
 
         const head = document.createElement("div");
         head.className = "crm-visit-head";
-        const what = [v.area === "lip" ? "입술" : "눈썹", v.design, v.color]
+        const what = [({ lip: "입술", eyeline: "아이라인", hairline: "헤어라인" }[v.area] || "눈썹"), v.design, v.color]
             .filter(Boolean).join(" · ");
         head.innerHTML = '<b></b><span></span>';
         head.querySelector("b").textContent = ymd(v.date);
@@ -655,7 +655,7 @@ let retouching = null;
 
 function openRetouch(v) {
     retouching = v;
-    const what = v.area === "lip" ? "입술" : "눈썹";
+    const what = ({ lip: "입술", eyeline: "아이라인", hairline: "헤어라인" }[v.area] || "눈썹");
     $("crm-retouch-who").textContent =
         ymd(v.date) + " " + what + " 시술 기준으로 언제 다시 볼까요?";
 
@@ -740,7 +740,7 @@ async function paintPlan() {
                         '<span class="crm-plan-when"></span>';
         row.querySelector(".crm-plan-day").textContent = new Date(it.retouchAt).getDate() + "일";
         row.querySelector(".crm-plan-who").textContent =
-            it.name + " · " + (it.area === "lip" ? "입술" : "눈썹");
+            it.name + " · " + (({ lip: "입술", eyeline: "아이라인", hairline: "헤어라인" }[it.area] || "눈썹"));
         row.querySelector(".crm-plan-when").textContent = until(it.retouchAt);
         row.addEventListener("click", () => openCard(it.customerId));
         box.appendChild(row);
@@ -814,7 +814,7 @@ async function commitResult(customer) {
         area: r.area,
         // 눈썹은 디자인 이름, 입술은 색 이름이 온다
         design: r.area === "brow" ? (r.label || "") : "",
-        color: r.area === "lip" ? (r.label || "") : "",
+        color: r.area !== "brow" ? (r.label || "") : "",
         // 리터치는 눈썹·입술 모두 한 달 뒤가 보통이라 미리 잡아 둔다.
         // 카드에서 버튼 한 번으로 바꿀 수 있다.
         retouchAt: defaultRetouch(now),

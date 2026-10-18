@@ -12,12 +12,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
-<link rel="stylesheet" href="css/app.css?v=103">
+<link rel="stylesheet" href="css/app.css?v=104">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=103" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=104" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="diag-btn" class="diag-btn" type="button">버전</button>
@@ -28,7 +28,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=103" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=104" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -105,7 +105,7 @@
         <button class="mode-tab is-active" data-mode="brow" data-feat="brow">눈썹</button>
         <button class="mode-tab" data-mode="lip" data-feat="lip">입술</button>
         <!-- 2026-10-16 원장님: 아이라인 · 헤어라인 시뮬레이터를 추가할 예정 — 지금은 '준비 중' 탭 -->
-        <button class="mode-tab is-soon" data-mode="eyeline" data-soon="아이라인">아이라인<small>준비 중</small></button>
+        <button class="mode-tab" data-mode="eyeline" data-feat="eyeline" data-beta="1">아이라인<small>베타</small></button>
         <button class="mode-tab is-soon" data-mode="hairline" data-soon="헤어라인">헤어라인<small>준비 중</small></button>
     </div>
 
@@ -457,7 +457,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=103"></script>
-<script type="module" src="js/app.js?v=103"></script>
+<script type="module" src="js/pwa.js?v=104"></script>
+<script type="module" src="js/app.js?v=104"></script>
 </body>
 </html>

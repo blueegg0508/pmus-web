@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, engineStatus } from "./face-detect.js?v=103";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=103";
-import * as License from "./license.js?v=103";
-import * as Custom from "./custom-designs.js?v=103";
-import * as Update from "./update.js?v=103";
-import * as Crm from "./crm-ui.js?v=103";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, engineStatus } from "./face-detect.js?v=104";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=104";
+import * as License from "./license.js?v=104";
+import * as Custom from "./custom-designs.js?v=104";
+import * as Update from "./update.js?v=104";
+import * as Crm from "./crm-ui.js?v=104";
 
-const BUILD = "103";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "104";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -100,6 +100,8 @@ const state = {
     eyes: null,           // detectFaceGeometry().eyes
     brows: null,          // detectFaceGeometry().brows — 실제로 잰 눈썹 자리
     lipInfo: null,        // detectLipLandmarks 결과
+    eyeInfo: null,        // detectEyeLandmarks 결과 (아이라인)
+    eyeClosed: null,      // 눈 감은 사진 {b64, eye_json} — 아이라인 나란히 보기 (기기 밖으로 나가지 않는다)
     mode: "brow",
     design: DEFAULT_DESIGN,
     lic: null,          // License.getLicense() 결과
@@ -504,7 +506,7 @@ window.addEventListener("message", (e) => {
         if (!hasFeature("crm")) { toast("고객 관리 기능이 없습니다"); return; }
         if (!d.dataUrl) { toast("결과를 굽지 못했습니다. 다시 시도해 주세요", 3200); return; }
         Crm.saveResult({
-            area: d.part === "lip" ? "lip" : "brow",
+            area: PART_LABEL[d.part] ? d.part : "brow",
             label: d.label || "",
             before: state.photoDataUrl || null,
             sim: d.dataUrl,
@@ -517,7 +519,7 @@ window.addEventListener("message", (e) => {
     }
 
     if (d.type === "mui:captured") {
-        if (d.dataUrl && (d.part === "brow" || d.part === "lip")) {
+        if (d.dataUrl && PART_LABEL[d.part]) {
             addBase(d.part, d.dataUrl, d.label);
         }
         return;
@@ -530,6 +532,11 @@ window.addEventListener("message", (e) => {
 
     if (d.type === "mui:mode") {
         applyEditMode(d.mode === "manual" ? "manual" : "quick", true);
+        return;
+    }
+
+    if (d.type === "eye:pickClosed") {
+        pickClosedEyePhoto();
         return;
     }
 
@@ -571,8 +578,15 @@ function openSettings(open) {
 // ── 라이선스 ────────────────────────────────────────────────────────────
 
 function hasFeature(f) {
-    return !!(state.lic && state.lic.active && License.grants(state.lic.features, f));
+    if (!(state.lic && state.lic.active)) return false;
+    // 아이라인 · 헤어라인은 따로 팔지 않는다 — 지금 이용권(눈썹 · 입술)에 포함 (2026-10-18 결정)
+    if (f === "eyeline" || f === "hairline") {
+        return ["brow", "lip", f].some((x) => License.grants(state.lic.features, x));
+    }
+    return License.grants(state.lic.features, f);
 }
+
+const PART_LABEL = { brow: "눈썹", lip: "입술", eyeline: "아이라인", hairline: "헤어라인" };
 
 /** 사용 중지 목록을 받아 보고, 상태가 바뀌었으면 화면에 반영한다 (앱을 열 때·돌아올 때·30분마다) */
 async function checkRevocation() {
@@ -715,7 +729,7 @@ async function refreshLicense() {
         const f = tab.dataset.feat;
         const ok = hasFeature(f);
         tab.classList.toggle("is-locked", !ok);
-        tab.textContent = (f === "brow" ? "눈썹" : "입술") + (ok ? "" : " 🔒");
+        tab.innerHTML = (PART_LABEL[f] || f) + (ok ? "" : " 🔒") + (tab.dataset.beta ? "<small>베타</small>" : "");
     });
 
     // 잠긴 부위를 보고 있었다면 사용 가능한 쪽으로 되돌린다
@@ -1003,6 +1017,8 @@ function resetEverything() {
     state.eyes = null;
     state.brows = null;
     state.lipInfo = null;
+    state.eyeInfo = null;
+    state.eyeClosed = null;
     state.bases = [];
     state.baseChoice = null;
     state.design = DEFAULT_DESIGN;
@@ -1115,6 +1131,7 @@ async function shrinkPhotoForRetry(maxEdge) {
     state.photo = img;
     state.photoDataUrl = url;
     state.lipInfo = null;
+    state.eyeInfo = null;
     // 이어 그릴 밑그림은 크기가 달라져 못 쓴다
     state.bases = [];
     state.baseChoice = null;
@@ -1185,7 +1202,7 @@ async function addBase(part, dataUrl, label) {
     state.bases.unshift({
         id: "b" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
         part: part,
-        label: label || (part === "brow" ? "눈썹 작업" : "입술 작업"),
+        label: label || ((PART_LABEL[part] || "") + " 작업"),
         dataUrl: dataUrl,
         thumb: thumb,
     });
@@ -1210,7 +1227,7 @@ function updateCarryUI() {
         return;
     }
 
-    const other = state.mode === "brow" ? "입술" : "눈썹";
+    const other = [...new Set(list.map((b) => PART_LABEL[b.part]).filter(Boolean))].join(" · ");
     note.hidden = false;
     note.textContent = `${other} 작업을 이어서 편집합니다 — 아래에서 사진을 고르세요`;
 
@@ -1408,6 +1425,75 @@ async function renderLip(retried) {
     }
 }
 
+/**
+ * 아이라인 (베타) — 눈꺼풀 선을 찾아 편집 화면에 넘긴다.
+ * 그리는 일은 전부 eyeline-canvas.js 가 한다.
+ */
+async function renderEyeline(retried) {
+    const my = ++renderToken;
+    showLoading("눈꺼풀 선을 찾는 중...");
+    releaseFrame();
+    try {
+        if (!state.eyeInfo) {
+            try {
+                state.eyeInfo = await detectEyeLandmarks(state.photo);
+            } catch (e) {
+                console.warn("눈꺼풀 인식 건너뜀", e);
+            }
+        }
+        const cfg = {
+            bg_b64: baseFor("eyeline"),
+            img_w: state.photo.naturalWidth,
+            img_h: state.photo.naturalHeight,
+            eye_json: state.eyeInfo,
+            eye_centers: state.eyes,
+            closed: state.eyeClosed,
+            ui_mode: state.editMode,
+        };
+        if (cfg.bg_b64 !== state.photoDataUrl) cfg.orig_b64 = state.photoDataUrl;
+        if (my !== renderToken) return;
+        await mountSimulator("eyeline", cfg);
+    } catch (err) {
+        console.error(err, memReport());
+        if (!retried && looksLikeOutOfMemory(err) && await shrinkPhotoForRetry(1000)) {
+            hideLoading();
+            toast("메모리가 모자라 사진을 줄여 다시 시작합니다", 3000);
+            return renderEyeline(true);
+        }
+        toast("아이라인 준비 실패: " + err.message + "\n" + memReport(), 7000);
+    } finally {
+        hideLoading();
+    }
+}
+
+/** 아이라인: 눈 감은 사진을 골라 눈꺼풀 선을 찾고 편집 화면에 넘긴다 */
+function pickClosedEyePhoto() {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    const tell = (m) => { try { $("sim-frame").contentWindow.postMessage(m, "*"); } catch (e) { /* 편집 화면이 내려갔다 */ } };
+    input.addEventListener("change", async () => {
+        const file = input.files && input.files[0];
+        if (!file) return;
+        showLoading("눈 감은 사진을 살피는 중...");
+        try {
+            const { img, dataUrl } = await loadCustomerImage(file);
+            const info = await detectEyeLandmarks(img);
+            if (!info) {
+                tell({ type: "eye:closedFail", msg: "이 사진에서 눈을 찾지 못했습니다.\n얼굴 정면이 보이는 사진으로 다시 골라 주세요." });
+                return;
+            }
+            state.eyeClosed = { b64: dataUrl, eye_json: info };
+            tell({ type: "eye:closedInfo", dataUrl, eye_json: info });
+        } catch (err) {
+            tell({ type: "eye:closedFail", msg: "사진을 읽지 못했습니다 — " + err.message });
+        } finally {
+            hideLoading();
+        }
+    });
+    input.click();
+}
+
 function currentDesignLabel() {
     const d = EYEBROW_DESIGNS.find((x) => x.file === state.design);
     if (d) return d.label;
@@ -1421,6 +1507,7 @@ async function rerender() {
         return;
     }
     if (state.mode === "brow") await renderBrow();
+    else if (state.mode === "eyeline") await renderEyeline();
     else await renderLip();
 }
 
@@ -1450,6 +1537,8 @@ async function usePhoto(img, dataUrl) {
         state.photo = img;
         state.photoDataUrl = dataUrl;
         state.lipInfo = null;
+        state.eyeInfo = null;
+        state.eyeClosed = null;
         state.brows = null;
         state.bases = [];                 // 남의 사진 작업이 남으면 안 된다
         state.baseChoice = null;
@@ -1923,6 +2012,8 @@ function bindEvents() {
         state.eyes = null;
         state.brows = null;
         state.lipInfo = null;
+        state.eyeInfo = null;
+        state.eyeClosed = null;
         state.bases = [];
         state.baseChoice = null;
         updateCarryUI();
@@ -1970,7 +2061,7 @@ function bindEvents() {
                 return;
             }
             // 퀵은 고를 것 없이 바로 편집으로. 메뉴얼 눈썹만 디자인부터 고르게 한다.
-            if (state.mode === "lip" || state.editMode === "quick") {
+            if (state.mode !== "brow" || state.editMode === "quick") {
                 openSettings(false);
                 await rerender();
             } else {
