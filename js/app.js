@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, engineStatus } from "./face-detect.js?v=104";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=104";
-import * as License from "./license.js?v=104";
-import * as Custom from "./custom-designs.js?v=104";
-import * as Update from "./update.js?v=104";
-import * as Crm from "./crm-ui.js?v=104";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, engineStatus } from "./face-detect.js?v=105";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=105";
+import * as License from "./license.js?v=105";
+import * as Custom from "./custom-designs.js?v=105";
+import * as Update from "./update.js?v=105";
+import * as Crm from "./crm-ui.js?v=105";
 
-const BUILD = "104";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "105";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -627,13 +627,9 @@ async function refreshLicense() {
             return;
         }
         if (lic.needsTrialLogin) {
-            // 7일 체험 — 카카오 로그인으로 시작 (한 분당 한 번, 서버 기록)
+            // 7일 체험 — 신청 정보(상호 · 성함 · 연락처)와 동의를 받고 카카오 로그인으로 시작 (한 분당 한 번, 서버 기록)
             document.querySelector(".lic-title").textContent = "7일 무료 체험 시작하기";
-            $("lic-message").innerHTML =
-                "카카오 계정으로 로그인하시면 <strong>7일 동안 모든 기능</strong>을 무료로 쓰실 수 있습니다.<br>" +
-                "체험은 <strong>한 분당 한 번</strong>이며, 휴대폰 · 태블릿 · 브라우저를 바꿔도 남은 기간이 그대로 이어집니다.<br><br>" +
-                "<a class=\"btn kakao-btn\" href=\"" + License.kakaoLoginUrl() + "\">카카오로 시작하기</a>" +
-                "<br><small>이미 구매하셨다면 아래에 등록 키를 넣어 주세요.</small>";
+            renderTrialForm();
             $("lic-back-trial").hidden = true;
             return;
         }

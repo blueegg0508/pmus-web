@@ -424,6 +424,28 @@ async function freeLicense(deviceCode) {
  * ------------------------------------------------------------------- */
 const KEY_TRIAL_SESS = "pmus.trialSess";     // 카카오 로그인 정보 (수파베이스 로그인 표)
 const KEY_TRIAL_SRV = "blic.trialServer";    // 서버가 정한 체험 시작 시각 (ms)
+const KEY_TRIAL_PROFILE = "pmus.trialProfile";   // 체험 신청 정보 (카카오 로그인 뒤 서버로 보내고 지운다)
+const KEY_TRIAL_REF = "pmus.ref";            // 소개한 판매처 (주소 ?ref=)
+
+/** 판매처가 나눠 준 주소(?ref=)로 들어왔으면 기억해 둔다 — 체험 신청 때 함께 보낸다 */
+export function rememberRef() {
+    try {
+        const r = new URLSearchParams(location.search).get("ref");
+        if (r && /^[\w가-힣.-]{1,60}$/.test(r)) localStorage.setItem(KEY_TRIAL_REF, r);
+        return localStorage.getItem(KEY_TRIAL_REF) || "";
+    } catch (e) { return ""; }
+}
+
+/**
+ * 체험 신청 정보를 담아 둔다 (카카오 로그인 화면으로 넘어가면 이 페이지가 사라지므로).
+ * {shop, name, phone, ref, consent_privacy, consent_third, consent_marketing}
+ */
+export function saveTrialProfile(p) {
+    try { localStorage.setItem(KEY_TRIAL_PROFILE, JSON.stringify(p)); } catch (e) { /* 개인 모드 */ }
+}
+export function trialProfile() {
+    try { return JSON.parse(localStorage.getItem(KEY_TRIAL_PROFILE) || "null"); } catch (e) { return null; }
+}
 let _kakaoOn = null;
 
 async function kakaoReady() {
@@ -495,12 +517,15 @@ export async function syncTrial() {
             body: JSON.stringify({
                 hint: isFinite(local) && local > 0 ? new Date(local).toISOString() : null,
                 device: await getDeviceCode(),
+                profile: trialProfile(),
             }),
             cache: "no-store",
         });
         if (!r.ok) return null;
         const ms = Date.parse(await r.json());
         if (!isFinite(ms)) return null;
+        // 신청 정보는 서버에 들어갔다 — 이 기기에 남겨 둘 이유가 없다
+        try { localStorage.removeItem(KEY_TRIAL_PROFILE); } catch (e) { /* 개인 모드 */ }
         await Preferences.set({ key: KEY_TRIAL_SRV, value: String(ms) });
         await Preferences.set({ key: KEY_TRIAL_START, value: String(ms) });
         return ms;

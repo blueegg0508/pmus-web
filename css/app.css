@@ -1679,3 +1679,25 @@ html.ed-staff body.sim-fullscreen.settings-open .settings-toggle { left: 0; righ
     min-width: 220px; padding: 13px 22px; border-radius: 12px;
     background: #FEE500; color: #191919 !important; font-weight: 800; text-decoration: none;
 }
+
+/* 체험 신청 양식 (2026-10-18) */
+.trial-form { display: grid; gap: 10px; margin-top: 16px; text-align: left; }
+.trial-form > label { display: grid; gap: 4px; font-size: 13px; font-weight: 700; color: var(--text, #F2EEFB); }
+.trial-form > label b { color: #E8C65A; }
+.trial-form > label i { font-style: normal; font-weight: 500; color: var(--muted, #A79DC0); font-size: 12px; }
+.trial-form input:not([type="checkbox"]) {
+    width: 100%; box-sizing: border-box; padding: 11px 12px; border-radius: 10px;
+    border: 1px solid #4A3F63; background: #1B1626; color: #F2EEFB; font: inherit; font-size: 15px; font-weight: 500;
+}
+.trial-consents { display: grid; gap: 6px; padding: 12px; border-radius: 12px; background: rgba(0,0,0,.22); border: 1px solid #372F4A; }
+.trial-consents label { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.45; cursor: pointer; }
+.trial-consents input[type="checkbox"] { width: 18px; height: 18px; margin: 1px 0 0; flex: 0 0 auto; accent-color: #C9A227; }
+.trial-consents .tc-all { padding-bottom: 8px; margin-bottom: 2px; border-bottom: 1px solid #372F4A; }
+.trial-consents .req { color: #FF8A80; font-weight: 800; }
+.trial-consents .opt { color: #A79DC0; font-weight: 800; }
+.trial-consents details { margin: -2px 0 4px 26px; font-size: 12px; color: #A79DC0; }
+.trial-consents summary { cursor: pointer; color: #C9B8F0; }
+.trial-consents details p { margin: 6px 0 0; line-height: 1.6; }
+.trial-form .kakao-btn { width: 100%; border: 0; font-size: 15px; cursor: pointer; margin-top: 4px; }
+.trial-form small { text-align: center; color: #A79DC0; }
+.trial-consents .tc-policy { font-size: 12px; color: #C9B8F0; margin: 2px 0 0 26px; }
