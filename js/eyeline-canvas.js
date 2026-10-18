@@ -438,6 +438,12 @@
             e.upper.concat(e.lower).forEach(function (q) { xs.push(q[0]); ys.push(q[1]); });
             len = Math.max(len, Math.hypot(e.outer[0] - e.inner[0], e.outer[1] - e.inner[1]));
         });
+        if (mode === "upper") {
+            // 얼굴 상부: 이마 · 눈썹 · 눈 · 콧등까지 (눈 길이 기준)
+            var ux0 = clamp(Math.min.apply(null, xs) - len * 1.1, 0, W), ux1 = clamp(Math.max.apply(null, xs) + len * 1.1, 0, W);
+            var uy0 = clamp(Math.min.apply(null, ys) - len * 2.4, 0, H), uy1 = clamp(Math.max.apply(null, ys) + len * 1.4, 0, H);
+            return { x: ux0, y: uy0, w: Math.max(8, ux1 - ux0), h: Math.max(8, uy1 - uy0) };
+        }
         var one = mode !== "both";
         var x0 = Math.min.apply(null, xs) - len * (one ? 0.5 : 0.6), x1 = Math.max.apply(null, xs) + len * (one ? 0.5 : 0.6);
         var y0 = Math.min.apply(null, ys) - len * (one ? 0.7 : 0.85), y1 = Math.max.apply(null, ys) + len * (one ? 0.45 : 0.5);
@@ -832,6 +838,22 @@
     }
     layout();
     window.addEventListener("resize", function () { layout(); schedule(); });
+
+    // 아래 조절판이 가리는 만큼 사진 자리 아래에 여백을 둔다 — '얼굴 전체' 에서 턱까지 보이게
+    // (눈썹 · 입술 화면 mobile-ui.js syncStagePadding 과 같은 방식, 2026-10-19)
+    (function () {
+        var stage = $("eStage"), sh = $("eSheet");
+        function pad() {
+            if (root.classList.contains("mui-land")) { stage.style.paddingBottom = "8px"; return; }
+            var covered = Math.max(0, window.innerHeight - sh.getBoundingClientRect().top);
+            stage.style.paddingBottom = Math.max(8, Math.round(covered) + 8) + "px";
+            schedule();
+        }
+        if (typeof ResizeObserver === "function") new ResizeObserver(pad).observe(sh);
+        sh.addEventListener("transitionend", pad);
+        window.addEventListener("resize", pad);
+        requestAnimationFrame(pad);
+    })();
 
     // ── 앱 셸에서 오는 신호 ───────────────────────────────────────────
     window.addEventListener("message", function (e) {

@@ -618,6 +618,22 @@
     layout();
     window.addEventListener("resize", function () { layout(); schedule(); });
 
+    // 아래 조절판이 가리는 만큼 사진 자리 아래에 여백을 둔다 — '얼굴 전체' 에서 턱까지 보이게
+    // (눈썹 · 입술 화면 mobile-ui.js syncStagePadding 과 같은 방식, 2026-10-19)
+    (function () {
+        var stage = $("eStage"), sh = $("eSheet");
+        function pad() {
+            if (root.classList.contains("mui-land")) { stage.style.paddingBottom = "8px"; return; }
+            var covered = Math.max(0, window.innerHeight - sh.getBoundingClientRect().top);
+            stage.style.paddingBottom = Math.max(8, Math.round(covered) + 8) + "px";
+            schedule();
+        }
+        if (typeof ResizeObserver === "function") new ResizeObserver(pad).observe(sh);
+        sh.addEventListener("transitionend", pad);
+        window.addEventListener("resize", pad);
+        requestAnimationFrame(pad);
+    })();
+
     window.addEventListener("message", function (e) {
         var d = e.data;
         if (!d || typeof d !== "object") return;
