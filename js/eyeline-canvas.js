@@ -200,68 +200,75 @@
         }
         var baseDrop = Math.min(0.3 * T, 0.016 * len);
 
-        var top = [], base = [];
-        for (var i = 0; i < N; i++) {
-            var u = i / (N - 1);
-            if (u < s0) continue;
-            var t = th(u);
-            top.push([P[i][0] + nor[i][0] * t, P[i][1] + nor[i][1] * t]);
-            var bd = baseDrop * smooth(0, 0.1, u - s0);
-            base.push([P[i][0] - nor[i][0] * bd, P[i][1] - nor[i][1] * bd]);
-        }
-        if (top.length < 2) return null;
-
+        var unit = function (a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; };
         var O = P[N - 1];
-        var E = top[top.length - 1];
-        var poly = top.slice();
-        var baseEnd = base.length - 1;           // 아래 테두리를 어디까지 쓸지 (꼬리가 있으면 눈꼬리 앞에서 꺾지 않고 곡선으로 빠진다)
+
+        // 중심선 한 줄: 눈꺼풀 선을 따라가다 (꼬리가 있으면) 눈꼬리 앞에서 부드럽게 꼬리 끝으로 이어진다.
+        // 위 · 아래 테두리를 이 한 줄에서 두께만큼 띄워 만들므로, 꼬리가 나오는 자리에서
+        // 위아래가 함께 둥글게(R) 이어지고 뒤틀리지 않는다 (2026-10-19 원장님 요청).
+        var iEnd = N - 1, tailPts = null, dir = null, tipR = 0;
         if (hasTail) {
             var tl = p.tail / 100 * 0.45 * len;
-            // 꼬리 방향은 '눈매 끝' 을 따른다 (2026-10-19 원장님 요청):
-            // 윗 눈꺼풀 끝의 기울기와 아래 눈꺼풀 끝의 기울기가 만나는 눈꼬리의 방향이 기본이고,
-            // '꼬리 들림 각도' 는 거기서 위로 더 들어 올리는 양이다 (0 = 눈매 끝 그대로).
+            // 꼬리 방향 = 눈매 끝 (윗 · 아래 눈꺼풀 끝의 기울기가 만나는 방향) + 들림 각도
             var Lw = smoothOpen(eye.lower, N);
-            var uv = function (a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; };
-            var tUp = uv(P[N - 5], P[N - 1]), tLo = uv(Lw[N - 5], Lw[N - 1]);
-            var nat = uv([0, 0], [tUp[0] + tLo[0] + ax[0] * 0.3, tUp[1] + tLo[1] + ax[1] * 0.3]);
+            var tUp = unit(P[N - 5], P[N - 1]), tLo = unit(Lw[N - 5], Lw[N - 1]);
+            var nat = unit([0, 0], [tUp[0] + tLo[0] + ax[0] * 0.3, tUp[1] + tLo[1] + ax[1] * 0.3]);
             var ang = p.angle * Math.PI / 180;
-            var c = Math.cos(ang), s = Math.sin(ang);
-            var d1 = [nat[0] * c - nat[1] * s, nat[0] * s + nat[1] * c];
-            var d2 = [nat[0] * c + nat[1] * s, -nat[0] * s + nat[1] * c];
+            var c = Math.cos(ang), sn = Math.sin(ang);
+            var d1 = [nat[0] * c - nat[1] * sn, nat[0] * sn + nat[1] * c];
+            var d2 = [nat[0] * c + nat[1] * sn, -nat[0] * sn + nat[1] * c];
             var lift = ang >= 0 ? 1 : -1;
-            var dir = ((d1[0] * up[0] + d1[1] * up[1]) - (d2[0] * up[0] + d2[1] * up[1])) * lift > 0 ? d1 : d2;
+            dir = ((d1[0] * up[0] + d1[1] * up[1]) - (d2[0] * up[0] + d2[1] * up[1])) * lift > 0 ? d1 : d2;
             var tip = [O[0] + dir[0] * tl, O[1] + dir[1] * tl];
-            var r = p.tip / 100 * T * 0.55;
-            var tipTop = [tip[0] + up[0] * r, tip[1] + up[1] * r];
-            var tipBot = [tip[0] - up[0] * r * 0.35, tip[1] - up[1] * r * 0.35];
 
-            // 꼬리 연결 R (2026-10-19 원장님 요청): 기존 라인과 꼬리가 꺾이지 않고 둥글게 이어지게.
-            // R 이 클수록 눈꼬리보다 앞에서부터 아래 테두리가 꼬리 쪽으로 완만하게 빠져나간다.
+            // 꼬리 연결 R: 클수록 눈꼬리보다 앞에서 갈라져 더 완만한 곡선으로 이어진다
             var R = (p.join == null ? 55 : p.join) / 100;
-            var unit = function (a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; };
-
-            // 윗 테두리: 눈꺼풀 선의 기울기를 그대로 이어 꼬리 끝으로 (꺾임 없음)
-            var tE = unit(top[Math.max(0, top.length - 3)], E);
-            var k1 = tl * (0.3 + 0.35 * R);
-            poly = poly.concat(cubic(E, [E[0] + tE[0] * k1, E[1] + tE[1] * k1],
-                [tipTop[0] - dir[0] * tl * 0.3, tipTop[1] - dir[1] * tl * 0.3], tipTop, 18));
-            if (r > 0.3) poly = poly.concat(quad(tipTop, [tip[0] + dir[0] * r * 0.8, tip[1] + dir[1] * r * 0.8], tipBot, 6));
-
-            // 아래 테두리: 눈꼬리 앞(R 만큼)에서 아래 테두리를 떠나 꼬리 끝으로 — 그 자리의 기울기를 맞춘다
-            var back = Math.round(clamp(0.04 + 0.30 * R, 0.02, 0.4) * (N - 1));
-            baseEnd = Math.max(1, base.length - 1 - back);
-            var Bj = base[baseEnd];
-            var tB0 = unit(base[Math.max(0, baseEnd - 2)], base[Math.min(base.length - 1, baseEnd + 2)]);
-            var tB = unit([0, 0], [tB0[0] + tLo[0] * 0.6, tB0[1] + tLo[1] * 0.6]);
-            var span = Math.hypot(tipBot[0] - Bj[0], tipBot[1] - Bj[1]);
-            var k2 = span * (0.25 + 0.35 * R), k3 = span * (0.25 + 0.2 * R);
-            poly = poly.concat(cubic(tipBot, [tipBot[0] - dir[0] * k3, tipBot[1] - dir[1] * k3],
-                [Bj[0] + tB[0] * k2, Bj[1] + tB[1] * k2], Bj, 22));
-        } else {
-            var end = [O[0] + ax[0] * 0.02 * len, O[1] + ax[1] * 0.02 * len];
-            poly.push(end);
+            var back = Math.round((0.03 + 0.22 * R) * (N - 1));
+            iEnd = Math.max(Math.ceil(s0 * (N - 1)) + 3, N - 1 - back);
+            var J = P[iEnd], tJ = unit(P[iEnd - 2], P[iEnd]);
+            var dist = Math.hypot(tip[0] - J[0], tip[1] - J[1]);
+            var k1 = dist * (0.3 + 0.3 * R), k2 = dist * 0.3;
+            tailPts = cubic(J, [J[0] + tJ[0] * k1, J[1] + tJ[1] * k1], [tip[0] - dir[0] * k2, tip[1] - dir[1] * k2], tip, 30);
+            tipR = Math.max(0.004 * len, p.tip / 100 * T * 0.35);
         }
-        poly = poly.concat(base.slice(0, baseEnd + 1).reverse());
+
+        var spine = [], wTop = [], wBot = [];
+        for (var i = 0; i <= iEnd; i++) {
+            var u = i / (N - 1);
+            if (u < s0) continue;
+            spine.push(P[i]);
+            wTop.push(th(u));
+            wBot.push(baseDrop * smooth(0, 0.1, u - s0));
+        }
+        if (spine.length < 2) return null;
+        if (tailPts) {
+            var wJ = wTop[wTop.length - 1], dJ = wBot[wBot.length - 1], M = tailPts.length;
+            tailPts.forEach(function (q, k) {
+                var t = (k + 1) / M;
+                var w = tipR + (wJ - tipR) * Math.pow(1 - t, 1.15);     // 꼬리 끝으로 갈수록 가늘게
+                var a2 = smooth(0, 0.55, t);                            // 꼬리에서는 두께를 위아래로 나눈다
+                spine.push(q);
+                wTop.push(w * (1 - 0.4 * a2));
+                wBot.push(dJ * (1 - a2) + w * 0.4 * a2);
+            });
+        }
+        var n = spine.length;
+        var top = [], base = [];
+        for (i = 0; i < n; i++) {
+            var qa = spine[Math.max(0, i - 1)], qb = spine[Math.min(n - 1, i + 1)];
+            var tg = unit(qa, qb), nn = [tg[1], -tg[0]];
+            if (nn[0] * up[0] + nn[1] * up[1] < 0) nn = [-nn[0], -nn[1]];
+            top.push([spine[i][0] + nn[0] * wTop[i], spine[i][1] + nn[1] * wTop[i]]);
+            base.push([spine[i][0] - nn[0] * wBot[i], spine[i][1] - nn[1] * wBot[i]]);
+        }
+        var poly = top.slice();
+        if (tailPts) {
+            var e = spine[n - 1];
+            poly = poly.concat(quad(top[n - 1], [e[0] + dir[0] * tipR * 1.6, e[1] + dir[1] * tipR * 1.6], base[n - 1], 6));
+        } else {
+            poly.push([O[0] + ax[0] * 0.02 * len, O[1] + ax[1] * 0.02 * len]);
+        }
+        poly = poly.concat(base.slice().reverse());
 
         // 언더 라인: 아래 속눈썹 선의 눈꼬리 쪽만
         var under = null;
