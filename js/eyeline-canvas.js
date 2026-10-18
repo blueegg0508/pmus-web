@@ -34,10 +34,10 @@
 
     // ── 디자인 · 색 · 조절바 정의 ──────────────────────────────────────
     var STYLES = [
-        { key: "natural", label: "점막 채우기", p: { thick: 16, tail: 0, angle: 0, start: 12, front: 60, tip: 30, dy: 0, soft: 45, under: 0, ext: 0, join: 55 } },
-        { key: "basic", label: "기본 라인", p: { thick: 32, tail: 10, angle: 4, start: 18, front: 35, tip: 20, dy: 0, soft: 35, under: 0, ext: 0, join: 55 } },
-        { key: "wing", label: "윙 라인", p: { thick: 48, tail: 34, angle: 10, start: 14, front: 25, tip: 8, dy: 0, soft: 25, under: 0, ext: 0, join: 55 } },
-        { key: "under", label: "꼬리 + 언더", p: { thick: 32, tail: 14, angle: 4, start: 20, front: 35, tip: 20, dy: 0, soft: 35, under: 55, ext: 0, join: 55 } },
+        { key: "natural", label: "점막 채우기", p: { thick: 16, tail: 0, angle: 0, wing: 20, start: 12, front: 60, tip: 30, dy: 0, soft: 45, under: 0, ext: 0, join: 55 } },
+        { key: "basic", label: "기본 라인", p: { thick: 28, tail: 16, angle: 3, wing: 25, start: 16, front: 30, tip: 10, dy: 0, soft: 35, under: 0, ext: 0, join: 55 } },
+        { key: "wing", label: "윙 라인", p: { thick: 32, tail: 52, angle: 6, wing: 42, start: 10, front: 18, tip: 4, dy: 0, soft: 38, under: 0, ext: 0, join: 55 } },
+        { key: "under", label: "꼬리 + 언더", p: { thick: 28, tail: 18, angle: 3, wing: 28, start: 18, front: 30, tip: 10, dy: 0, soft: 35, under: 55, ext: 0, join: 55 } },
     ];
     var COLORS = [["#15110f", "블랙"], ["#2a1b14", "브라운 블랙"], ["#3d281c", "다크 브라운"], ["#38383d", "그레이"]];
 
@@ -46,7 +46,8 @@
         opacity: { label: "진하기", min: 20, max: 100, side: false, unit: "%" },
         thick: { label: "두께", min: 0, max: 100, side: true },
         tail: { label: "꼬리 길이", min: 0, max: 100, side: true },
-        angle: { label: "꼬리 들림 각도", min: -30, max: 30, side: true, unit: "°", hint: "0 = 눈매 끝 방향 그대로 · + 위로 들어 올림 · − 아래로" },
+        angle: { label: "꼬리 들림 각도", min: -30, max: 30, side: true, unit: "°", hint: "0 = 아래 속눈썹 선을 그대로 연장 · + 위로 · − 아래로" },
+        wing: { label: "날개 시작 위치", min: 0, max: 100, side: true, hint: "꼬리 윗선이 눈 위 어디서 떨어져 나올지 — 클수록 앞에서부터 두툼한 날개" },
         join: { label: "꼬리 연결 곡선 (R)", min: 0, max: 100, side: true, hint: "기존 라인에서 꼬리로 넘어가는 곡선 — 클수록 완만하게 이어짐" },
         start: { label: "시작 위치", min: 0, max: 100, side: true, hint: "눈 앞머리 쪽에서 어디부터 그릴지" },
         front: { label: "앞쪽 두께", min: 0, max: 100, side: true, unit: "%", hint: "앞은 가늘게 · 뒤로 갈수록 두껍게" },
@@ -57,8 +58,8 @@
         under: { label: "언더 라인 (아래 꼬리)", min: 0, max: 100, side: true },
         lash: { label: "속눈썹 살리기", min: 0, max: 100, side: false, unit: "%", hint: "속눈썹이 라인 위로 지나가게 보이는 정도" },
     };
-    var QUICK_KEYS = ["opacity", "thick", "ext", "tail", "angle", "join"];
-    var MANUAL_KEYS = ["thick", "ext", "tail", "angle", "join", "start", "front", "tip", "dy", "soft", "under", "opacity", "lash"];
+    var QUICK_KEYS = ["opacity", "thick", "tail", "angle", "wing", "join"];
+    var MANUAL_KEYS = ["thick", "tail", "angle", "wing", "join", "ext", "start", "front", "tip", "dy", "soft", "under", "opacity", "lash"];
 
     function styleOf(key) { for (var i = 0; i < STYLES.length; i++) if (STYLES[i].key === key) return STYLES[i]; return STYLES[1]; }
     function copy(o) { return JSON.parse(JSON.stringify(o)); }
@@ -221,82 +222,77 @@
         }
         var O = P[N - 1];
 
-        // 중심선 한 줄: 눈꺼풀 선을 따라가다 (꼬리가 있으면) 눈꼬리 앞에서 부드럽게 꼬리 끝으로 이어진다.
-        // 위 · 아래 테두리를 이 한 줄에서 두께만큼 띄워 만들므로, 꼬리가 나오는 자리에서
-        // 위아래가 함께 둥글게(R) 이어지고 뒤틀리지 않는다 (2026-10-19 원장님 요청).
-        var iEnd = N - 1, tailPts = null, dir = null, tipR = 0;
+        var poly, i;
         if (hasTail) {
-            var tl = p.tail / 100 * 0.45 * len;
-            // 꼬리 방향 = 눈매 끝 (윗 · 아래 눈꺼풀 끝의 기울기가 만나는 방향) + 들림 각도
-            var Lw = smoothOpen(eye.lower, N);
-            var tUp = unit(P[N - 5], P[N - 1]), tLo = unit(Lw[N - 5], Lw[N - 1]);
-            var nat = unit([0, 0], [tUp[0] + tLo[0] + ax[0] * 0.3, tUp[1] + tLo[1] + ax[1] * 0.3]);
+            // ── 날개(윙) 꼬리 (2026-10-19 원장님 참고 사진 기준) ──────────────
+            //  · 꼬리 방향 = 아래 속눈썹 선을 바깥으로 그대로 이어 그은 선 (+ 들림 각도)
+            //  · 꼬리 아랫선 = 눈꼬리에서 그 선을 따라 곧게 → 끝은 뾰족하게
+            //  · 꼬리 윗선 = 윗 라인 중간쯤(날개 시작 위치)에서 떨어져 나와 꼬리 끝까지 거의 곧게
+            //  → 눈꼬리 위가 삼각형으로 채워지고, 꼬리가 나오는 자리는 R 만큼 둥글게 이어진다
+            var Lw = smoothOpen(eye.lower, NL);
+            var tLo = unit(Lw[Math.round((NL - 1) * 0.7)], Lw[NL - 1]);
             var ang = p.angle * Math.PI / 180;
-            var c = Math.cos(ang), sn = Math.sin(ang);
-            var d1 = [nat[0] * c - nat[1] * sn, nat[0] * sn + nat[1] * c];
-            var d2 = [nat[0] * c + nat[1] * sn, -nat[0] * sn + nat[1] * c];
+            var cA = Math.cos(ang), sA = Math.sin(ang);
+            var r1 = [tLo[0] * cA - tLo[1] * sA, tLo[0] * sA + tLo[1] * cA];
+            var r2 = [tLo[0] * cA + tLo[1] * sA, -tLo[0] * sA + tLo[1] * cA];
             var lift = ang >= 0 ? 1 : -1;
-            dir = ((d1[0] * up[0] + d1[1] * up[1]) - (d2[0] * up[0] + d2[1] * up[1])) * lift > 0 ? d1 : d2;
-            var tip = [O[0] + dir[0] * tl, O[1] + dir[1] * tl];
-
-            // 꼬리 연결 R: 클수록 눈꼬리보다 앞에서 갈라져 더 완만한 곡선으로 이어진다
+            var dirW = ((r1[0] * up[0] + r1[1] * up[1]) - (r2[0] * up[0] + r2[1] * up[1])) * lift > 0 ? r1 : r2;
+            var C = P[NL - 1];
+            var tl = (p.tail / 100 * 0.5 + (p.ext || 0) / 100 * 0.2) * len;
+            var tip = [C[0] + dirW[0] * tl, C[1] + dirW[1] * tl];
             var R = (p.join == null ? 55 : p.join) / 100;
-            var back = Math.round((0.03 + 0.22 * R) * (N - 1));
-            iEnd = Math.max(Math.ceil(s0 * (N - 1)) + 3, N - 1 - back);
-            var J = P[iEnd], tJ = unit(P[iEnd - 2], P[iEnd]);
-            var dist = Math.hypot(tip[0] - J[0], tip[1] - J[1]);
-            // 꼬리는 처음 나오는 선(눈꺼풀 선의 방향)을 그대로 따라 나가다가 꼬리 끝으로 한 번만 휜다.
-            // 각도를 바꾸면 꼬리 끝 꼭짓점만 위아래로 움직이고, 선이 뒤집히듯 S자로 꺾이지 않는다 (2026-10-19 원장님 요청).
-            var k1 = dist * (0.3 + 0.3 * R);
-            var c1 = [J[0] + tJ[0] * k1, J[1] + tJ[1] * k1];
-            var c2 = [c1[0] + (tip[0] - c1[0]) * 0.45, c1[1] + (tip[1] - c1[1]) * 0.45];
-            tailPts = cubic(J, c1, c2, tip, 30);
-            dir = unit(c2, tip);                       // 꼬리 끝 마무리는 실제로 들어오는 방향으로
-            tipR = Math.max(0.004 * len, p.tip / 100 * T * 0.35);
-        }
+            var wingU = Math.max(s0 + 0.1, 1 - (0.1 + 0.45 * (p.wing == null ? 40 : p.wing) / 100));
 
-        var spine = [], wTop = [], wBot = [];
-        var wFull = th(0.9);
-        for (var i = 0; i <= iEnd; i++) {
-            var u = Math.min(1, i / (NL - 1));
-            if (u < s0) continue;
-            spine.push(P[i]);
-            if (i >= NL) {
-                // 연장 부분: 꼬리가 있으면 두께를 이어 가고, 없으면 끝으로 가늘게
-                var te2 = (i - NL + 1) / (N - NL);
-                wTop.push(hasTail ? wFull : wFull * (1 - 0.75 * te2));
-            } else wTop.push(i > NL * 0.9 && extLen > 0.5 && !hasTail ? Math.max(th(u), wFull) : th(u));
-            wBot.push(baseDrop * smooth(0, 0.1, u - s0));
-        }
-        if (spine.length < 2) return null;
-        if (tailPts) {
-            var wJ = wTop[wTop.length - 1], dJ = wBot[wBot.length - 1], M = tailPts.length;
-            tailPts.forEach(function (q, k) {
-                var t = (k + 1) / M;
-                var w = tipR + (wJ - tipR) * Math.pow(1 - t, 1.15);     // 꼬리 끝으로 갈수록 가늘게
-                var a2 = smooth(0, 0.55, t);                            // 꼬리에서는 두께를 위아래로 나눈다
-                spine.push(q);
-                wTop.push(w * (1 - 0.4 * a2));
-                wBot.push(dJ * (1 - a2) + w * 0.4 * a2);
-            });
-        }
-        var n = spine.length;
-        var top = [], base = [];
-        for (i = 0; i < n; i++) {
-            var qa = spine[Math.max(0, i - 1)], qb = spine[Math.min(n - 1, i + 1)];
-            var tg = unit(qa, qb), nn = [tg[1], -tg[0]];
-            if (nn[0] * up[0] + nn[1] * up[1] < 0) nn = [-nn[0], -nn[1]];
-            top.push([spine[i][0] + nn[0] * wTop[i], spine[i][1] + nn[1] * wTop[i]]);
-            base.push([spine[i][0] - nn[0] * wBot[i], spine[i][1] - nn[1] * wBot[i]]);
-        }
-        var poly = top.slice();
-        if (tailPts) {
-            var e = spine[n - 1];
-            poly = poly.concat(quad(top[n - 1], [e[0] + dir[0] * tipR * 1.6, e[1] + dir[1] * tipR * 1.6], base[n - 1], 6));
+            var top = [], base = [];
+            for (i = 0; i < NL; i++) {
+                var u = i / (NL - 1);
+                if (u < s0) continue;
+                var tw0 = th(u), bd = baseDrop * smooth(0, 0.1, u - s0);
+                if (u <= wingU) top.push([P[i][0] + nor[i][0] * tw0, P[i][1] + nor[i][1] * tw0]);
+                base.push([P[i][0] - nor[i][0] * bd, P[i][1] - nor[i][1] * bd]);
+            }
+            if (top.length < 3 || base.length < 3) return null;
+            var Tw = top[top.length - 1], tTw = unit(top[top.length - 3], Tw);
+            var tipR = Math.max(0.003 * len, p.tip / 100 * T * 0.3);
+            var tipTop = [tip[0] + up[0] * tipR * 0.5, tip[1] + up[1] * tipR * 0.5];
+            var tipBot = [tip[0] - up[0] * tipR * 0.5, tip[1] - up[1] * tipR * 0.5];
+            // 윗선: 윗 라인의 기울기로 떨어져 나와(R) 꼬리 끝으로 곧게, 살짝 오목하게
+            var dT = Math.hypot(tipTop[0] - Tw[0], tipTop[1] - Tw[1]), dTop = unit(Tw, tipTop);
+            // 윗 라인을 따라 조금 더 붙어 가다가(오목하게) 꼬리 끝으로 — 참고 사진처럼 삼각형이 무겁지 않게
+            var cc = 0.06 + 0.08 * R;
+            var topWing = cubic(Tw, [Tw[0] + tTw[0] * dT * (0.28 + 0.3 * R), Tw[1] + tTw[1] * dT * (0.28 + 0.3 * R)],
+                [tipTop[0] - dTop[0] * dT * 0.42 - up[0] * dT * cc, tipTop[1] - dTop[1] * dT * 0.42 - up[1] * dT * cc], tipTop, 28);
+            var cap = quad(tipTop, [tip[0] + dirW[0] * tipR * 1.2, tip[1] + dirW[1] * tipR * 1.2], tipBot, 5);
+            // 아랫선: 꼬리 끝에서 아래 속눈썹 선 방향 그대로 눈꼬리로 (눈꼬리 모서리도 R 만큼 둥글게)
+            var bi = Math.max(1, base.length - 1 - Math.round(R * 3));
+            var B = base[bi], tB0 = unit(base[Math.max(0, bi - 2)], B);
+            var tB = unit([0, 0], [tB0[0] * (1 - R) + tLo[0] * (0.4 + R), tB0[1] * (1 - R) + tLo[1] * (0.4 + R)]);
+            var dB = Math.hypot(tipBot[0] - B[0], tipBot[1] - B[1]);
+            var botWing = cubic(tipBot, [tipBot[0] - dirW[0] * dB * 0.4, tipBot[1] - dirW[1] * dB * 0.4],
+                [B[0] + tB[0] * dB * (0.15 + 0.25 * R), B[1] + tB[1] * dB * (0.15 + 0.25 * R)], B, 24);
+            poly = top.concat(topWing, cap, botWing, base.slice(0, bi).reverse());
         } else {
-            poly.push([O[0] + ax[0] * 0.02 * len, O[1] + ax[1] * 0.02 * len]);
+            // 꼬리 없음: 윗 라인만 (바깥 연장이 있으면 그만큼 길게, 끝으로 가늘게)
+            var spine = [], wTop = [], wBot = [];
+            var wFull = th(0.9);
+            for (i = 0; i < N; i++) {
+                var u2 = Math.min(1, i / (NL - 1));
+                if (u2 < s0) continue;
+                spine.push(P[i]);
+                if (i >= NL) wTop.push(wFull * (1 - 0.75 * (i - NL + 1) / (N - NL)));
+                else wTop.push(i > NL * 0.9 && extLen > 0.5 ? Math.max(th(u2), wFull) : th(u2));
+                wBot.push(baseDrop * smooth(0, 0.1, u2 - s0));
+            }
+            if (spine.length < 2) return null;
+            var n2 = spine.length, topS = [], baseS = [];
+            for (i = 0; i < n2; i++) {
+                var tg = unit(spine[Math.max(0, i - 1)], spine[Math.min(n2 - 1, i + 1)]), nn = [tg[1], -tg[0]];
+                if (nn[0] * up[0] + nn[1] * up[1] < 0) nn = [-nn[0], -nn[1]];
+                topS.push([spine[i][0] + nn[0] * wTop[i], spine[i][1] + nn[1] * wTop[i]]);
+                baseS.push([spine[i][0] - nn[0] * wBot[i], spine[i][1] - nn[1] * wBot[i]]);
+            }
+            poly = topS.concat([[O[0] + ax[0] * 0.02 * len, O[1] + ax[1] * 0.02 * len]], baseS.reverse());
         }
-        poly = poly.concat(base.slice().reverse());
 
         // 언더 라인: 아래 속눈썹 선의 눈꼬리 쪽만
         var under = null;
