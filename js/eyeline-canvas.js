@@ -46,7 +46,7 @@
         opacity: { label: "진하기", min: 20, max: 100, side: false, unit: "%" },
         thick: { label: "두께", min: 0, max: 100, side: true },
         tail: { label: "꼬리 길이", min: 0, max: 100, side: true },
-        angle: { label: "꼬리 들림 각도", min: -20, max: 30, side: true, unit: "°", hint: "0 = 눈매 끝 방향 그대로 · + 위로 들어 올림 · − 아래로" },
+        angle: { label: "꼬리 들림 각도", min: -30, max: 30, side: true, unit: "°", hint: "0 = 눈매 끝 방향 그대로 · + 위로 들어 올림 · − 아래로" },
         join: { label: "꼬리 연결 곡선 (R)", min: 0, max: 100, side: true, hint: "기존 라인에서 꼬리로 넘어가는 곡선 — 클수록 완만하게 이어짐" },
         start: { label: "시작 위치", min: 0, max: 100, side: true, hint: "눈 앞머리 쪽에서 어디부터 그릴지" },
         front: { label: "앞쪽 두께", min: 0, max: 100, side: true, unit: "%", hint: "앞은 가늘게 · 뒤로 갈수록 두껍게" },
