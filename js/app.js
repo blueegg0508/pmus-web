@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, engineStatus } from "./face-detect.js?v=105";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=105";
-import * as License from "./license.js?v=105";
-import * as Custom from "./custom-designs.js?v=105";
-import * as Update from "./update.js?v=105";
-import * as Crm from "./crm-ui.js?v=105";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=106";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=106";
+import * as License from "./license.js?v=106";
+import * as Custom from "./custom-designs.js?v=106";
+import * as Update from "./update.js?v=106";
+import * as Crm from "./crm-ui.js?v=106";
 
-const BUILD = "105";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "106";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -101,6 +101,7 @@ const state = {
     brows: null,          // detectFaceGeometry().brows — 실제로 잰 눈썹 자리
     lipInfo: null,        // detectLipLandmarks 결과
     eyeInfo: null,        // detectEyeLandmarks 결과 (아이라인)
+    hairInfo: null,       // detectHairline 결과 (헤어라인)
     eyeClosed: null,      // 눈 감은 사진 {b64, eye_json} — 아이라인 나란히 보기 (기기 밖으로 나가지 않는다)
     mode: "brow",
     design: DEFAULT_DESIGN,
@@ -1081,6 +1082,7 @@ function resetEverything() {
     state.brows = null;
     state.lipInfo = null;
     state.eyeInfo = null;
+    state.hairInfo = null;
     state.eyeClosed = null;
     state.bases = [];
     state.baseChoice = null;
@@ -1195,6 +1197,7 @@ async function shrinkPhotoForRetry(maxEdge) {
     state.photoDataUrl = url;
     state.lipInfo = null;
     state.eyeInfo = null;
+    state.hairInfo = null;
     // 이어 그릴 밑그림은 크기가 달라져 못 쓴다
     state.bases = [];
     state.baseChoice = null;
@@ -1529,6 +1532,45 @@ async function renderEyeline(retried) {
     }
 }
 
+/**
+ * 헤어라인 (베타) — 지금 헤어라인(머리카락 분할 모델)과 이마 기준선을 찾아 편집 화면에 넘긴다.
+ * 결을 그리는 일은 전부 hairline-canvas.js 가 한다.
+ */
+async function renderHairline(retried) {
+    const my = ++renderToken;
+    showLoading("헤어라인을 찾는 중...");
+    releaseFrame();
+    try {
+        if (!state.hairInfo) {
+            try {
+                state.hairInfo = await detectHairline(state.photo);
+            } catch (e) {
+                console.warn("헤어라인 인식 건너뜀", e);
+            }
+        }
+        const cfg = {
+            bg_b64: baseFor("hairline"),
+            img_w: state.photo.naturalWidth,
+            img_h: state.photo.naturalHeight,
+            hair_json: state.hairInfo,
+            ui_mode: state.editMode,
+        };
+        if (cfg.bg_b64 !== state.photoDataUrl) cfg.orig_b64 = state.photoDataUrl;
+        if (my !== renderToken) return;
+        await mountSimulator("hairline", cfg);
+    } catch (err) {
+        console.error(err, memReport());
+        if (!retried && looksLikeOutOfMemory(err) && await shrinkPhotoForRetry(1000)) {
+            hideLoading();
+            toast("메모리가 모자라 사진을 줄여 다시 시작합니다", 3000);
+            return renderHairline(true);
+        }
+        toast("헤어라인 준비 실패: " + err.message + "\n" + memReport(), 7000);
+    } finally {
+        hideLoading();
+    }
+}
+
 /** 아이라인: 눈 감은 사진을 골라 눈꺼풀 선을 찾고 편집 화면에 넘긴다 */
 function pickClosedEyePhoto() {
     const input = document.createElement("input");
@@ -1571,6 +1613,7 @@ async function rerender() {
     }
     if (state.mode === "brow") await renderBrow();
     else if (state.mode === "eyeline") await renderEyeline();
+    else if (state.mode === "hairline") await renderHairline();
     else await renderLip();
 }
 
@@ -1601,6 +1644,7 @@ async function usePhoto(img, dataUrl) {
         state.photoDataUrl = dataUrl;
         state.lipInfo = null;
         state.eyeInfo = null;
+        state.hairInfo = null;
         state.eyeClosed = null;
         state.brows = null;
         state.bases = [];                 // 남의 사진 작업이 남으면 안 된다
@@ -2076,6 +2120,7 @@ function bindEvents() {
         state.brows = null;
         state.lipInfo = null;
         state.eyeInfo = null;
+        state.hairInfo = null;
         state.eyeClosed = null;
         state.bases = [];
         state.baseChoice = null;

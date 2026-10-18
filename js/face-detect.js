@@ -16,7 +16,7 @@
  * =========================================================================
  */
 
-import { FaceLandmarker, FilesetResolver } from "../vendor/vision_bundle.mjs";
+import { FaceLandmarker, FilesetResolver, ImageSegmenter } from "../vendor/vision_bundle.mjs";
 
 // ── 랜드마크 인덱스 (app.py 와 동일) ──────────────────────────────────────
 const LEFT_EYE_PTS  = [33, 133, 159, 145];
@@ -907,4 +907,154 @@ export async function detectEyeLandmarks(imgEl) {
     const inFrame = (p) => isFinite(p[0]) && isFinite(p[1]) && p[0] > -w * 0.1 && p[0] < w * 1.1 && p[1] > -h * 0.1 && p[1] < h * 1.1;
     if (!eyes.every((e) => inFrame(e.inner) && inFrame(e.outer))) return null;
     return { img_w: w, img_h: h, eyes };
+}
+
+
+// ── 헤어라인: 머리카락 경계 ─────────────────────────────────────────────
+// 얼굴 478점은 이마 위 머리카락이 시작되는 곳을 모른다. 머리카락 분할 모델(약 0.8MB)로
+// 머리카락 자리를 칠한 뒤, 눈썹 위에서 위로 올라가며 처음 머리카락을 만나는 곳을 잇는다.
+// 모델을 못 쓰는 기기에서는 얼굴 윤곽 윗부분으로 대신한다 (guessed: true).
+const OVAL_TOP = [127, 162, 21, 54, 103, 67, 109, 10, 338, 297, 332, 284, 251, 389, 356];   // 왼 관자놀이 → 이마 위 → 오른 관자놀이
+const BROW_TOP = [70, 63, 105, 66, 107, 336, 296, 334, 293, 300];
+let _hairSeg = null;
+
+async function hairSegmenter() {
+    if (_hairSeg) return _hairSeg;
+    const fileset = await FilesetResolver.forVisionTasks("./vendor/wasm");
+    const make = (delegate) => ImageSegmenter.createFromOptions(fileset, {
+        baseOptions: { modelAssetPath: "./models/hair_segmenter.tflite", delegate },
+        runningMode: "IMAGE", outputCategoryMask: true, outputConfidenceMasks: false,
+    });
+    try { _hairSeg = await make("GPU"); } catch (e) { _hairSeg = await make("CPU"); }
+    return _hairSeg;
+}
+
+/** 머리카락 칸(1)/아닌 칸(0) 지도. 사진을 640 으로 줄여서 본다. */
+async function hairMask(imgEl) {
+    const w = imgEl.naturalWidth || imgEl.width, h = imgEl.naturalHeight || imgEl.height;
+    const k = Math.min(1, 640 / Math.max(w, h));
+    const cw = Math.max(1, Math.round(w * k)), ch = Math.max(1, Math.round(h * k));
+    const c = document.createElement("canvas");
+    c.width = cw; c.height = ch;
+    c.getContext("2d").drawImage(imgEl, 0, 0, cw, ch);
+    const seg = await hairSegmenter();
+    let out = null;
+    const take = (res) => {
+        const m = res && res.categoryMask;
+        if (!m) return;
+        out = { data: new Uint8Array(m.getAsUint8Array()), w: m.width, h: m.height, k: m.width / w };
+        try { m.close(); } catch (e) { /* 이미 닫힘 */ }
+    };
+    try {
+        const r = seg.segment(c, take);
+        if (!out && r) take(r);
+    } finally {
+        c.width = 0; c.height = 0;
+    }
+    return out;
+}
+
+/**
+ * 지금 헤어라인과 이마 기준선들.
+ * @returns {{img_w, img_h, cur:[[x,y]...], oval:[[x,y]...], browY, browL, browR, cx, chin, faceW, hair:[r,g,b]|null, guessed}} | null
+ *          cur = 관자놀이 → 관자놀이 41점 (사진 픽셀). 못 찾은 칸은 이웃 값과 얼굴 윤곽으로 메운다.
+ */
+export async function detectHairline(imgEl) {
+    const marks = await _detect(imgEl);
+    if (!marks) return null;
+    const w = imgEl.naturalWidth || imgEl.width, h = imgEl.naturalHeight || imgEl.height;
+    const at = (i) => [marks[i].x * w, marks[i].y * h];
+    const oval = OVAL_TOP.map(at);
+    const brows = BROW_TOP.map(at);
+    const browY = brows.reduce((a, p) => Math.min(a, p[1]), Infinity);
+    const xL = oval[0][0], xR = oval[oval.length - 1][0];
+    const cx = at(9)[0];
+    const chin = at(152);
+    const faceW = Math.abs(xR - xL);
+
+    /** 얼굴 윤곽 윗선의 x 자리 높이 */
+    const ovalY = (x) => {
+        for (let i = 0; i < oval.length - 1; i++) {
+            const a = oval[i], b = oval[i + 1];
+            if ((x - a[0]) * (x - b[0]) <= 0) {
+                const t = (x - a[0]) / ((b[0] - a[0]) || 1);
+                return a[1] + (b[1] - a[1]) * t;
+            }
+        }
+        return oval[x < cx ? 0 : oval.length - 1][1];
+    };
+
+    let mask = null;
+    try { mask = await hairMask(imgEl); } catch (e) { console.warn("머리카락 분할 건너뜀", e); }
+
+    const N = 41, cur = [];
+    let found = 0;
+    for (let i = 0; i < N; i++) {
+        const x = xL + (xR - xL) * i / (N - 1);
+        let y = null;
+        if (mask) {
+            const mx = Math.round(x * mask.k);
+            const y0 = Math.round(Math.min(browY, ovalY(x) + (browY - ovalY(x)) * 0.6) * mask.k) - 2;
+            if (mx >= 0 && mx < mask.w) {
+                // 위로 올라가며 머리카락이 4칸 이어지는 첫 자리
+                let run = 0;
+                for (let my = Math.min(mask.h - 1, y0); my >= 0; my--) {
+                    if (mask.data[my * mask.w + mx] > 0) { run++; if (run >= 4) { y = (my + 3) / mask.k; break; } }
+                    else run = 0;
+                }
+            }
+        }
+        if (y != null) found++;
+        cur.push([x, y]);
+    }
+    // 못 찾은 칸 메우기: 양옆 찾은 값 사이로 잇고, 끝은 얼굴 윤곽
+    const guessed = found < N * 0.4;
+    for (let i = 0; i < N; i++) {
+        if (cur[i][1] != null && !guessed) continue;
+        if (guessed) { cur[i][1] = ovalY(cur[i][0]); continue; }
+        let a = i - 1, b = i + 1;
+        while (a >= 0 && cur[a][1] == null) a--;
+        while (b < N && cur[b][1] == null) b++;
+        const ya = a >= 0 ? cur[a][1] : null, yb = b < N ? cur[b][1] : null;
+        cur[i][1] = ya != null && yb != null ? ya + (yb - ya) * (i - a) / (b - a) : (ya != null ? ya : yb != null ? yb : ovalY(cur[i][0]));
+    }
+    // 잔물결 다듬기 (머리카락 끝이 삐죽한 것)
+    const sm = cur.map((p, i) => {
+        let s = 0, n = 0;
+        for (let j = Math.max(0, i - 2); j <= Math.min(N - 1, i + 2); j++) { s += cur[j][1]; n++; }
+        return [r1(p[0]), r1(s / n)];
+    });
+
+    // 머리색: 헤어라인 바로 위 띠의 가운데값
+    let hair = null;
+    if (!guessed) {
+        try {
+            const c = document.createElement("canvas");
+            const k = Math.min(1, 400 / Math.max(w, h));
+            c.width = Math.round(w * k); c.height = Math.round(h * k);
+            const x = c.getContext("2d", { willReadFrequently: true });
+            x.drawImage(imgEl, 0, 0, c.width, c.height);
+            const band = (browY - sm[20][1]) * 0.25;
+            const rs = [], gs = [], bs = [];
+            for (let i = 6; i < N - 6; i += 2) {
+                const px = Math.round(sm[i][0] * k);
+                for (let d = 0.2; d <= 1; d += 0.2) {
+                    const py = Math.round((sm[i][1] - band * d) * k);
+                    if (py < 0 || px < 0 || px >= c.width) continue;
+                    if (mask && mask.data[Math.round(py / k * mask.k) * mask.w + Math.round(px / k * mask.k)] === 0) continue;
+                    const v = x.getImageData(px, py, 1, 1).data;
+                    rs.push(v[0]); gs.push(v[1]); bs.push(v[2]);
+                }
+            }
+            c.width = 0;
+            const med = (a) => a.sort((p, q) => p - q)[Math.floor(a.length / 2)];
+            if (rs.length >= 6) hair = [med(rs), med(gs), med(bs)];
+        } catch (e) { /* 색은 기본값으로 */ }
+    }
+
+    return {
+        img_w: w, img_h: h, cur: sm, oval: oval.map((p) => [r1(p[0]), r1(p[1])]),
+        browY: r1(browY), cx: r1(cx), chin: [r1(chin[0]), r1(chin[1])], faceW: r1(faceW),
+        hair, guessed,
+    };
 }

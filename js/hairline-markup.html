@@ -1,0 +1,69 @@
+<!-- hairline-markup.html — 헤어라인 편집 화면 (베타)
+     아이라인 편집 화면과 같은 껍데기(mobile-ui.css 의 mui-*)를 입는다. 조절 로직은 hairline-canvas.js. -->
+<div class="mui-shell eye-shell">
+    <button type="button" class="mui-settings" id="eSettings">사진 · 부위 변경</button>
+
+    <div class="mui-topbar">
+        <div class="mui-seg" id="eViewSeg">
+            <button type="button" data-view="before">시술 전</button>
+            <button type="button" data-view="after" class="is-active">예상 디자인</button>
+            <button type="button" data-view="compare">비교</button>
+        </div>
+        <div class="mui-actions">
+            <button type="button" id="eUndo" disabled>되돌리기</button>
+            <button type="button" id="eRedo" disabled>다시실행</button>
+            <button type="button" id="eReset">조절 초기화</button>
+        </div>
+    </div>
+
+    <div class="mui-chips" id="eChips">
+        <button type="button" class="eye-chip is-active" data-crop="forehead">이마 크게</button>
+        <button type="button" class="eye-chip" data-crop="face">얼굴 전체</button>
+        <button type="button" class="eye-chip is-active" id="hGuide">〰️ 선 보기</button>
+        <button type="button" class="eye-chip" id="hReseed">🎲 결 다시 뿌리기</button>
+    </div>
+
+    <div class="mui-stage eye-stage" id="eStage">
+        <div class="eye-pair is-shown" id="ePair">
+            <figure class="eye-fig">
+                <canvas id="hairCanvas"></canvas>
+                <figcaption></figcaption>
+            </figure>
+        </div>
+        <div class="hair-measure is-shown" id="hMeasure"></div>
+    </div>
+    <div class="mui-hint" id="eHint">금색 점을 끌어 새 헤어라인을 만드세요</div>
+
+    <div class="mui-sheet" data-snap="half" id="eSheet">
+        <div class="mui-handle" id="eHandle"></div>
+        <div class="mui-modebar">
+            <button type="button" id="eModeQuick">⚡ 퀵</button>
+            <button type="button" id="eModeManual">🎚️ 메뉴얼</button>
+        </div>
+
+        <!-- 퀵: 모양 · 내리기 · 밀도 · 색 -->
+        <div class="mui-panes mui-quick" id="eQuick">
+            <div class="mui-qhead">모양</div>
+            <div class="hair-presets" id="hPresets"></div>
+            <div class="mui-qhead">조절</div>
+            <div id="eQuickRows"></div>
+            <div class="mui-qhead">결 색</div>
+            <div class="mui-qcolors" id="eColors"></div>
+            <div class="mui-histtools eye-tools" data-tools></div>
+            <button type="button" class="mui-qswitch" id="eToManual">🎚️ 세부 조정 (메뉴얼)</button>
+        </div>
+
+        <!-- 메뉴얼: 점 끌기 + 결 세부 -->
+        <div class="mui-panes eye-manual" id="eManual">
+            <label class="hair-switch"><input type="checkbox" id="hSym" checked> 좌우 대칭으로 끌기</label>
+            <div class="mui-qhead">모양</div>
+            <div class="hair-presets" id="hPresets2"></div>
+            <div class="mui-qhead">결 · 경계</div>
+            <div id="eManualRows"></div>
+            <div class="mui-qhead">결 색</div>
+            <div class="mui-qcolors" id="eColors2"></div>
+            <label class="eye-pick">직접 고르기 <input type="color" id="eColorPick" value="#2a1f1a"></label>
+            <div class="mui-histtools eye-tools" data-tools></div>
+        </div>
+    </div>
+</div>
