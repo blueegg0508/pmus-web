@@ -227,8 +227,13 @@
             iEnd = Math.max(Math.ceil(s0 * (N - 1)) + 3, N - 1 - back);
             var J = P[iEnd], tJ = unit(P[iEnd - 2], P[iEnd]);
             var dist = Math.hypot(tip[0] - J[0], tip[1] - J[1]);
-            var k1 = dist * (0.3 + 0.3 * R), k2 = dist * 0.3;
-            tailPts = cubic(J, [J[0] + tJ[0] * k1, J[1] + tJ[1] * k1], [tip[0] - dir[0] * k2, tip[1] - dir[1] * k2], tip, 30);
+            // 꼬리는 처음 나오는 선(눈꺼풀 선의 방향)을 그대로 따라 나가다가 꼬리 끝으로 한 번만 휜다.
+            // 각도를 바꾸면 꼬리 끝 꼭짓점만 위아래로 움직이고, 선이 뒤집히듯 S자로 꺾이지 않는다 (2026-10-19 원장님 요청).
+            var k1 = dist * (0.3 + 0.3 * R);
+            var c1 = [J[0] + tJ[0] * k1, J[1] + tJ[1] * k1];
+            var c2 = [c1[0] + (tip[0] - c1[0]) * 0.45, c1[1] + (tip[1] - c1[1]) * 0.45];
+            tailPts = cubic(J, c1, c2, tip, 30);
+            dir = unit(c2, tip);                       // 꼬리 끝 마무리는 실제로 들어오는 방향으로
             tipR = Math.max(0.004 * len, p.tip / 100 * T * 0.35);
         }
 
