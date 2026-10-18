@@ -34,10 +34,10 @@
 
     // ── 디자인 · 색 · 조절바 정의 ──────────────────────────────────────
     var STYLES = [
-        { key: "natural", label: "점막 채우기", p: { thick: 16, tail: 0, angle: 0, start: 12, front: 60, tip: 30, dy: 0, soft: 45, under: 0, join: 55 } },
-        { key: "basic", label: "기본 라인", p: { thick: 32, tail: 10, angle: 4, start: 18, front: 35, tip: 20, dy: 0, soft: 35, under: 0, join: 55 } },
-        { key: "wing", label: "윙 라인", p: { thick: 48, tail: 34, angle: 10, start: 14, front: 25, tip: 8, dy: 0, soft: 25, under: 0, join: 55 } },
-        { key: "under", label: "꼬리 + 언더", p: { thick: 32, tail: 14, angle: 4, start: 20, front: 35, tip: 20, dy: 0, soft: 35, under: 55, join: 55 } },
+        { key: "natural", label: "점막 채우기", p: { thick: 16, tail: 0, angle: 0, start: 12, front: 60, tip: 30, dy: 0, soft: 45, under: 0, ext: 0, join: 55 } },
+        { key: "basic", label: "기본 라인", p: { thick: 32, tail: 10, angle: 4, start: 18, front: 35, tip: 20, dy: 0, soft: 35, under: 0, ext: 0, join: 55 } },
+        { key: "wing", label: "윙 라인", p: { thick: 48, tail: 34, angle: 10, start: 14, front: 25, tip: 8, dy: 0, soft: 25, under: 0, ext: 0, join: 55 } },
+        { key: "under", label: "꼬리 + 언더", p: { thick: 32, tail: 14, angle: 4, start: 20, front: 35, tip: 20, dy: 0, soft: 35, under: 55, ext: 0, join: 55 } },
     ];
     var COLORS = [["#15110f", "블랙"], ["#2a1b14", "브라운 블랙"], ["#3d281c", "다크 브라운"], ["#38383d", "그레이"]];
 
@@ -50,14 +50,15 @@
         join: { label: "꼬리 연결 곡선 (R)", min: 0, max: 100, side: true, hint: "기존 라인에서 꼬리로 넘어가는 곡선 — 클수록 완만하게 이어짐" },
         start: { label: "시작 위치", min: 0, max: 100, side: true, hint: "눈 앞머리 쪽에서 어디부터 그릴지" },
         front: { label: "앞쪽 두께", min: 0, max: 100, side: true, unit: "%", hint: "앞은 가늘게 · 뒤로 갈수록 두껍게" },
+        ext: { label: "바깥 연장 (라인 길이)", min: 0, max: 100, side: true, hint: "꼬리와 따로, 라인 자체를 눈꼬리 밖으로 길게" },
         tip: { label: "꼬리 끝 둥글기", min: 0, max: 100, side: true },
         dy: { label: "위아래 위치", min: -50, max: 50, side: true, hint: "인식한 속눈썹 선과 어긋나면 맞추기" },
         soft: { label: "번짐 (부드러움)", min: 0, max: 100, side: true },
         under: { label: "언더 라인 (아래 꼬리)", min: 0, max: 100, side: true },
         lash: { label: "속눈썹 살리기", min: 0, max: 100, side: false, unit: "%", hint: "속눈썹이 라인 위로 지나가게 보이는 정도" },
     };
-    var QUICK_KEYS = ["opacity", "thick", "tail", "angle", "join"];
-    var MANUAL_KEYS = ["thick", "tail", "angle", "join", "start", "front", "tip", "dy", "soft", "under", "opacity", "lash"];
+    var QUICK_KEYS = ["opacity", "thick", "ext", "tail", "angle", "join"];
+    var MANUAL_KEYS = ["thick", "ext", "tail", "angle", "join", "start", "front", "tip", "dy", "soft", "under", "opacity", "lash"];
 
     function styleOf(key) { for (var i = 0; i < STYLES.length; i++) if (STYLES[i].key === key) return STYLES[i]; return STYLES[1]; }
     function copy(o) { return JSON.parse(JSON.stringify(o)); }
@@ -201,6 +202,23 @@
         var baseDrop = Math.min(0.3 * T, 0.016 * len);
 
         var unit = function (a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; };
+        // 바깥 연장 (2026-10-19 원장님 요청): 꼬리와 따로, 라인 자체를 눈꼬리 밖으로 길게.
+        // 눈꺼풀 끝 기울기에서 시작해 눈매 끝 방향으로 서서히 돌며 이어진다.
+        var NL = N;
+        var extLen = (p.ext || 0) / 100 * 0.3 * len;
+        if (extLen > 0.5) {
+            var Lw0 = smoothOpen(eye.lower, N);
+            var tUp0 = unit(P[N - 5], P[N - 1]), tLo0 = unit(Lw0[N - 5], Lw0[N - 1]);
+            var nat0 = unit([0, 0], [tUp0[0] + tLo0[0] + ax[0] * 0.3, tUp0[1] + tLo0[1] + ax[1] * 0.3]);
+            var q = P[N - 1], nExt = 14;
+            for (var ke = 1; ke <= nExt; ke++) {
+                var te = ke / nExt;
+                var de = unit([0, 0], [tUp0[0] * (1 - te) + nat0[0] * te, tUp0[1] * (1 - te) + nat0[1] * te]);
+                q = [q[0] + de[0] * extLen / nExt, q[1] + de[1] * extLen / nExt];
+                P.push(q);
+            }
+            N = P.length;
+        }
         var O = P[N - 1];
 
         // 중심선 한 줄: 눈꺼풀 선을 따라가다 (꼬리가 있으면) 눈꼬리 앞에서 부드럽게 꼬리 끝으로 이어진다.
@@ -238,11 +256,16 @@
         }
 
         var spine = [], wTop = [], wBot = [];
+        var wFull = th(0.9);
         for (var i = 0; i <= iEnd; i++) {
-            var u = i / (N - 1);
+            var u = Math.min(1, i / (NL - 1));
             if (u < s0) continue;
             spine.push(P[i]);
-            wTop.push(th(u));
+            if (i >= NL) {
+                // 연장 부분: 꼬리가 있으면 두께를 이어 가고, 없으면 끝으로 가늘게
+                var te2 = (i - NL + 1) / (N - NL);
+                wTop.push(hasTail ? wFull : wFull * (1 - 0.75 * te2));
+            } else wTop.push(i > NL * 0.9 && extLen > 0.5 && !hasTail ? Math.max(th(u), wFull) : th(u));
             wBot.push(baseDrop * smooth(0, 0.1, u - s0));
         }
         if (spine.length < 2) return null;
@@ -378,7 +401,7 @@
         ctx.globalCompositeOperation = "source-over";
         ctx.globalAlpha = 1;
         ctx.clearRect(0, 0, w, h);
-        ctx.drawImage(after ? pan.img : pan.orig, T.ox, T.oy, w / T.s, h / T.s, 0, 0, w, h);
+        drawSrc(ctx, after ? pan.img : pan.orig, T, w, h);
         if (!after) return;
 
         pan.data.eyes.forEach(function (eye) {
@@ -463,9 +486,44 @@
         return { ox: r.x, oy: r.y, s: s, w: Math.round(r.w * s), h: Math.round(r.h * s) };
     }
 
+    /** 사진의 (ox, oy) 부터 잘라 캔버스에 — 사진 밖으로 나가는 부분은 어둡게 둔다 (옛 사파리 대비) */
+    function drawSrc(ctx, img, T, w, h) {
+        var W = img.naturalWidth, H = img.naturalHeight;
+        var sx0 = Math.max(0, T.ox), sy0 = Math.max(0, T.oy);
+        var sx1 = Math.min(W, T.ox + w / T.s), sy1 = Math.min(H, T.oy + h / T.s);
+        if (sx0 > T.ox || sy0 > T.oy || sx1 < T.ox + w / T.s || sy1 < T.oy + h / T.s) {
+            ctx.fillStyle = "#0F0D16"; ctx.fillRect(0, 0, w, h);
+        }
+        if (sx1 <= sx0 || sy1 <= sy0) return;
+        ctx.drawImage(img, sx0, sy0, sx1 - sx0, sy1 - sy0,
+            (sx0 - T.ox) * T.s, (sy0 - T.oy) * T.s, (sx1 - sx0) * T.s, (sy1 - sy0) * T.s);
+    }
+
+    /** 두 눈의 가운데와 눈꼬리 사이 거리 — 눈 뜬 · 감은 사진을 같은 크기로 맞추는 기준 */
+    function eyeFrame(pan) {
+        var e = pan.data.eyes, a = e[0], b = e[1];
+        return {
+            mx: (a.inner[0] + b.inner[0] + a.outer[0] + b.outer[0]) / 4,
+            my: (a.inner[1] + b.inner[1] + a.outer[1] + b.outer[1]) / 4,
+            span: Math.hypot(a.outer[0] - b.outer[0], a.outer[1] - b.outer[1]) || 1,
+        };
+    }
+
+    /** 감은 사진은 눈 뜬 사진과 가로 · 세로 크기와 눈 자리를 똑같이 맞춘다 (2026-10-19 원장님 요청) */
+    function transformMatched(pan) {
+        var To = transformFor(panels.open, crop);
+        var fo = eyeFrame(panels.open), fc = eyeFrame(pan), k = fc.span / fo.span;
+        var wImg = To.w / To.s * k;                  // 감은 사진에서 잘라낼 너비 (사진 픽셀)
+        return {
+            ox: fc.mx + (To.ox - fo.mx) * k,
+            oy: fc.my + (To.oy - fo.my) * k,
+            s: To.w / wImg, w: To.w, h: To.h,
+        };
+    }
+
     function drawPanel(pan) {
         if (!pan) return;
-        var T = transformFor(pan, crop);
+        var T = (pan === panels.closed && panels.open) ? transformMatched(pan) : transformFor(pan, crop);
         fit(pan.canvas, T.w, T.h);
         var ctx = pan.canvas.getContext("2d", { willReadFrequently: true });
         paint(ctx, pan, T, view !== "before");
@@ -474,7 +532,7 @@
             var cut = Math.round(T.w * split);
             ctx.save();
             ctx.beginPath(); ctx.rect(0, 0, cut, T.h); ctx.clip();
-            ctx.drawImage(pan.orig, T.ox, T.oy, T.w / T.s, T.h / T.s, 0, 0, T.w, T.h);
+            drawSrc(ctx, pan.orig, T, T.w, T.h);
             ctx.restore();
             var lw = Math.max(2, T.w / 400);
             ctx.fillStyle = "rgba(255,255,255,.92)";
@@ -765,6 +823,12 @@
         if (panels.closed) rows.push(panels.closed);
         var cells = rows.map(function (pan) {
             var r = cropRect(pan, crop === "face" ? "both" : crop);
+            if (pan === panels.closed) {
+                // 눈 뜬 사진과 같은 비율 · 같은 눈 자리로
+                var ro = cropRect(panels.open, crop === "face" ? "both" : crop);
+                var fo = eyeFrame(panels.open), fc = eyeFrame(pan), k = fc.span / fo.span;
+                r = { x: fc.mx + (ro.x - fo.mx) * k, y: fc.my + (ro.y - fo.my) * k, w: ro.w * k, h: ro.h * k };
+            }
             return { pan: pan, r: r };
         });
         var cw = 900, gap = 12, head = 44;
