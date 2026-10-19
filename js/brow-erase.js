@@ -221,6 +221,10 @@
         // 옆으로는 넓히지 않는다 — 관자놀이 머리카락 · 콧대를 털로 잘못 지우지 않게
         const cx0 = b.x0 - th * 1.1 - x, cx1 = b.x1 + th * 1.1 - x;
         const colOk = function (i) { const xx = i % w; return xx >= cx0 && xx <= cx1; };
+        // 위로는 거의 넓히지 않는다 — 앞머리가 눈썹 위로 내려온 사진에서 앞머리를 눈썹으로 잘못 지웠다 (2026-10-19)
+        const polyTop = b.y0 - y, polyMid = (b.y0 + b.y1) / 2 - y;
+        const upLimit = polyTop - Math.max(3, th * 0.45);
+        const upOk = function (i) { return Math.floor(i / w) >= upLimit; };
 
         const mk = document.createElement("canvas");
         mk.width = w; mk.height = h;
@@ -229,7 +233,7 @@
             m.clearRect(0, 0, w, h);
             drawMask(m, poly, x, y, g, 0);
             const d = m.getImageData(0, 0, w, h).data, out = new Uint8Array(n);
-            for (let i = 0; i < n; i++) out[i] = d[i * 4 + 3] > 8 && rowOk(i) && colOk(i) ? 1 : 0;
+            for (let i = 0; i < n; i++) out[i] = d[i * 4 + 3] > 8 && rowOk(i) && colOk(i) && upOk(i) ? 1 : 0;
             return out;
         };
         const core = maskOf(coreGrow);
@@ -240,7 +244,8 @@
             for (let xx = 0; xx < w; xx += 2) band.push(L[yy * w + xx]);
         }
         band.sort(function (p, q) { return p - q; });
-        const fore = band.length ? band[Math.floor(band.length * 0.6)] : 170;
+        // 앞머리가 이마를 덮어도 피부 밝기를 잡도록 밝은 쪽(85%) 값을 쓴다
+        const fore = band.length ? band[Math.floor(band.length * 0.85)] : 170;
 
         const rgb = new Float32Array(n * 3);
         for (let i = 0; i < n; i++) { rgb[i * 3] = sd[i * 4]; rgb[i * 3 + 1] = sd[i * 4 + 1]; rgb[i * 3 + 2] = sd[i * 4 + 2]; }
@@ -258,7 +263,7 @@
                 if (!zone[i]) continue;
                 const R = Math.max(1, lum(ref[i * 3], ref[i * 3 + 1], ref[i * 3 + 2]));
                 const d = (R - L[i]) / R;
-                let v = d <= 0.05 ? 0 : d >= 0.16 ? 1 : (d - 0.05) / 0.11;
+                let v = d <= 0.07 ? 0 : d >= 0.18 ? 1 : (d - 0.07) / 0.11;
                 if (core[i]) v = 1;
                 hair[i] = v;
             }
@@ -266,9 +271,34 @@
             if (gi === GROWS.length - 1) break;
             const inner = maskOf(Math.max(1, GROWS[gi] - 3));
             let ring = 0, ringHair = 0;
-            for (let i = 0; i < n; i++) if (zone[i] && !inner[i]) { ring++; if (hair[i] > 0.5) ringHair++; }
+            for (let i = 0; i < n; i++) if (zone[i] && !inner[i] && Math.floor(i / w) > polyMid) { ring++; if (hair[i] > 0.5) ringHair++; }
             if (!ring || ringHair / ring < 0.22) break;
         }
+
+        // 앞머리가 눈썹 위를 덮고 있나: 눈썹 바로 위 띠에 머리카락처럼 어두운 곳이 많으면 그렇다.
+        // 그때는 눈썹 털과 앞머리를 밝기로 가를 수 없으므로, 예전처럼 인식한 눈썹 자리만 지운다 (2026-10-19)
+        let bandN = 0, bandDark = 0;
+        const by0 = Math.max(0, Math.floor(polyTop - th * 1.2)), by1 = Math.max(0, Math.floor(polyTop - th * 0.2));
+        for (let yy = by0; yy < by1; yy++) {
+            for (let xx = Math.max(0, Math.floor(b.x0 - x)); xx < Math.min(w, Math.ceil(b.x1 - x)); xx++) {
+                bandN++; if (L[yy * w + xx] < fore * 0.75) bandDark++;
+            }
+        }
+        const bangs = bandN > 0 && bandDark / bandN > 0.25;
+        // 범위 대부분이 '털' 이어도 (그림자 · 어두운 조명) 같은 방식으로
+        let zc = 0, zh = 0;
+        for (let i = 0; i < n; i++) if (zone[i]) { zc++; if (hair[i] > 0.5) zh++; }
+        if (bangs || (zc && zh / zc > 0.75)) {
+            const safe = maskOf(Math.max(3, th * 0.36));
+            for (let i = 0; i < n; i++) hair[i] = safe[i] ? 1 : 0;
+        } else {
+            // 눈썹 윗선(인식한 둘레를 조금 부풀린 것)보다 위의 어두운 결은 지우지 않는다 — 곡선을 따라
+            const above = maskOf(Math.max(2, th * 0.3));
+            for (let i = 0; i < n; i++) {
+                if (hair[i] > 0 && !above[i] && Math.floor(i / w) < polyMid) hair[i] = 0;
+            }
+        }
+
         mk.width = 0; mk.height = 0;
 
         // 털 사이 틈 메우기 + 털 끝까지 조금 넓히기
