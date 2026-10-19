@@ -38,7 +38,7 @@ function newCanvas(w, h) {
     // CPU 쪽에 두면 옮길 일이 없다.
     const ctx = c.getContext("2d", { willReadFrequently: true });
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
+    ctx.imageSmoothingQuality = "medium";   // "high" 는 일부 아이패드에서 투명 그림에 줄무늬 (resizeTo 참고)
     return { c, ctx };
 }
 
@@ -162,10 +162,101 @@ export function sharpenAlpha(src, amount = 0.55) {
     return c;
 }
 
+/**
+ * 줄이기는 브라우저에 맡기지 않고 직접 한다 (면적 평균, 투명도 보존).
+ *
+ * 일부 아이패드(iPadOS 26 · 2026-10-19 원장님 기기)에서 투명한 눈썹 그림을
+ * 브라우저의 고품질 축소(imageSmoothingQuality "high")로 줄이면 눈썹 결이
+ * 세로 1자 줄무늬로 나왔다. 사진(불투명)은 멀쩡했다. 그래서 투명한 그림을
+ * 줄일 때는 픽셀을 직접 평균 낸다 — 어느 기기에서나 같은 결과가 나온다.
+ * 키우기(드묾)와, 픽셀을 읽지 못하는 기기에서는 예전 방식으로 그린다.
+ */
 export function resizeTo(src, w, h) {
+    w = Math.max(1, Math.round(w) || 1);
+    h = Math.max(1, Math.round(h) || 1);
+    if (w < src.width || h < src.height) {
+        try { return resampleArea(src, w, h); }
+        catch (e) { console.warn("직접 줄이기 실패 — 브라우저 축소로 대신합니다", e); }
+    }
     const { c, ctx } = newCanvas(w, h);
+    ctx.imageSmoothingQuality = "medium";
     ctx.drawImage(src, 0, 0, c.width, c.height);
     return c;
+}
+
+/** 면적 평균 축소 (가로 → 세로 두 번). 색은 투명도를 곱해 평균 내 가장자리에 검은 테가 생기지 않게 한다. */
+export function resampleArea(src, w, h) {
+    const sw = src.width, sh = src.height;
+    const { c: sc, ctx: sx } = newCanvas(sw, sh);
+    sx.drawImage(src, 0, 0);
+    const sd = sx.getImageData(0, 0, sw, sh).data;
+    releaseCanvas(sc);
+
+    // 한 줄을 n → m 칸으로 줄일 때 각 칸이 덮는 원본 범위와 비중
+    function plan(n, m) {
+        const out = [], k = n / m;
+        for (let i = 0; i < m; i++) {
+            const a = i * k, b = Math.min(n, (i + 1) * k);
+            const parts = [];
+            for (let j = Math.floor(a); j < Math.ceil(b); j++) {
+                const wgt = Math.min(b, j + 1) - Math.max(a, j);
+                if (wgt > 1e-6) parts.push(j, wgt / (b - a));
+            }
+            out.push(parts);
+        }
+        return out;
+    }
+    const px = w < sw ? plan(sw, w) : null, py = h < sh ? plan(sh, h) : null;
+    const tw = px ? w : sw;
+
+    // 1) 가로 (투명도를 곱한 값으로)
+    const mid = new Float32Array(tw * sh * 4);
+    for (let y = 0; y < sh; y++) {
+        for (let x = 0; x < tw; x++) {
+            let r = 0, g = 0, b = 0, a = 0;
+            if (px) {
+                const parts = px[x];
+                for (let t = 0; t < parts.length; t += 2) {
+                    const i = (y * sw + parts[t]) * 4, wt = parts[t + 1], al = sd[i + 3] * wt;
+                    r += sd[i] * al; g += sd[i + 1] * al; b += sd[i + 2] * al; a += al;
+                }
+            } else {
+                const i = (y * sw + x) * 4, al = sd[i + 3];
+                r = sd[i] * al; g = sd[i + 1] * al; b = sd[i + 2] * al; a = al;
+            }
+            const o = (y * tw + x) * 4;
+            mid[o] = r; mid[o + 1] = g; mid[o + 2] = b; mid[o + 3] = a;
+        }
+    }
+    // 2) 세로
+    const th = py ? h : sh;
+    const { c, ctx } = newCanvas(tw, th);
+    const img = ctx.createImageData(tw, th), d = img.data;
+    for (let y = 0; y < th; y++) {
+        for (let x = 0; x < tw; x++) {
+            let r = 0, g = 0, b = 0, a = 0;
+            if (py) {
+                const parts = py[y];
+                for (let t = 0; t < parts.length; t += 2) {
+                    const i = (parts[t] * tw + x) * 4, wt = parts[t + 1];
+                    r += mid[i] * wt; g += mid[i + 1] * wt; b += mid[i + 2] * wt; a += mid[i + 3] * wt;
+                }
+            } else {
+                const i = (y * tw + x) * 4;
+                r = mid[i]; g = mid[i + 1]; b = mid[i + 2]; a = mid[i + 3];
+            }
+            const o = (y * tw + x) * 4;
+            if (a > 0) { d[o] = r / a; d[o + 1] = g / a; d[o + 2] = b / a; }
+            d[o + 3] = a;
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+    if (tw === w && th === h) return c;
+    // 한 방향만 줄인 경우(다른 방향은 키우기) — 나머지는 그리기로
+    const { c: c2, ctx: x2 } = newCanvas(w, h);
+    x2.drawImage(c, 0, 0, w, h);
+    releaseCanvas(c);
+    return c2;
 }
 
 export function mirror(src) {

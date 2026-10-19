@@ -19,6 +19,8 @@
  * =========================================================================
  */
 
+import { resizeTo } from "./prepare-eyebrow.js?v=114";
+
 const DB_NAME = "browlist";
 const DB_VERSION = 1;
 const STORE = "customDesigns";
@@ -186,17 +188,23 @@ export async function prepare(file, { flip = false } = {}) {
         outH = Math.max(1, Math.round(cropH * k));
     }
 
+    // 먼저 원래 크기로 잘라 낸 뒤, 줄이기는 직접 한다 — 일부 아이패드의 고품질 축소가
+    // 투명한 그림을 세로 줄무늬로 만들었다 (prepare-eyebrow.js resizeTo 참고, 2026-10-19).
+    const crop = document.createElement("canvas");
+    crop.width = cropW; crop.height = cropH;
+    crop.getContext("2d").drawImage(src, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+    const small = (outW !== cropW || outH !== cropH) ? resizeTo(crop, outW, outH) : crop;
     const out = document.createElement("canvas");
     out.width = outW;
     out.height = outH;
     const ctx = out.getContext("2d");
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    if (flip) {                       // 오른쪽 눈썹을 올린 경우 뒤집어 왼쪽으로 맞춘다
+    if (flip) {                       // 오른쪽 눈썹을 올린 경우 뒤집어 왼쪽으로 맞춘다 (크기는 그대로라 다시 줄이지 않는다)
         ctx.translate(outW, 0);
         ctx.scale(-1, 1);
     }
-    ctx.drawImage(src, minX, minY, cropW, cropH, 0, 0, outW, outH);
+    ctx.drawImage(small, 0, 0);
+    if (small !== crop) { small.width = 0; small.height = 0; }
+    crop.width = 0; crop.height = 0;
 
     return { dataUrl: out.toDataURL("image/png"), width: outW, height: outH, fromPhoto };
 }
@@ -232,7 +240,7 @@ function photoToTransparent(src) {
     const c = document.createElement("canvas");
     c.width = W; c.height = H;
     const g = c.getContext("2d", { willReadFrequently: true });
-    g.imageSmoothingQuality = "high";
+    g.imageSmoothingQuality = "medium";
     g.drawImage(src, 0, 0, W, H);
     const img = g.getImageData(0, 0, W, H);
     const px = img.data;
