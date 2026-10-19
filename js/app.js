@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=114";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=114";
-import * as License from "./license.js?v=114";
-import * as Custom from "./custom-designs.js?v=114";
-import * as Update from "./update.js?v=114";
-import * as Crm from "./crm-ui.js?v=114";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=115";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=115";
+import * as License from "./license.js?v=115";
+import * as Custom from "./custom-designs.js?v=115";
+import * as Update from "./update.js?v=115";
+import * as Crm from "./crm-ui.js?v=115";
 
-const BUILD = "114";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "115";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -1388,6 +1388,8 @@ async function renderBrow(retried) {
             cfg.nat_brows = {
                 left: state.brows.left.pts,
                 right: state.brows.right.pts,
+                // 눈 자리 — 두꺼운 눈썹을 찾아 넓혀 가도 눈꺼풀 · 속눈썹은 건드리지 않게 (brow-erase.js)
+                eyes: state.eyes ? { left: state.eyes.left, right: state.eyes.right } : null,
                 w: state.photo.naturalWidth,
             };
         }
