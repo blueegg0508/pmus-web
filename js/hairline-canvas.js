@@ -41,16 +41,17 @@
         len: { label: "결 길이", min: 0, max: 100 },
         thick: { label: "결 굵기", min: 0, max: 100 },
         tilt: { label: "결 방향 (바깥으로 벌어짐)", min: 0, max: 100 },
+        flow: { label: "원래 머리결 따라가기", min: 0, max: 100, hint: "사진의 머리 흐르는 방향을 새 결이 얼마나 이어받을지" },
         shade: { label: "바탕 음영", min: 0, max: 100, hint: "결 사이를 살짝 메워 숱이 많아 보이게" },
         opacity: { label: "진하기", min: 20, max: 100, unit: "%" },
     };
     var QUICK_KEYS = ["lower", "density", "soft"];
-    var MANUAL_KEYS = ["lower", "density", "len", "thick", "tilt", "soft", "shade", "opacity"];
+    var MANUAL_KEYS = ["lower", "density", "len", "thick", "flow", "tilt", "soft", "shade", "opacity"];
     var NCTRL = 7;
 
     function freshState(preset) {
         return { preset: preset || "lower", lower: 45, density: 55, soft: 55, len: 60, thick: 35, tilt: 40, shade: 22, opacity: 85,
-                 color: "auto", offs: [0, 0, 0, 0, 0, 0, 0], seed: 7 };
+                 flow: 70, color: "auto", offs: [0, 0, 0, 0, 0, 0, 0], seed: 7 };
     }
     var S = freshState("lower");
     var view = "after", crop = "forehead", split = 0.5, guide = true;
@@ -150,32 +151,115 @@
     }
 
     /** 결 목록 (사진 좌표). 같은 값이면 같은 결이 나오도록 씨앗을 고정한다. */
+    /**
+     * 원래 머리결 방향 읽기 (2026-10-20).
+     * 지금 헤어라인 바로 위 머리카락 띠를 구간마다 나눠, 밝기 기울기(구조 텐서)로 머리카락이
+     * 흐르는 방향을 잰다. 새 결이 이 방향을 이어받아 원래 머리와 한 덩어리로 보이게 한다.
+     * 결과: G.flow = [{u, ang, coh}] — ang 은 '위쪽' 기준 각도(라디안, + 는 오른쪽), coh 는 방향이 또렷한 정도 0~1
+     */
+    function readFlow(img) {
+        var K = 18, flow = [];
+        try {
+            var H = G.H, k = Math.min(1, 140 / H);              // 이마 높이가 140px 쯤 되게 줄여서 본다
+            var top = Math.min.apply(null, G.cur.map(function (p) { return p[1]; })) - H * 0.4;
+            var x0 = G.xL, y0 = Math.max(0, top), wImg = G.xR - G.xL, hImg = Math.max(1, G.browY - y0);
+            var cw = Math.max(8, Math.round(wImg * k)), ch = Math.max(8, Math.round(hImg * k));
+            var c = document.createElement("canvas");
+            c.width = cw; c.height = ch;
+            var x = c.getContext("2d", { willReadFrequently: true });
+            x.drawImage(img, x0, y0, wImg, hImg, 0, 0, cw, ch);
+            var d = x.getImageData(0, 0, cw, ch).data;
+            c.width = 0;
+            var Lm = new Float32Array(cw * ch);
+            for (var i = 0; i < cw * ch; i++) Lm[i] = 0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2];
+            for (var bi = 0; bi < K; bi++) {
+                var u0 = bi / K, u1 = (bi + 1) / K, jxx = 0, jyy = 0, jxy = 0;
+                var cx0 = Math.max(1, Math.floor(u0 * cw)), cx1 = Math.min(cw - 1, Math.ceil(u1 * cw));
+                for (var px = cx0; px < cx1; px++) {
+                    var xi = G.xL + (px / k);
+                    var cy = (curAt(G, xi) - y0) * k;                  // 이 자리 헤어라인 (줄인 판 기준)
+                    var ya = Math.max(1, Math.floor(cy - H * 0.32 * k)), yb = Math.min(ch - 1, Math.floor(cy - H * 0.03 * k));
+                    for (var py = ya; py < yb; py++) {
+                        var o = py * cw + px;
+                        var gx = Lm[o + 1] - Lm[o - 1], gy = Lm[o + cw] - Lm[o - cw];
+                        jxx += gx * gx; jyy += gy * gy; jxy += gx * gy;
+                    }
+                }
+                var tr = jxx + jyy;
+                if (tr < 1) { flow.push({ u: (u0 + u1) / 2, ang: 0, coh: 0 }); continue; }
+                var th = 0.5 * Math.atan2(2 * jxy, jxx - jyy);         // 밝기가 가장 많이 바뀌는 방향
+                var lam = Math.sqrt((jxx - jyy) * (jxx - jyy) + 4 * jxy * jxy);
+                var coh = lam / tr;
+                var sx = -Math.sin(th), sy = Math.cos(th);            // 머리카락 방향 = 그에 수직
+                if (sy > 0) { sx = -sx; sy = -sy; }                    // 위쪽을 향하게
+                flow.push({ u: (u0 + u1) / 2, ang: Math.atan2(sx, -sy), coh: Math.min(1, coh * 1.4) });
+            }
+            // 이웃 구간과 부드럽게
+            var sm = flow.map(function (f, i) {
+                var a = 0, b2 = 0, wsum = 0;
+                for (var j = Math.max(0, i - 1); j <= Math.min(K - 1, i + 1); j++) {
+                    var wt = (j === i ? 2 : 1) * (0.2 + flow[j].coh);
+                    a += Math.sin(flow[j].ang) * wt; b2 += Math.cos(flow[j].ang) * wt; wsum += wt;
+                }
+                return { u: f.u, ang: Math.atan2(a, b2), coh: f.coh };
+            });
+            return sm;
+        } catch (e) {
+            return null;
+        }
+    }
+    function flowAt(x) {
+        if (!G.flow || !G.flow.length) return null;
+        var u = clamp((x - G.xL) / (G.xR - G.xL), 0, 1), F = G.flow, K = F.length;
+        var f = clamp(u * K - 0.5, 0, K - 1), i = Math.floor(f), t = f - i, a = F[i], b = F[Math.min(K - 1, i + 1)];
+        var sx = Math.sin(a.ang) * (1 - t) + Math.sin(b.ang) * t, cy = Math.cos(a.ang) * (1 - t) + Math.cos(b.ang) * t;
+        return { ang: Math.atan2(sx, cy), coh: a.coh * (1 - t) + b.coh * t };
+    }
+
+    /**
+     * 결 목록 (사진 좌표). 같은 값이면 같은 결이 나오도록 씨앗을 고정한다.
+     *  · 안쪽(지금 헤어라인 쪽): 길고 촘촘하게 — 원래 머리 속으로 파고들어 한 덩어리로
+     *  · 끝선 쪽: 짧고 가늘고 성기게, 끝선 자체도 들쭉날쭉 — 잔머리처럼
+     *  · 방향: 원래 머리결(readFlow)을 이어받고, 결 방향 조절바만큼 바깥으로 벌어짐
+     */
     function strands() {
         var C = ctrlPts(), H = G.H, R = rng(S.seed * 7919 + 13);
-        var sp = H * (0.034 - 0.024 * S.density / 100);
-        var feather = H * 0.10, edge = H * (0.02 + 0.07 * S.soft / 100);
+        var sp = H * (0.032 - 0.022 * S.density / 100);
+        var feather = H * 0.12, edge = H * (0.02 + 0.08 * S.soft / 100);
         var halfW = (G.xR - G.xL) / 2;
+        var follow = (S.flow == null ? 70 : S.flow) / 100;
+        // 끝선 들쭉날쭉 (낮은 물결 두세 겹)
+        var R2 = rng(S.seed * 31 + 7), ph = [R2() * 6.3, R2() * 6.3, R2() * 6.3];
+        var wav = function (x) {
+            var u = (x - G.xL) / (G.xR - G.xL) * Math.PI * 2;
+            return (Math.sin(u * 3 + ph[0]) * 0.5 + Math.sin(u * 7 + ph[1]) * 0.3 + Math.sin(u * 13 + ph[2]) * 0.2) * H * 0.022 * (0.3 + S.soft / 100);
+        };
         var out = [], cols = Math.max(8, Math.round((G.xR - G.xL) / sp));
         for (var ci = 0; ci <= cols; ci++) {
             var x0 = G.xL + (G.xR - G.xL) * ci / cols;
             var cur = curAt(G, x0), tgt = targetAt(x0, C);
             if (tgt - cur < H * 0.01) continue;
-            var y0 = cur - feather, y1 = tgt + edge;
-            for (var y = y0; y < y1; y += sp * (0.75 + R() * 0.5)) {
-                var x = x0 + (R() - 0.5) * sp * 1.4, yy = y + (R() - 0.5) * sp;
-                var v = (yy - cur) / Math.max(1, tgt - cur);       // 0 = 지금 선, 1 = 새 선
-                // 머리카락 속(지금 선 위)은 조금만, 새 선 아래 경계는 성기게
-                var e = v < 0 ? smooth(-feather / Math.max(1, tgt - cur), 0, v) * 0.55
-                    : v > 1 ? 1 - smooth(1, 1 + edge / Math.max(1, tgt - cur), v) : 1 - 0.35 * smooth(0.7, 1, v) * (S.soft / 100);
+            var tgtJ = tgt + wav(x0);
+            var y0 = cur - feather, y1 = tgtJ + edge;
+            var fl = flowAt(x0);
+            for (var y = y0; y < y1; y += sp * (0.7 + R() * 0.5)) {
+                var x = x0 + (R() - 0.5) * sp * 1.6, yy = y + (R() - 0.5) * sp;
+                var v = (yy - cur) / Math.max(1, tgtJ - cur);       // 0 = 지금 선, 1 = 새 끝선
+                var span = Math.max(1, tgtJ - cur);
+                var e = v < 0 ? smooth(-feather / span, 0, v) * 0.6
+                    : v > 1 ? 1 - smooth(1, 1 + edge / span, v) : 1 - 0.45 * smooth(0.65, 1, v) * (0.4 + S.soft / 100);
                 if (R() > e) continue;
+                var baby = v > 0.8;                                  // 끝선 쪽 잔머리
                 var side = (x - G.cx) / halfW;
-                var ang = (S.tilt / 100 * 0.75) * side + (R() - 0.5) * 0.35;     // 위쪽 기준, 바깥으로 벌어짐
-                var L = H * (0.05 + 0.15 * S.len / 100) * (0.65 + R() * 0.6) * (0.5 + 0.5 * e);
-                var bend = (R() - 0.3) * 0.45 * L;
-                var w = Math.max(0.6, H * (0.0012 + 0.0042 * S.thick / 100)) * (0.55 + 0.45 * e) * (0.8 + R() * 0.4);
-                var tone = 0.85 + R() * 0.3, a = (0.35 + R() * 0.45) * (0.4 + 0.6 * e);
+                var fan = (S.tilt / 100 * 0.75) * side;
+                var base = fl ? fan * (1 - follow * fl.coh) + fl.ang * follow * fl.coh : fan;
+                var ang = base + (R() - 0.5) * (baby ? 0.9 : 0.32);
+                var L = H * (0.05 + 0.17 * S.len / 100) * (0.6 + R() * 0.7) * (baby ? 0.45 + 0.3 * R() : 1 + 0.5 * (1 - clamp(v, 0, 1)));
+                var bend = (R() - 0.5) * (baby ? 0.6 : 0.3) * L + (fl ? Math.sin(fl.ang) * 0.12 * L : 0);
+                var w = Math.max(0.55, H * (0.0014 + 0.0045 * S.thick / 100)) * (baby ? 0.55 : 0.8 + 0.4 * (1 - clamp(v, 0, 1))) * (0.8 + R() * 0.4);
+                var tone = 0.82 + R() * 0.32, a = (0.4 + R() * 0.45) * (baby ? 0.55 : 0.55 + 0.45 * e);
                 out.push([x, yy, x + Math.sin(ang) * L, yy - Math.cos(ang) * L, bend, w, tone, a, ang]);
-                if (out.length > 9000) return out;
+                if (out.length > 11000) return out;
             }
         }
         return out;
@@ -225,16 +309,28 @@
         }
 
         // 결
-        L.lineCap = "round";
+        // 결 하나 = 뿌리는 굵고 끝은 가는 휘어진 면 (2026-10-20)
         strands().forEach(function (st) {
             var mx = (st[0] + st[2]) / 2 + Math.cos(st[8]) * st[4], my = (st[1] + st[3]) / 2 + Math.sin(st[8]) * st[4];
             var c = col.map(function (v) { return Math.round(clamp(v * st[6], 0, 255)); });
-            L.strokeStyle = "rgba(" + c.join(",") + "," + st[7].toFixed(3) + ")";
-            L.lineWidth = st[5] * T.s;
+            L.fillStyle = "rgba(" + c.join(",") + "," + st[7].toFixed(3) + ")";
+            var M = 6, left = [], right = [], wr = st[5] * T.s / 2;
+            for (var k = 0; k <= M; k++) {
+                var t = k / M, u = 1 - t;
+                var px = u * u * X(st[0]) + 2 * u * t * X(mx) + t * t * X(st[2]);
+                var py = u * u * Y(st[1]) + 2 * u * t * Y(my) + t * t * Y(st[3]);
+                var dx = 2 * u * (X(mx) - X(st[0])) + 2 * t * (X(st[2]) - X(mx));
+                var dy = 2 * u * (Y(my) - Y(st[1])) + 2 * t * (Y(st[3]) - Y(my));
+                var dl = Math.hypot(dx, dy) || 1, half = Math.max(0.25, wr * (1 - 0.85 * t));
+                left.push([px - dy / dl * half, py + dx / dl * half]);
+                right.push([px + dy / dl * half, py - dx / dl * half]);
+            }
             L.beginPath();
-            L.moveTo(X(st[0]), Y(st[1]));
-            L.quadraticCurveTo(X(mx), Y(my), X(st[2]), Y(st[3]));
-            L.stroke();
+            L.moveTo(left[0][0], left[0][1]);
+            for (k = 1; k <= M; k++) L.lineTo(left[k][0], left[k][1]);
+            for (k = M; k >= 0; k--) L.lineTo(right[k][0], right[k][1]);
+            L.closePath();
+            L.fill();
         });
         var op = S.opacity / 100;
         ctx.save();
@@ -663,6 +759,7 @@
         }
         G = prepare(d, d.img_w ? img.naturalWidth / d.img_w : 1);
         pan = { img: img, orig: orig, canvas: cv0 };
+        G.flow = readFlow(orig);
         colorChips($("eColors")); colorChips($("eColors2"));
         if (G.guessed) toast("머리카락 경계를 정확히 못 읽어 얼굴 윤곽으로 잡았습니다.\n앞머리를 넘긴 사진이면 더 정확합니다. 금색 점을 끌어 맞춰 주세요.", 5200);
         syncAll();
