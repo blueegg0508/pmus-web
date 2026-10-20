@@ -224,3 +224,5 @@ html.mui-land .hair-measure { left: calc((100% - var(--panel-w)) / 2); }
 .hair-auto { grid-column: 1 / -1; }
 html.mui-on .eye-stage > .hair-measure { display: block !important; position: absolute; }
 html.mui-on .eye-stage > .hair-measure[hidden] { display: none !important; }
+.hair-parts { grid-template-columns: repeat(5, 1fr); margin-bottom: 4px; }
+html.mui-on .mui-panes .hair-parts button { font-size: 12px !important; padding: 6px 0; }

@@ -40,18 +40,19 @@
         soft: { label: "경계 부드러움", min: 0, max: 100, hint: "경계 쪽 결이 성기게 흩어지는 정도" },
         len: { label: "결 길이", min: 0, max: 100 },
         thick: { label: "결 굵기", min: 0, max: 100 },
-        tilt: { label: "결 방향 (바깥으로 벌어짐)", min: 0, max: 100 },
-        flow: { label: "원래 머리결 따라가기", min: 0, max: 100, hint: "사진의 머리 흐르는 방향을 새 결이 얼마나 이어받을지" },
+        tilt: { label: "결 넘김 (바깥으로 눕는 정도)", min: 0, max: 100, hint: "가르마에서 멀어질수록 결이 옆 · 뒤로 눕는 정도" },
+        flow: { label: "사진 머리결 반영", min: 0, max: 100, hint: "사진에서 읽은 머리 흐름을 결 방향에 얼마나 섞을지" },
         shade: { label: "바탕 음영", min: 0, max: 100, hint: "결 사이를 살짝 메워 숱이 많아 보이게" },
         opacity: { label: "진하기", min: 20, max: 100, unit: "%" },
     };
-    var QUICK_KEYS = ["lower", "density", "soft"];
+    var QUICK_KEYS = ["lower", "density", "tilt", "soft"];
     var MANUAL_KEYS = ["lower", "density", "len", "thick", "flow", "tilt", "soft", "shade", "opacity"];
     var NCTRL = 7;
+    var PARTS = [["auto", "자동"], ["left", "왼쪽"], ["center", "가운데"], ["right", "오른쪽"], ["back", "뒤로 넘김"]];
 
     function freshState(preset) {
-        return { preset: preset || "lower", lower: 45, density: 55, soft: 55, len: 60, thick: 35, tilt: 40, shade: 22, opacity: 85,
-                 flow: 70, color: "auto", offs: [0, 0, 0, 0, 0, 0, 0], seed: 7 };
+        return { preset: preset || "lower", lower: 45, density: 50, soft: 55, len: 62, thick: 32, tilt: 55, shade: 12, opacity: 85,
+                 flow: 50, part: "auto", color: "auto", offs: [0, 0, 0, 0, 0, 0, 0], seed: 7 };
     }
     var S = freshState("lower");
     var view = "after", crop = "forehead", split = 0.5, guide = true;
@@ -216,50 +217,109 @@
         return { ang: Math.atan2(sx, cy), coh: a.coh * (1 - t) + b.coh * t };
     }
 
+    /** 사진에서 읽은 흐름으로 가르마 자리 찾기 — 왼쪽은 왼쪽으로, 오른쪽은 오른쪽으로 넘어가는 경계 */
+    function autoPart() {
+        var F = G.flow;
+        if (!F || !F.length) return { x: G.cx, mode: "center" };
+        var best = -1e9, bk = Math.floor(F.length / 2), tot = 0;
+        F.forEach(function (f) { tot += Math.sin(f.ang) * (0.2 + f.coh); });
+        for (var k = 0; k <= F.length; k++) {
+            var sc = 0;
+            for (var i = 0; i < F.length; i++) sc += (i < k ? -1 : 1) * Math.sin(F[i].ang) * (0.2 + F[i].coh);
+            if (sc > best) { best = sc; bk = k; }
+        }
+        var u = bk / F.length;
+        return { x: G.xL + (G.xR - G.xL) * clamp(u, 0.08, 0.92), mode: "part" };
+    }
+    function partX() {
+        var W = G.xR - G.xL;
+        if (S.part === "left") return G.cx - W * 0.17;
+        if (S.part === "right") return G.cx + W * 0.17;
+        if (S.part === "center" || S.part === "back") return G.cx;
+        return (G.autoPart || (G.autoPart = autoPart())).x;
+    }
+    /**
+     * 결 방향 지도 (2026-10-20 원장님: 헤어라인은 평소 머리가 넘어가는 결을 따라 넣는 기법).
+     * 가르마 근처는 위로, 가르마에서 멀어질수록 옆 · 뒤로 눕는다 (관자놀이는 거의 옆으로).
+     * '뒤로 넘김' 은 가르마 없이 전체가 뒤로 — 가운데는 곧게 위, 양옆만 조금 벌어진다.
+     * 사진에서 읽은 흐름(G.flow)을 '사진 머리결 반영' 만큼 섞는다.
+     * @returns 위쪽 기준 각도 (라디안, + 는 오른쪽으로 눕기)
+     */
+    function dirAt(x) {
+        var halfW = (G.xR - G.xL) / 2, xp = partX();
+        var spread = 0.6 + 1.2 * S.tilt / 100;
+        var d, base;
+        if (S.part === "back") {
+            d = (x - G.cx) / halfW;
+            base = Math.sign(d) * Math.pow(Math.abs(d), 1.4) * spread * 0.75;
+        } else {
+            var side = x >= xp ? (G.xR - xp) : (xp - G.xL);
+            d = (x - xp) / Math.max(1, side);
+            base = Math.sign(d) * (0.14 + spread * Math.pow(Math.min(1, Math.abs(d)), 0.9));
+        }
+        base = clamp(base, -1.5, 1.5);
+        var fl = flowAt(x), k = (S.flow == null ? 50 : S.flow) / 100;
+        if (fl && fl.coh > 0.15) {
+            var w = k * clamp(fl.coh, 0, 1) * 0.6;
+            base = Math.atan2(Math.sin(base) * (1 - w) + Math.sin(fl.ang) * w, Math.cos(base) * (1 - w) + Math.cos(fl.ang) * w);
+        }
+        return base;
+    }
+
     /**
      * 결 목록 (사진 좌표). 같은 값이면 같은 결이 나오도록 씨앗을 고정한다.
-     *  · 안쪽(지금 헤어라인 쪽): 길고 촘촘하게 — 원래 머리 속으로 파고들어 한 덩어리로
-     *  · 끝선 쪽: 짧고 가늘고 성기게, 끝선 자체도 들쭉날쭉 — 잔머리처럼
-     *  · 방향: 원래 머리결(readFlow)을 이어받고, 결 방향 조절바만큼 바깥으로 벌어짐
+     *  · 새 끝선과 나란한 줄로 엇갈려 놓는다 (시술할 때 한 줄씩 결을 넣듯)
+     *  · 끝 두세 줄은 가늘고 짧고 성기게, 안쪽 줄은 촘촘하고 길게 — 원래 머리 속으로 이어진다
+     *  · 결 하나는 뿌리에서 결 방향 지도를 따라 몇 걸음씩 나아가며 휜다 → 이웃 결과 나란히 흐른다
+     * @returns [{ pts:[[x,y]...], w, tone, a }]
      */
     function strands() {
         var C = ctrlPts(), H = G.H, R = rng(S.seed * 7919 + 13);
-        var sp = H * (0.032 - 0.022 * S.density / 100);
-        var feather = H * 0.12, edge = H * (0.02 + 0.08 * S.soft / 100);
-        var halfW = (G.xR - G.xL) / 2;
-        var follow = (S.flow == null ? 70 : S.flow) / 100;
-        // 끝선 들쭉날쭉 (낮은 물결 두세 겹)
+        var sp = H * (0.052 - 0.03 * S.density / 100);        // 줄 안에서 결 사이 — 결이 한 올씩 보이게
+        var rowGap = sp * 1.05;                                // 줄 사이
+        var feather = H * 0.12;
         var R2 = rng(S.seed * 31 + 7), ph = [R2() * 6.3, R2() * 6.3, R2() * 6.3];
         var wav = function (x) {
             var u = (x - G.xL) / (G.xR - G.xL) * Math.PI * 2;
-            return (Math.sin(u * 3 + ph[0]) * 0.5 + Math.sin(u * 7 + ph[1]) * 0.3 + Math.sin(u * 13 + ph[2]) * 0.2) * H * 0.022 * (0.3 + S.soft / 100);
+            return (Math.sin(u * 3 + ph[0]) * 0.5 + Math.sin(u * 7 + ph[1]) * 0.3 + Math.sin(u * 13 + ph[2]) * 0.2) * H * 0.016 * (0.3 + S.soft / 100);
         };
-        var out = [], cols = Math.max(8, Math.round((G.xR - G.xL) / sp));
-        for (var ci = 0; ci <= cols; ci++) {
-            var x0 = G.xL + (G.xR - G.xL) * ci / cols;
-            var cur = curAt(G, x0), tgt = targetAt(x0, C);
-            if (tgt - cur < H * 0.01) continue;
-            var tgtJ = tgt + wav(x0);
-            var y0 = cur - feather, y1 = tgtJ + edge;
-            var fl = flowAt(x0);
-            for (var y = y0; y < y1; y += sp * (0.7 + R() * 0.5)) {
-                var x = x0 + (R() - 0.5) * sp * 1.6, yy = y + (R() - 0.5) * sp;
-                var v = (yy - cur) / Math.max(1, tgtJ - cur);       // 0 = 지금 선, 1 = 새 끝선
-                var span = Math.max(1, tgtJ - cur);
-                var e = v < 0 ? smooth(-feather / span, 0, v) * 0.6
-                    : v > 1 ? 1 - smooth(1, 1 + edge / span, v) : 1 - 0.45 * smooth(0.65, 1, v) * (0.4 + S.soft / 100);
-                if (R() > e) continue;
-                var baby = v > 0.8;                                  // 끝선 쪽 잔머리
-                var side = (x - G.cx) / halfW;
-                var fan = (S.tilt / 100 * 0.75) * side;
-                var base = fl ? fan * (1 - follow * fl.coh) + fl.ang * follow * fl.coh : fan;
-                var ang = base + (R() - 0.5) * (baby ? 0.9 : 0.32);
-                var L = H * (0.05 + 0.17 * S.len / 100) * (0.6 + R() * 0.7) * (baby ? 0.45 + 0.3 * R() : 1 + 0.5 * (1 - clamp(v, 0, 1)));
-                var bend = (R() - 0.5) * (baby ? 0.6 : 0.3) * L + (fl ? Math.sin(fl.ang) * 0.12 * L : 0);
-                var w = Math.max(0.55, H * (0.0014 + 0.0045 * S.thick / 100)) * (baby ? 0.55 : 0.8 + 0.4 * (1 - clamp(v, 0, 1))) * (0.8 + R() * 0.4);
-                var tone = 0.82 + R() * 0.32, a = (0.4 + R() * 0.45) * (baby ? 0.55 : 0.55 + 0.45 * e);
-                out.push([x, yy, x + Math.sin(ang) * L, yy - Math.cos(ang) * L, bend, w, tone, a, ang]);
-                if (out.length > 11000) return out;
+        var out = [];
+        var span = G.xR - G.xL, nx = Math.max(10, Math.round(span / sp));
+        var maxDepth = 0;
+        for (var i = 0; i <= 60; i++) {
+            var xx = G.xL + span * i / 60;
+            maxDepth = Math.max(maxDepth, targetAt(xx, C) - curAt(G, xx) + feather);
+        }
+        var rows = Math.ceil(maxDepth / rowGap) + 1;
+        for (var r = 0; r < rows; r++) {
+            var edgeRow = r < 3;                                // 끝 세 줄 = 잔머리 줄
+            for (var ci = 0; ci <= nx; ci++) {
+                var x0 = G.xL + span * (ci + (r % 2 ? 0.5 : 0)) / nx + (R() - 0.5) * sp * 0.5;
+                if (x0 < G.xL || x0 > G.xR) continue;
+                var cur = curAt(G, x0), tgt = targetAt(x0, C);
+                if (tgt - cur < H * 0.012) continue;
+                var tgtJ = tgt + wav(x0);
+                var y0 = tgtJ - r * rowGap + (R() - 0.5) * rowGap * 0.6;
+                if (y0 < cur - feather) continue;
+                var v = (y0 - cur) / Math.max(1, tgtJ - cur);           // 0 = 지금 선, 1 = 새 끝선
+                // 남길 확률: 끝줄은 성기게(경계 부드러움), 지금 선 위(머리 속)는 점점 줄인다
+                var keep = edgeRow ? (0.75 - 0.35 * S.soft / 100) * (r === 0 ? 0.7 : r === 1 ? 0.85 : 1) : 0.92;
+                if (v < 0) keep *= smooth(-feather / Math.max(1, tgtJ - cur), 0, v) * 0.7;
+                if (R() > keep) continue;
+                var depth = clamp(1 - v, 0, 1);                           // 안쪽일수록 1
+                var L = H * (0.06 + 0.16 * S.len / 100) * (edgeRow ? 0.5 + 0.12 * r : 0.85 + 0.45 * depth) * (0.8 + R() * 0.4);
+                var w = Math.max(0.55, H * (0.0014 + 0.0045 * S.thick / 100)) * (edgeRow ? 0.55 + 0.12 * r : 0.85 + 0.25 * depth) * (0.85 + R() * 0.3);
+                // 흐름 따라 걷기
+                var pts = [[x0, y0]], px = x0, py = y0, steps = 7, jit = (R() - 0.5) * 0.12, curl = (R() - 0.5) * 0.05;
+                for (var k = 1; k <= steps; k++) {
+                    var ang = dirAt(px) + jit + curl * k;
+                    px += Math.sin(ang) * L / steps;
+                    py -= Math.cos(ang) * L / steps;
+                    pts.push([px, py]);
+                }
+                var tone = 0.85 + R() * 0.28, a = (0.5 + R() * 0.35) * (edgeRow ? 0.6 + 0.12 * r : 0.9);
+                out.push({ pts: pts, w: w, tone: tone, a: a });
+                if (out.length > 9000) return out;
             }
         }
         return out;
@@ -309,21 +369,17 @@
         }
 
         // 결
-        // 결 하나 = 뿌리는 굵고 끝은 가는 휘어진 면 (2026-10-20)
+        // 결 하나 = 뿌리는 굵고 끝은 가늘어지는 면 (흐름을 따라 걸은 점들을 이어서)
         strands().forEach(function (st) {
-            var mx = (st[0] + st[2]) / 2 + Math.cos(st[8]) * st[4], my = (st[1] + st[3]) / 2 + Math.sin(st[8]) * st[4];
-            var c = col.map(function (v) { return Math.round(clamp(v * st[6], 0, 255)); });
-            L.fillStyle = "rgba(" + c.join(",") + "," + st[7].toFixed(3) + ")";
-            var M = 6, left = [], right = [], wr = st[5] * T.s / 2;
+            var c = col.map(function (v) { return Math.round(clamp(v * st.tone, 0, 255)); });
+            L.fillStyle = "rgba(" + c.join(",") + "," + st.a.toFixed(3) + ")";
+            var P = st.pts, M = P.length - 1, left = [], right = [], wr = st.w * T.s / 2;
             for (var k = 0; k <= M; k++) {
-                var t = k / M, u = 1 - t;
-                var px = u * u * X(st[0]) + 2 * u * t * X(mx) + t * t * X(st[2]);
-                var py = u * u * Y(st[1]) + 2 * u * t * Y(my) + t * t * Y(st[3]);
-                var dx = 2 * u * (X(mx) - X(st[0])) + 2 * t * (X(st[2]) - X(mx));
-                var dy = 2 * u * (Y(my) - Y(st[1])) + 2 * t * (Y(st[3]) - Y(my));
-                var dl = Math.hypot(dx, dy) || 1, half = Math.max(0.25, wr * (1 - 0.85 * t));
-                left.push([px - dy / dl * half, py + dx / dl * half]);
-                right.push([px + dy / dl * half, py - dx / dl * half]);
+                var a2 = P[Math.max(0, k - 1)], b2 = P[Math.min(M, k + 1)];
+                var dx = X(b2[0]) - X(a2[0]), dy = Y(b2[1]) - Y(a2[1]), dl = Math.hypot(dx, dy) || 1;
+                var half = Math.max(0.25, wr * (1 - 0.85 * k / M));
+                left.push([X(P[k][0]) - dy / dl * half, Y(P[k][1]) + dx / dl * half]);
+                right.push([X(P[k][0]) + dy / dl * half, Y(P[k][1]) - dx / dl * half]);
             }
             L.beginPath();
             L.moveTo(left[0][0], left[0][1]);
@@ -360,6 +416,21 @@
         ctx.beginPath();
         for (var i = 0; i <= 60; i++) { var x = G.xL + (G.xR - G.xL) * i / 60, y = targetAt(x, C); if (i) ctx.lineTo(X(x), Y(y)); else ctx.moveTo(X(x), Y(y)); }
         ctx.stroke();
+        // 결 방향 화살표 (새 헤어라인 위에 고르게) — 이 방향으로 결을 넣는다
+        ctx.strokeStyle = "rgba(255,255,255,.9)";
+        ctx.lineWidth = Math.max(1.5, px * 0.2);
+        for (var ai = 1; ai < 12; ai++) {
+            var axx = G.xL + (G.xR - G.xL) * ai / 12, ay = targetAt(axx, C) - G.H * 0.05;
+            var aa = dirAt(axx), al = G.H * 0.09;
+            var ex = axx + Math.sin(aa) * al, ey = ay - Math.cos(aa) * al;
+            ctx.beginPath(); ctx.moveTo(X(axx), Y(ay)); ctx.lineTo(X(ex), Y(ey)); ctx.stroke();
+            var hx = Math.sin(aa), hy = -Math.cos(aa), hs = px * 0.9;
+            ctx.beginPath();
+            ctx.moveTo(X(ex) - hx * hs - hy * hs * 0.6, Y(ey) - hy * hs + hx * hs * 0.6);
+            ctx.lineTo(X(ex), Y(ey));
+            ctx.lineTo(X(ex) - hx * hs + hy * hs * 0.6, Y(ey) - hy * hs - hx * hs * 0.6);
+            ctx.stroke();
+        }
         C.forEach(function (p, k) {
             ctx.beginPath();
             ctx.arc(X(p[0]), Y(p[1]), px * (k === drag ? 1.25 : 1), 0, Math.PI * 2);
@@ -521,6 +592,17 @@
         });
     }
     presetCards($("hPresets")); presetCards($("hPresets2"));
+    function partChips(box) {
+        PARTS.forEach(function (pp) {
+            var b = document.createElement("button");
+            b.type = "button";
+            b.setAttribute("data-part", pp[0]);
+            b.textContent = pp[1];
+            b.addEventListener("click", function () { S.part = pp[0]; syncAll(); schedule(); commit(); });
+            box.appendChild(b);
+        });
+    }
+    partChips($("hParts")); partChips($("hParts2"));
 
     function colorChips(box) {
         COLORS.forEach(function (c) {
@@ -543,6 +625,7 @@
     }
     function syncAll() {
         document.querySelectorAll("[data-preset]").forEach(function (b) { b.classList.toggle("is-active", b.getAttribute("data-preset") === S.preset); });
+        document.querySelectorAll("[data-part]").forEach(function (b) { b.classList.toggle("is-active", b.getAttribute("data-part") === (S.part || "auto")); });
         document.querySelectorAll(".mui-qcolor").forEach(function (b) { b.classList.toggle("is-active", b.getAttribute("data-color") === S.color); });
         if (S.color !== "auto") $("eColorPick").value = S.color;
         syncRows(); syncUndo();
