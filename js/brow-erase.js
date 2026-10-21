@@ -198,7 +198,7 @@
         const poly = outline(pts, scale, th);
         const b = bounds(poly);
         // 찾는 범위는 털이 범위 끝까지 이어지면 넓혀 간다 (두꺼운 눈썹)
-        const GROWS = [0.95, 1.7, 2.6].map(function (k) { return Math.max(6, th * k); });
+        const GROWS = [0.55, 0.95, 1.4].map(function (k) { return Math.max(4, th * k); });   // 위아래로 덜 넓게 (2026-10-22 원장님: 흐리는 띠가 넓다)
         const coreGrow = Math.max(2, th * 0.12);
         const maxGrow = GROWS[GROWS.length - 1];
         const pad = Math.ceil(maxGrow + th * 0.9);
@@ -335,9 +335,19 @@
         // 가닥만 덮는다 (2026-10-21 원장님: 눈썹 자리 전체가 아니라 눈썹 가닥 자체를 흐리게).
         // 가닥 사이 피부는 원래 사진 그대로 남아 얼굴 곡면의 명암 · 피부 결이 살아 있다.
         for (let i = 0; i < n; i++) if (!rowOk(i)) hair[i] = 0;
-        hair = dilate(hair, w, h, 1);                       // 가닥 가장자리의 옅은 털빛까지
-        const alpha = boxBlur(hair, w, h, Math.max(1.5, th * 0.14));   // 가장자리를 부드럽게 — 경계선이 또렷하면 스티커처럼 보인다
-        for (let i = 0; i < n; i++) { const a = Math.min(1, alpha[i] * 1.15); alpha[i] = a * a * (3 - 2 * a); }   // 가장자리는 원래 피부가 더 비치게
+        // (옆 · 아래로는 넓히지 않는다 — 넓히면 눈썹 위아래 피부까지 흐려졌다)
+        // 위로만 조금: 눈썹 윗선 바로 위의 밝은 띠가 눈썹을 지운 뒤 줄처럼 드러나서 그 띠까지 함께 메운다 (2026-10-22)
+        {
+            const r = Math.max(2, Math.round(th * 0.22)), up = new Float32Array(n);
+            for (let i = 0; i < n; i++) {
+                let m = hair[i];
+                for (let k = 1; k <= r; k++) { const j = i + k * w; if (j < n && hair[j] > m) m = hair[j] * (1 - 0.35 * k / r); }
+                up[i] = m;
+            }
+            hair = up;
+        }
+        const alpha = boxBlur(hair, w, h, Math.max(1, th * 0.06));   // 가장자리를 부드럽게 — 경계선이 또렷하면 스티커처럼 보인다
+        for (let i = 0; i < n; i++) { const a = Math.min(1, alpha[i] * 1.35); alpha[i] = a * a * (3 - 2 * a); }   // 가장자리는 원래 피부가 더 비치게
         const fadeW = Math.max(3, th * 1.2), fadeH = Math.max(2, th * 0.5);
         for (let i = 0; i < n; i++) {
             const xx = i % w, yy = Math.floor(i / w);
@@ -386,6 +396,24 @@
                 od[i * 4 + 1] = refKeep[i * 3 + 1] * k * 0.75 + filled[i * 3 + 1] * 0.25 + t;
                 od[i * 4 + 2] = refKeep[i * 3 + 2] * k * 0.75 + filled[i * 3 + 2] * 0.25 + t;
                 od[i * 4 + 3] = Math.round(Math.min(1, alpha[i]) * 255);
+            }
+        }
+        // 이음새 없애기 (2026-10-22): 덮는 자리 바로 바깥에서 '원래 피부 − 메운 색' 차이를 재고,
+        // 그 차이를 안쪽으로 고르게 퍼뜨려 더한다. 경계에서 두 색이 같아져 눈썹 윗선 자리에 줄이 남지 않는다.
+        {
+            const diff = new Float32Array(n * 3), dk = new Float32Array(n);
+            for (let i = 0; i < n; i++) {
+                if (alpha[i] < 0.03 && rowOk(i)) {
+                    dk[i] = 1;
+                    diff[i * 3] = sd[i * 4] - od[i * 4];
+                    diff[i * 3 + 1] = sd[i * 4 + 1] - od[i * 4 + 1];
+                    diff[i * 3 + 2] = sd[i * 4 + 2] - od[i * 4 + 2];
+                }
+            }
+            const corr = pushPull(diff, dk, w, h);
+            for (let i = 0; i < n; i++) {
+                if (alpha[i] <= 0) continue;
+                od[i * 4] += corr[i * 3]; od[i * 4 + 1] += corr[i * 3 + 1]; od[i * 4 + 2] += corr[i * 3 + 2];
             }
         }
         c.putImageData(out, 0, 0);
