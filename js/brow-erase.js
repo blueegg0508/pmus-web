@@ -337,6 +337,7 @@
         //  2) 씨앗에 이어진 곳은 조금 덜 어두워도(잔머리 · 머리끝) 머리카락으로 넓혀 간다
         //  3) 그 둘레에 여유 폭을 두고, 그 안은 털 판정 · 덮기 모두 하지 않는다
         const headHair = new Uint8Array(n);
+        const hairRaw = new Uint8Array(n);
         {
             const seedT = fore * 0.45, growT = fore * 0.78, st = [];
             // 눈썹 둘레(인식 둘레를 넉넉히 부풀린 곳)는 씨앗에서 뺀다 — 진한 눈썹 꼬리를 머리카락으로 잘못 보지 않게
@@ -372,6 +373,7 @@
                 const nb = [qx > 0 ? q - 1 : -1, qx < w - 1 ? q + 1 : -1, q - w, q + w];
                 for (const j of nb) if (j >= 0 && j < n && !headHair[j] && L[j] < growT && !core[j] && (!near[j] || L[j] < seedT * 0.8)) { headHair[j] = 1; st.push(j); }
             }
+            hairRaw.set(headHair);   // 여유 폭을 붙이기 전 — 이 바로 옆 그늘진 피부는 메울 재료로 쓴다
             const grow = dilate(Float32Array.from(headHair), w, h, Math.max(3, Math.round(th * 0.35)));
             for (let i = 0; i < n; i++) if (grow[i] > 0) { hair[i] = 0; headHair[i] = 1; }
         }
@@ -404,7 +406,9 @@
         // 3) 털이 아닌 피부만 재료로 메운다
         const known = new Float32Array(n);
         // 털이 아닌 피부는 그늘진 곳까지 모두 재료로 — 둘레의 명암이 메운 자리 안으로 그대로 이어진다
-        for (let i = 0; i < n; i++) known[i] = (hair[i] < 0.15 && rowOk(i) && L[i] > fore * 0.62) ? 1 : 0;
+        // 머리카락은 밝기가 아니라 머리카락 판(headHair)으로 뺀다 — 관자놀이 쪽 그늘진 피부도 재료로 써야
+        // 메운 자리가 얼굴 곡면의 명암을 따라 어두워진다 (밝은 피부만 쓰면 그 자리만 스티커처럼 밝았다, 2026-10-22)
+        for (let i = 0; i < n; i++) known[i] = (hair[i] < 0.15 && rowOk(i) && !hairRaw[i] && L[i] > fore * 0.4) ? 1 : 0;
         const filled = pushPull(rgb, known, w, h);
 
         // 4) 피부 결 — 바로 위 이마에서
@@ -449,7 +453,7 @@
             const diff = new Float32Array(n * 3), dk = new Float32Array(n);
             for (let i = 0; i < n; i++) {
                 // 피부만 기준으로 — 옆머리 · 그늘처럼 어두운 곳을 맞추면 그 색이 얼굴 쪽으로 번져 들어왔다 (2026-10-22)
-                if (alpha[i] < 0.03 && rowOk(i) && L[i] > fore * 0.72 && hair[i] < 0.1) {
+                if (alpha[i] < 0.03 && rowOk(i) && !hairRaw[i] && L[i] > fore * 0.4 && hair[i] < 0.1) {
                     dk[i] = 1;
                     diff[i * 3] = sd[i * 4] - od[i * 4];
                     diff[i * 3 + 1] = sd[i * 4 + 1] - od[i * 4 + 1];
