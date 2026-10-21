@@ -219,7 +219,7 @@
         for (let i = 0; i < n; i++) L[i] = lum(sd[i * 4], sd[i * 4 + 1], sd[i * 4 + 2]);
         const rowOk = function (i) { return Math.floor(i / w) <= limitY; };
         // 옆으로는 넓히지 않는다 — 관자놀이 머리카락 · 콧대를 털로 잘못 지우지 않게
-        const cx0 = b.x0 - th * 1.1 - x, cx1 = b.x1 + th * 1.1 - x;
+        const cx0 = b.x0 - th * 1.5 - x, cx1 = b.x1 + th * 1.5 - x;
         const colOk = function (i) { const xx = i % w; return xx >= cx0 && xx <= cx1; };
         // 위로는 거의 넓히지 않는다 — 앞머리가 눈썹 위로 내려온 사진에서 앞머리를 눈썹으로 잘못 지웠다 (2026-10-19)
         const polyTop = b.y0 - y, polyMid = (b.y0 + b.y1) / 2 - y;
@@ -250,22 +250,27 @@
         const rgb = new Float32Array(n * 3);
         for (let i = 0; i < n; i++) { rgb[i * 3] = sd[i * 4]; rgb[i * 3 + 1] = sd[i * 4 + 1]; rgb[i * 3 + 2] = sd[i * 4 + 2]; }
 
-        let zone = null, hair = null, outside = null;
+        let zone = null, hair = null, outside = null, refKeep = null;
+        // 가닥 단위 기준: 가닥 굵기보다 조금 넓은 둘레에서 가장 밝은 값(= 그 자리 피부) — 가는 털이 그보다 어둡다
+        const rLoc = Math.max(2, Math.round(th * 0.18));
+        const localBg = boxBlur(dilate(L, w, h, rLoc), w, h, rLoc);
         for (let gi = 0; gi < GROWS.length; gi++) {
             zone = maskOf(GROWS[gi]);
             // 1) 범위 바깥의 '피부' 만 (이마보다 많이 어두운 것 = 남은 털 · 그림자 · 눈은 뺀다)
             outside = new Float32Array(n);
-            for (let i = 0; i < n; i++) outside[i] = !zone[i] && rowOk(i) && L[i] > fore * 0.8 ? 1 : 0;
+            // 그늘진 피부(눈썹뼈 아래 · 관자놀이 쪽)도 기준에 넣는다 — 빼면 메운 자리가 혼자 밝아 스티커처럼 보였다 (2026-10-21)
+            for (let i = 0; i < n; i++) outside[i] = !zone[i] && rowOk(i) && L[i] > fore * 0.55 ? 1 : 0;
             const ref = pushPull(rgb.slice(), outside.slice(), w, h);   // pushPull 은 받은 배열을 고쳐 쓴다
+            refKeep = ref;
             // 2) 털 판정
             hair = new Float32Array(n);
             for (let i = 0; i < n; i++) {
                 if (!zone[i]) continue;
                 const R = Math.max(1, lum(ref[i * 3], ref[i * 3 + 1], ref[i * 3 + 2]));
-                const d = (R - L[i]) / R;
-                let v = d <= 0.07 ? 0 : d >= 0.18 ? 1 : (d - 0.07) / 0.11;
-                if (core[i]) v = 1;
-                hair[i] = v;
+                const dGlobal = (R - L[i]) / R;
+                const dLocal = (localBg[i] - L[i]) / Math.max(1, localBg[i]);
+                const d = Math.max(dGlobal, dLocal);
+                hair[i] = d <= 0.035 ? 0 : d >= 0.12 ? 1 : (d - 0.035) / 0.085;   // 옅고 가는 털까지 (2026-10-21)
             }
             // 털이 범위 끝(둘레)까지 이어져 있으면 더 넓혀 다시 찾는다
             if (gi === GROWS.length - 1) break;
@@ -301,18 +306,23 @@
 
         mk.width = 0; mk.height = 0;
 
-        // 털 사이 틈 메우기 + 털 끝까지 조금 넓히기
-        hair = boxBlur(hair, w, h, Math.max(1, th * 0.08));
+        // 가닥만 덮는다 (2026-10-21 원장님: 눈썹 자리 전체가 아니라 눈썹 가닥 자체를 흐리게).
+        // 가닥 사이 피부는 원래 사진 그대로 남아 얼굴 곡면의 명암 · 피부 결이 살아 있다.
+        for (let i = 0; i < n; i++) if (!rowOk(i)) hair[i] = 0;
+        hair = dilate(hair, w, h, 1);                       // 가닥 가장자리의 옅은 털빛까지
+        const alpha = boxBlur(hair, w, h, 1);
+        const fadeW = Math.max(3, th * 1.2), fadeH = Math.max(2, th * 0.5);
         for (let i = 0; i < n; i++) {
-            hair[i] = hair[i] > 0.28 ? Math.min(1, hair[i] * 1.6) : hair[i] * 0.6;
-            if (!rowOk(i)) hair[i] = 0;
+            const xx = i % w, yy = Math.floor(i / w);
+            // 옆 끝 · 아래(눈꺼풀 쪽) 한계선 가까이에서는 서서히 옅어지게 — 곧은 경계선이 생기지 않게
+            const f = Math.min(1, Math.max(0, (xx - cx0) / fadeW), Math.max(0, (cx1 - xx) / fadeW), Math.max(0, (limitY - yy) / fadeH));
+            alpha[i] *= f * f * (3 - 2 * f);
         }
-        hair = dilate(hair, w, h, Math.max(1, th * 0.07));
-        const alpha = boxBlur(hair, w, h, Math.max(1, th * 0.06));
 
         // 3) 털이 아닌 피부만 재료로 메운다
         const known = new Float32Array(n);
-        for (let i = 0; i < n; i++) known[i] = (hair[i] < 0.15 && rowOk(i) && L[i] > fore * 0.8) ? 1 : 0;
+        // 털이 아닌 피부는 그늘진 곳까지 모두 재료로 — 둘레의 명암이 메운 자리 안으로 그대로 이어진다
+        for (let i = 0; i < n; i++) known[i] = (hair[i] < 0.15 && rowOk(i) && L[i] > fore * 0.55) ? 1 : 0;
         const filled = pushPull(rgb, known, w, h);
 
         // 4) 피부 결 — 바로 위 이마에서
@@ -340,9 +350,14 @@
                 } else {
                     t = noise(i + x * 7 + y * 13) * grain * 2;
                 }
-                od[i * 4]     = filled[i * 3] + t;
-                od[i * 4 + 1] = filled[i * 3 + 1] + t;
-                od[i * 4 + 2] = filled[i * 3 + 2] + t;
+                // 밝기(명암)는 바로 옆 피부에서, 색(피부 톤)은 눈썹 둘레의 깨끗한 피부에서 —
+                // 옅은 털이 섞여 메운 색이 회색빛으로 뜨던 것을 막는다
+                const Lf = lum(filled[i * 3], filled[i * 3 + 1], filled[i * 3 + 2]);
+                const Lr = Math.max(1, lum(refKeep[i * 3], refKeep[i * 3 + 1], refKeep[i * 3 + 2]));
+                const k = Lf / Lr;
+                od[i * 4]     = refKeep[i * 3] * k * 0.75 + filled[i * 3] * 0.25 + t;
+                od[i * 4 + 1] = refKeep[i * 3 + 1] * k * 0.75 + filled[i * 3 + 1] * 0.25 + t;
+                od[i * 4 + 2] = refKeep[i * 3 + 2] * k * 0.75 + filled[i * 3 + 2] * 0.25 + t;
                 od[i * 4 + 3] = Math.round(Math.min(1, alpha[i]) * 255);
             }
         }

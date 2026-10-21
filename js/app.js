@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=119";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=119";
-import * as License from "./license.js?v=119";
-import * as Custom from "./custom-designs.js?v=119";
-import * as Update from "./update.js?v=119";
-import * as Crm from "./crm-ui.js?v=119";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=120";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=120";
+import * as License from "./license.js?v=120";
+import * as Custom from "./custom-designs.js?v=120";
+import * as Update from "./update.js?v=120";
+import * as Crm from "./crm-ui.js?v=120";
 
-const BUILD = "119";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "120";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -2108,6 +2108,15 @@ function bindEvents() {
     // 앨범: 단추가 입력칸의 이름표(label)라 누르면 브라우저가 바로 연다. 코드로 대신 열면(click())
     // 삼성 인터넷이 '작업 선택(카메라 · 캠코더 · 파일)' 을 먼저 띄웠다 (2026-10-21 원장님 기기 시험).
     // 키보드로 고를 때만 대신 열어 준다.
+    // 사진 고르기 시험 (버전 화면) — 고르면 표시만 한다
+    document.querySelectorAll("#pick-test input[type=file]").forEach((inp) => {
+        inp.addEventListener("change", () => {
+            const row = inp.closest(".pt-row"), f = inp.files && inp.files[0];
+            if (row && f) row.querySelector("span").classList.add("pt-done");
+            if (row && f) row.querySelector("span").textContent += " ✓";
+        });
+    });
+    if ($("pt-ua")) $("pt-ua").textContent = navigator.userAgent + (matchMedia("(display-mode: standalone)").matches ? " · 설치한 웹앱" : " · 브라우저");
     $("btn-gallery").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file-gallery").click(); } });
     $("file-camera").addEventListener("change", (e) => handlePhoto(e.target.files[0]));
     $("file-gallery").addEventListener("change", (e) => handlePhoto(e.target.files[0]));

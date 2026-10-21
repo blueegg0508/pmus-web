@@ -12,12 +12,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
-<link rel="stylesheet" href="css/app.css?v=119">
+<link rel="stylesheet" href="css/app.css?v=120">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=119" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=120" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="diag-btn" class="diag-btn" type="button">버전</button>
@@ -28,7 +28,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=119" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=120" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -225,6 +225,21 @@
             <div class="lic-sheet-actions">
                 <button class="btn btn-ghost btn-sm" id="diag-copy">복사</button>
                 <button class="btn btn-ghost btn-sm" id="diag-run">다시 진단</button>
+            </div>
+        </details>
+
+        <!-- 설치한 웹앱에서 갤러리가 바로 열리는 방식 찾기 (2026-10-21 · 원인을 찾으면 지운다) -->
+        <details class="ver-diag">
+            <summary>사진 고르기 시험</summary>
+            <p class="design-dlg-guide">아래 단추를 하나씩 눌러 보시고 <strong>'작업 선택' 없이 갤러리가 바로 열리는 번호</strong>를 알려 주세요. 고른 사진은 어디에도 쓰이지 않습니다.</p>
+            <div class="pick-test" id="pick-test">
+                <div class="pt-row"><span>가 — 지금 방식 (이름표)</span><label class="btn btn-ghost btn-sm" for="pt-a">눌러 보기</label><input type="file" id="pt-a" accept="image/jpeg,image/png,image/webp" hidden></div>
+                <div class="pt-row"><span>나 — 입력칸 직접 (사진 3형식)</span><span class="pt-cover btn btn-ghost btn-sm">눌러 보기<input type="file" accept="image/jpeg,image/png,image/webp"></span></div>
+                <div class="pt-row"><span>다 — 입력칸 직접 (사진 2형식)</span><span class="pt-cover btn btn-ghost btn-sm">눌러 보기<input type="file" accept="image/jpeg,image/png"></span></div>
+                <div class="pt-row"><span>라 — 입력칸 직접 (모든 사진)</span><span class="pt-cover btn btn-ghost btn-sm">눌러 보기<input type="file" accept="image/*"></span></div>
+                <div class="pt-row"><span>마 — 입력칸 직접 (형식 제한 없음)</span><span class="pt-cover btn btn-ghost btn-sm">눌러 보기<input type="file"></span></div>
+                <div class="pt-row"><span>바 — 입력칸 직접 (확장자)</span><span class="pt-cover btn btn-ghost btn-sm">눌러 보기<input type="file" accept=".jpg,.jpeg,.png,.webp"></span></div>
+                <p class="design-dlg-guide" id="pt-ua" style="word-break:break-all;font-size:11px;opacity:.7"></p>
             </div>
         </details>
 
@@ -457,7 +472,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=119"></script>
-<script type="module" src="js/app.js?v=119"></script>
+<script type="module" src="js/pwa.js?v=120"></script>
+<script type="module" src="js/app.js?v=120"></script>
 </body>
 </html>
