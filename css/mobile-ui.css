@@ -1235,7 +1235,7 @@ html.mui-on.mui-land .mui-hint { left: calc((100% - var(--panel-w)) / 2); }
 
 /* 입술 퀵: 좌우 대칭 맞추기 (대표 색상 바로 밑) */
 .mui-qsym {
-    appearance: none; display: block; width: 100%; margin: 12px 0 2px; padding: 11px 0; min-height: 44px;
+    appearance: none; display: block; width: 100%; margin: 12px 0 16px; padding: 11px 0; min-height: 44px;
     border: 1px solid var(--accent-line, #6a5a3a); border-radius: 12px; background: var(--surface-2, #272236);
     color: var(--accent-2, #e8c65a); font-family: inherit; font-size: 13.5px; font-weight: 800; cursor: pointer;
 }

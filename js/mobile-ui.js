@@ -1473,6 +1473,13 @@
     }
 
     // 색상 바로 아래 자리 — 색을 고르고 이어서 진하기를 맞추는 흐름이다
+    // 눈썹: 좌/우 수평 높이 동일하게 맞춤 — 메뉴얼 '좌우' 에만 있던 것을 대표 색상과 투명도 사이에 (2026-10-22 원장님)
+    if (isBrow && $("btnSyncYLevel")) {
+        var qLevel = el("button", "mui-qsym", "⚖️ 좌/우 수평 높이 동일하게 맞춤");
+        qLevel.type = "button";
+        qLevel.addEventListener("click", function () { $("btnSyncYLevel").click(); });
+        quick.appendChild(qLevel);
+    }
     var qColorSlot = el("div", "mui-qslot");
     quick.appendChild(qColorSlot);
 

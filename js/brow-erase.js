@@ -332,6 +332,21 @@
         }
         mk.width = 0; mk.height = 0;
 
+        // 옆머리 보호 (2026-10-22): 아주 어두운 곳 중 찾는 범위 바깥의 어두운 덩어리(옆머리 · 앞머리)와
+        // 이어진 곳은 머리카락이다 — 덮지 않는다. 눈썹 꼬리가 옆머리 밑까지 이어진 얼굴에서 머리카락 위를 피부색으로 칠했다.
+        const headHair = new Uint8Array(n);
+        {
+            const darkT = fore * 0.42, st = [];
+            for (let i = 0; i < n; i++) if (L[i] < darkT && !zone[i]) { headHair[i] = 1; st.push(i); }
+            while (st.length) {
+                const q = st.pop(), qx = q % w;
+                const nb = [qx > 0 ? q - 1 : -1, qx < w - 1 ? q + 1 : -1, q - w, q + w];
+                for (const j of nb) if (j >= 0 && j < n && !headHair[j] && L[j] < darkT) { headHair[j] = 1; st.push(j); }
+            }
+            const grow = dilate(Float32Array.from(headHair), w, h, Math.max(2, Math.round(th * 0.12)));
+            for (let i = 0; i < n; i++) if (grow[i] > 0) hair[i] = 0;
+        }
+
         // 가닥만 덮는다 (2026-10-21 원장님: 눈썹 자리 전체가 아니라 눈썹 가닥 자체를 흐리게).
         // 가닥 사이 피부는 원래 사진 그대로 남아 얼굴 곡면의 명암 · 피부 결이 살아 있다.
         for (let i = 0; i < n; i++) if (!rowOk(i)) hair[i] = 0;
@@ -347,7 +362,8 @@
             hair = up;
         }
         const alpha = boxBlur(hair, w, h, Math.max(1, th * 0.06));   // 가장자리를 부드럽게 — 경계선이 또렷하면 스티커처럼 보인다
-        for (let i = 0; i < n; i++) { const a = Math.min(1, alpha[i] * 1.35); alpha[i] = a * a * (3 - 2 * a); }   // 가장자리는 원래 피부가 더 비치게
+        for (let i = 0; i < n; i++) { const a = Math.min(1, alpha[i] * 1.35); alpha[i] = a * a * (3 - 2 * a); }
+        { const hb = boxBlur(Float32Array.from(headHair), w, h, Math.max(2, th * 0.1)); for (let i = 0; i < n; i++) alpha[i] *= Math.max(0, 1 - hb[i] * 2); }   // 가장자리는 원래 피부가 더 비치게
         const fadeW = Math.max(3, th * 1.2), fadeH = Math.max(2, th * 0.5);
         for (let i = 0; i < n; i++) {
             const xx = i % w, yy = Math.floor(i / w);
@@ -359,7 +375,7 @@
         // 3) 털이 아닌 피부만 재료로 메운다
         const known = new Float32Array(n);
         // 털이 아닌 피부는 그늘진 곳까지 모두 재료로 — 둘레의 명암이 메운 자리 안으로 그대로 이어진다
-        for (let i = 0; i < n; i++) known[i] = (hair[i] < 0.15 && rowOk(i) && L[i] > fore * 0.55) ? 1 : 0;
+        for (let i = 0; i < n; i++) known[i] = (hair[i] < 0.15 && rowOk(i) && L[i] > fore * 0.62) ? 1 : 0;
         const filled = pushPull(rgb, known, w, h);
 
         // 4) 피부 결 — 바로 위 이마에서
@@ -403,7 +419,8 @@
         {
             const diff = new Float32Array(n * 3), dk = new Float32Array(n);
             for (let i = 0; i < n; i++) {
-                if (alpha[i] < 0.03 && rowOk(i)) {
+                // 피부만 기준으로 — 옆머리 · 그늘처럼 어두운 곳을 맞추면 그 색이 얼굴 쪽으로 번져 들어왔다 (2026-10-22)
+                if (alpha[i] < 0.03 && rowOk(i) && L[i] > fore * 0.72 && hair[i] < 0.1) {
                     dk[i] = 1;
                     diff[i * 3] = sd[i * 4] - od[i * 4];
                     diff[i * 3 + 1] = sd[i * 4 + 1] - od[i * 4 + 1];
