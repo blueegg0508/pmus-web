@@ -219,7 +219,7 @@
         for (let i = 0; i < n; i++) L[i] = lum(sd[i * 4], sd[i * 4 + 1], sd[i * 4 + 2]);
         const rowOk = function (i) { return Math.floor(i / w) <= limitY; };
         // 옆으로는 넓히지 않는다 — 관자놀이 머리카락 · 콧대를 털로 잘못 지우지 않게
-        const cx0 = b.x0 - th * 1.5 - x, cx1 = b.x1 + th * 1.5 - x;
+        const cx0 = b.x0 - th * 1.2 - x, cx1 = b.x1 + th * 1.2 - x;   // 옆머리 가까운 얼굴에서 머리카락까지 덮지 않게 (2026-10-21)
         const colOk = function (i) { const xx = i % w; return xx >= cx0 && xx <= cx1; };
         // 위로는 거의 넓히지 않는다 — 앞머리가 눈썹 위로 내려온 사진에서 앞머리를 눈썹으로 잘못 지웠다 (2026-10-19)
         const polyTop = b.y0 - y, polyMid = (b.y0 + b.y1) / 2 - y;
@@ -270,7 +270,9 @@
                 const dGlobal = (R - L[i]) / R;
                 const dLocal = (localBg[i] - L[i]) / Math.max(1, localBg[i]);
                 const d = Math.max(dGlobal, dLocal);
-                hair[i] = d <= 0.035 ? 0 : d >= 0.12 ? 1 : (d - 0.035) / 0.085;   // 옅고 가는 털까지 (2026-10-21)
+                // 인식한 눈썹 안: 옅고 가는 털까지 / 바깥: 확실히 진한 털만 — 눈썹 아래 그늘진 피부를 털로 보지 않게 (2026-10-21)
+                hair[i] = core[i] ? (d <= 0.035 ? 0 : d >= 0.12 ? 1 : (d - 0.035) / 0.085)
+                                  : (d <= 0.12 ? 0 : d >= 0.24 ? 1 : (d - 0.12) / 0.12);
             }
             // 털이 범위 끝(둘레)까지 이어져 있으면 더 넓혀 다시 찾는다
             if (gi === GROWS.length - 1) break;
@@ -304,13 +306,38 @@
             }
         }
 
+        // 눈썹 모양만 떼어 낸다 (2026-10-21 원장님): 털로 본 픽셀을 이어진 덩어리로 나누고,
+        // 얼굴 인식이 찾은 눈썹(core)과 겹치는 덩어리만 남긴다. 옆머리 · 그림자처럼 따로 떨어진 덩어리는 버린다.
+        {
+            const lab = new Int32Array(n), keep = [0], stack = [];
+            let id = 0;
+            for (let i = 0; i < n; i++) {
+                if (hair[i] < 0.35 || lab[i]) continue;
+                id++; let touch = false; stack.length = 0; stack.push(i); lab[i] = id;
+                while (stack.length) {
+                    const q = stack.pop();
+                    if (core[q]) touch = true;
+                    const qx = q % w, qy = (q - qx) / w;
+                    if (qx > 0 && !lab[q - 1] && hair[q - 1] >= 0.35) { lab[q - 1] = id; stack.push(q - 1); }
+                    if (qx < w - 1 && !lab[q + 1] && hair[q + 1] >= 0.35) { lab[q + 1] = id; stack.push(q + 1); }
+                    if (qy > 0 && !lab[q - w] && hair[q - w] >= 0.35) { lab[q - w] = id; stack.push(q - w); }
+                    if (qy < h - 1 && !lab[q + w] && hair[q + w] >= 0.35) { lab[q + w] = id; stack.push(q + w); }
+                }
+                keep.push(touch ? 1 : 0);
+            }
+            for (let i = 0; i < n; i++) {
+                if (lab[i]) { if (!keep[lab[i]]) hair[i] = 0; }
+                else if (hair[i] > 0 && !core[i]) hair[i] *= 0.5;      // 덩어리에 못 끼는 옅은 가장자리는 반만
+            }
+        }
         mk.width = 0; mk.height = 0;
 
         // 가닥만 덮는다 (2026-10-21 원장님: 눈썹 자리 전체가 아니라 눈썹 가닥 자체를 흐리게).
         // 가닥 사이 피부는 원래 사진 그대로 남아 얼굴 곡면의 명암 · 피부 결이 살아 있다.
         for (let i = 0; i < n; i++) if (!rowOk(i)) hair[i] = 0;
         hair = dilate(hair, w, h, 1);                       // 가닥 가장자리의 옅은 털빛까지
-        const alpha = boxBlur(hair, w, h, 1);
+        const alpha = boxBlur(hair, w, h, Math.max(1.5, th * 0.14));   // 가장자리를 부드럽게 — 경계선이 또렷하면 스티커처럼 보인다
+        for (let i = 0; i < n; i++) { const a = Math.min(1, alpha[i] * 1.15); alpha[i] = a * a * (3 - 2 * a); }   // 가장자리는 원래 피부가 더 비치게
         const fadeW = Math.max(3, th * 1.2), fadeH = Math.max(2, th * 0.5);
         for (let i = 0; i < n; i++) {
             const xx = i % w, yy = Math.floor(i / w);
