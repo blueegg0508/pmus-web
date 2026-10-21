@@ -332,19 +332,48 @@
         }
         mk.width = 0; mk.height = 0;
 
-        // 옆머리 보호 (2026-10-22): 아주 어두운 곳 중 찾는 범위 바깥의 어두운 덩어리(옆머리 · 앞머리)와
-        // 이어진 곳은 머리카락이다 — 덮지 않는다. 눈썹 꼬리가 옆머리 밑까지 이어진 얼굴에서 머리카락 위를 피부색으로 칠했다.
+        // 원칙: 머리카락(옆머리 · 앞머리)은 절대 건드리지 않는다 (2026-10-22 원장님).
+        //  1) 찾는 범위 바깥의 아주 어두운 곳 = 머리카락 씨앗
+        //  2) 씨앗에 이어진 곳은 조금 덜 어두워도(잔머리 · 머리끝) 머리카락으로 넓혀 간다
+        //  3) 그 둘레에 여유 폭을 두고, 그 안은 털 판정 · 덮기 모두 하지 않는다
         const headHair = new Uint8Array(n);
         {
-            const darkT = fore * 0.42, st = [];
-            for (let i = 0; i < n; i++) if (L[i] < darkT && !zone[i]) { headHair[i] = 1; st.push(i); }
+            const seedT = fore * 0.45, growT = fore * 0.78, st = [];
+            // 눈썹 둘레(인식 둘레를 넉넉히 부풀린 곳)는 씨앗에서 뺀다 — 진한 눈썹 꼬리를 머리카락으로 잘못 보지 않게
+            const near = new Uint8Array(n);
+            {
+                const nc = document.createElement("canvas"); nc.width = w; nc.height = h;
+                const nx = nc.getContext("2d", { willReadFrequently: true });
+                drawMask(nx, poly, x, y, Math.max(6, th * 1.1), 0);
+                const nd = nx.getImageData(0, 0, w, h).data;
+                for (let i = 0; i < n; i++) near[i] = nd[i * 4 + 3] > 8 ? 1 : 0;
+                nc.width = 0; nc.height = 0;
+            }
+            for (let i = 0; i < n; i++) if (L[i] < seedT && !zone[i] && !near[i]) headHair[i] = 1;
+            // 머리카락은 잘라 낸 판의 가장자리까지 이어져 있다 — 판 안에 떠 있는 진한 덩어리(눈썹 꼬리 · 앞머리 털 · 점)는 머리카락이 아니다
+            {
+                const lab = new Int32Array(n);
+                let id = 0;
+                for (let i = 0; i < n; i++) {
+                    if (!headHair[i] || lab[i]) continue;
+                    id++; const comp = [i]; lab[i] = id; let edge = false;
+                    for (let k = 0; k < comp.length; k++) {
+                        const q = comp[k], qx = q % w, qy = (q - qx) / w;
+                        if (qx === 0 || qy === 0 || qx === w - 1 || qy === h - 1) edge = true;
+                        const nb = [qx > 0 ? q - 1 : -1, qx < w - 1 ? q + 1 : -1, q - w, q + w];
+                        for (const j of nb) if (j >= 0 && j < n && headHair[j] && !lab[j]) { lab[j] = id; comp.push(j); }
+                    }
+                    if (edge) comp.forEach((q) => st.push(q));
+                    else comp.forEach((q) => { headHair[q] = 0; });
+                }
+            }
             while (st.length) {
                 const q = st.pop(), qx = q % w;
                 const nb = [qx > 0 ? q - 1 : -1, qx < w - 1 ? q + 1 : -1, q - w, q + w];
-                for (const j of nb) if (j >= 0 && j < n && !headHair[j] && L[j] < darkT) { headHair[j] = 1; st.push(j); }
+                for (const j of nb) if (j >= 0 && j < n && !headHair[j] && L[j] < growT && !core[j] && (!near[j] || L[j] < seedT * 0.8)) { headHair[j] = 1; st.push(j); }
             }
-            const grow = dilate(Float32Array.from(headHair), w, h, Math.max(2, Math.round(th * 0.12)));
-            for (let i = 0; i < n; i++) if (grow[i] > 0) hair[i] = 0;
+            const grow = dilate(Float32Array.from(headHair), w, h, Math.max(3, Math.round(th * 0.35)));
+            for (let i = 0; i < n; i++) if (grow[i] > 0) { hair[i] = 0; headHair[i] = 1; }
         }
 
         // 가닥만 덮는다 (2026-10-21 원장님: 눈썹 자리 전체가 아니라 눈썹 가닥 자체를 흐리게).
@@ -363,7 +392,7 @@
         }
         const alpha = boxBlur(hair, w, h, Math.max(1, th * 0.06));   // 가장자리를 부드럽게 — 경계선이 또렷하면 스티커처럼 보인다
         for (let i = 0; i < n; i++) { const a = Math.min(1, alpha[i] * 1.35); alpha[i] = a * a * (3 - 2 * a); }
-        { const hb = boxBlur(Float32Array.from(headHair), w, h, Math.max(2, th * 0.1)); for (let i = 0; i < n; i++) alpha[i] *= Math.max(0, 1 - hb[i] * 2); }   // 가장자리는 원래 피부가 더 비치게
+        for (let i = 0; i < n; i++) if (headHair[i]) alpha[i] = 0;   // 머리카락 자리는 한 픽셀도 덮지 않는다   // 가장자리는 원래 피부가 더 비치게
         const fadeW = Math.max(3, th * 1.2), fadeH = Math.max(2, th * 0.5);
         for (let i = 0; i < n; i++) {
             const xx = i % w, yy = Math.floor(i / w);
