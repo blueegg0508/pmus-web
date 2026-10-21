@@ -1464,6 +1464,14 @@
     quick.appendChild(qhead("대표 색상"));
     if (qColors) quick.appendChild(qColors);
 
+    // 입술: 좌우 대칭 맞추기 — 메뉴얼에만 있던 것을 대표 색상 바로 밑에 (2026-10-21 원장님)
+    if (!isBrow && $("btnQuickSymmetry")) {
+        var qSym = el("button", "mui-qsym", "⚖️ 좌우 대칭 맞추기");
+        qSym.type = "button";
+        qSym.addEventListener("click", function () { $("btnQuickSymmetry").click(); });
+        quick.appendChild(qSym);
+    }
+
     // 색상 바로 아래 자리 — 색을 고르고 이어서 진하기를 맞추는 흐름이다
     var qColorSlot = el("div", "mui-qslot");
     quick.appendChild(qColorSlot);
