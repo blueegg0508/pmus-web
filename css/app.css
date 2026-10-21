@@ -1718,3 +1718,11 @@ label.design-card { cursor: pointer; }
 .skin-swatch .s-card { left: 10%; right: 10%; top: 16%; height: 34%; }
 .skin-swatch .s-btn { left: 10%; width: 46%; bottom: 14%; height: 22%; }
 .skin-swatch .s-txt { right: 10%; width: 26%; bottom: 20%; height: 10%; border-radius: 4px; }
+
+/* 고객 장부 백업 (2026-10-21) */
+.crm-backup { margin: 12px 0 4px; padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--line-2); background: var(--bg-deep); }
+.crm-backup-note { font-size: 12.5px; line-height: 1.55; color: var(--muted); margin-bottom: 8px; }
+.crm-backup-note b { color: var(--accent-2); }
+.crm-backup-note.is-due { color: var(--text); }
+.crm-backup-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.crm-backup-btns .btn { text-align: center; }

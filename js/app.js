@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=124";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=124";
-import * as License from "./license.js?v=124";
-import * as Custom from "./custom-designs.js?v=124";
-import * as Update from "./update.js?v=124";
-import * as Crm from "./crm-ui.js?v=124";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=125";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=125";
+import * as License from "./license.js?v=125";
+import * as Custom from "./custom-designs.js?v=125";
+import * as Update from "./update.js?v=125";
+import * as Crm from "./crm-ui.js?v=125";
 
-const BUILD = "124";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "125";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -367,7 +367,27 @@ ${fillTemplate(markup, cfg)}
 const saveQueue = [];
 let saveRunning = false;
 
+/**
+ * 저장 파일 이름을 하나로: PMUS_고객명_날짜_부위(_비교).jpg (2026-10-21)
+ * 웹앱은 갤러리에 폴더를 만들 수 없어서, 이름 앞머리 'PMUS' 로 검색해 한 번에 모아 보게 한다.
+ * 고객관리에 남기는 사진은 이 파일과 상관없이 앱 안 장부에 따로 복사돼 있다 (갤러리에서 지워도 남는다).
+ */
+function pmusFileName(orig) {
+    const o = String(orig || "");
+    const ext = /\.png$/i.test(o) ? ".png" : ".jpg";
+    const d = new Date(), z = (n) => String(n).padStart(2, "0");
+    const when = d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + "_" + z(d.getHours()) + z(d.getMinutes()) + z(d.getSeconds());
+    const PART = { brow: "눈썹", lip: "입술", eyeline: "아이라인", hairline: "헤어라인" };
+    const part = PART[state.mountedKind || state.mode] || "";
+    let who = "";
+    try { const c = typeof Crm !== "undefined" && Crm.getCurrent && Crm.getCurrent(); if (c && c.name) who = c.name; } catch (e) { /* 고객관리 없음 */ }
+    who = who.replace(/[\\/:*?"<>|\s]+/g, "").slice(0, 20);
+    const extra = /비교|compare|split|2분할/i.test(o) ? "_비교" : /전체|all/i.test(o) ? "_묶음" : "";
+    return ["PMUS", who, when, part].filter(Boolean).join("_") + extra + ext;
+}
+
 function saveToGallery(dataUrl, filename) {
+    filename = pmusFileName(filename);
     // '전체 저장' 은 여러 장이 한꺼번에 몰려온다. 동시에 쓰면 사진첩에
     // 뒤엉키므로 줄을 세워 한 장씩 처리하고, 끝나면 몇 장인지 알린다.
     saveQueue.push({ dataUrl, filename });

@@ -13,13 +13,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
 <script>try { var sk = localStorage.getItem("pmus.skin"); if (sk) document.documentElement.setAttribute("data-skin", sk); } catch (e) {}</script>
-<link rel="stylesheet" href="css/skins.css?v=124">
-<link rel="stylesheet" href="css/app.css?v=124">
+<link rel="stylesheet" href="css/skins.css?v=125">
+<link rel="stylesheet" href="css/app.css?v=125">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=124" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=125" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="skin-btn" class="diag-btn skin-btn" type="button" title="화면 디자인" aria-label="화면 디자인 바꾸기">🎨</button>
@@ -31,7 +31,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=124" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=125" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -272,6 +272,15 @@
                    placeholder="이름 또는 번호 뒷자리"
                    autocapitalize="off" autocorrect="off" spellcheck="false">
             <div id="crm-list" class="crm-list"></div>
+            <!-- 장부 백업 (2026-10-21): 고객 기록 · 사진은 이 기기 안에만 있다. 폰을 잃거나 바꿀 때를 대비해 파일로 -->
+            <div class="crm-backup" id="crm-backup">
+                <div class="crm-backup-note" id="crm-backup-note"></div>
+                <div class="crm-backup-btns">
+                    <button type="button" class="btn btn-ghost btn-sm" id="crm-export">📦 장부 백업 파일 만들기</button>
+                    <label class="btn btn-ghost btn-sm" for="crm-import-file" role="button">📂 백업 불러오기</label>
+                    <input type="file" id="crm-import-file" accept=".pmus,.json,application/json" hidden>
+                </div>
+            </div>
             <div class="lic-sheet-actions">
                 <button class="btn btn-ghost btn-sm" id="crm-new">+ 새 고객</button>
                 <button class="btn btn-primary btn-sm" id="crm-close">닫기</button>
@@ -475,7 +484,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=124"></script>
-<script type="module" src="js/app.js?v=124"></script>
+<script type="module" src="js/pwa.js?v=125"></script>
+<script type="module" src="js/app.js?v=125"></script>
 </body>
 </html>

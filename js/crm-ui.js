@@ -15,8 +15,8 @@
  * =========================================================================
  */
 
-import * as Store from "./crm-store.js?v=124";
-import * as Remind from "./remind.js?v=124";
+import * as Store from "./crm-store.js?v=125";
+import * as Remind from "./remind.js?v=125";
 
 const $ = (id) => document.getElementById(id);
 
@@ -58,6 +58,74 @@ let onChange = () => {};
 let onStart = () => {};
 
 export function getCurrent() { return current; }
+
+// ── 장부 백업 (2026-10-21) ─────────────────────────────────────────────
+// 고객 기록과 사진은 갤러리가 아니라 이 앱 안에 복사돼 있다 — 갤러리에서 지우거나 옮겨도 남는다.
+// 대신 이 기기 안에만 있으므로, 폰을 잃거나 바꿀 때를 대비해 파일 한 개로 내보내고 되돌린다.
+const KEY_LAST_BACKUP = "pmus.crmBackupAt";
+function backupNote() {
+    const el = $("crm-backup-note");
+    if (!el) return;
+    let at = 0;
+    try { at = Number(localStorage.getItem(KEY_LAST_BACKUP)) || 0; } catch (e) { /* 개인 모드 */ }
+    Promise.resolve(Store.countCustomers()).then((n) => {
+        const days = at ? Math.floor((Date.now() - at) / 86400000) : null;
+        const due = n > 0 && (days == null || days >= 14);
+        el.classList.toggle("is-due", due);
+        el.innerHTML = "고객 기록 · 사진은 <b>이 기기 안</b>에 보관됩니다 (갤러리에서 지워도 남아요). " +
+            (days == null ? (n ? "<b>아직 백업한 적이 없습니다.</b> 폰을 잃거나 바꿀 때를 대비해 백업 파일을 만들어 두세요."
+                               : "고객을 등록하면 백업할 수 있습니다.")
+                          : "마지막 백업: <b>" + (days === 0 ? "오늘" : days + "일 전") + "</b>" + (due ? " — 새로 백업해 주세요." : ""));
+    }).catch(() => {});
+}
+function bindBackup() {
+    if (!$("crm-export")) return;
+    backupNote();
+    $("crm-export").addEventListener("click", async () => {
+        const btn = $("crm-export");
+        btn.disabled = true; btn.textContent = "만드는 중…";
+        try {
+            const data = await Store.exportAll();
+            const d = new Date(), z = (n) => String(n).padStart(2, "0");
+            const name = "PMUS_고객장부백업_" + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + ".pmus";
+            const file = new File([JSON.stringify(data)], name, { type: "application/json" });
+            // 아이폰 · 갤럭시: 공유 창으로 (카카오톡 나에게 · 드라이브 · 파일 앱에 저장) / 안 되면 내려받기
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try { await navigator.share({ files: [file], title: "PMUS 고객 장부 백업" }); }
+                catch (e) { if (e && e.name === "AbortError") return; throw e; }
+            } else {
+                const url = URL.createObjectURL(file);
+                const a = document.createElement("a");
+                a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 30000);
+            }
+            try { localStorage.setItem(KEY_LAST_BACKUP, String(Date.now())); } catch (e) { /* 개인 모드 */ }
+            backupNote();
+            alert("백업 파일을 만들었습니다 (고객 " + data.customers.length + "명 · 사진 " + data.photos.length + "장).\n" +
+                  "카카오톡 '나에게 보내기' 나 구글 드라이브 등 폰 밖에도 한 부 보관해 두세요.\n고객 얼굴 사진이 들어 있으니 다른 사람에게 보내지 마세요.");
+        } catch (err) {
+            alert("백업 파일을 만들지 못했습니다 — " + err.message);
+        } finally {
+            btn.disabled = false; btn.textContent = "📦 장부 백업 파일 만들기";
+        }
+    });
+    $("crm-import-file").addEventListener("change", async (e) => {
+        const f = e.target.files && e.target.files[0];
+        e.target.value = "";
+        if (!f) return;
+        try {
+            const data = JSON.parse(await f.text());
+            const n = (data.customers || []).length, ph = (data.photos || []).length;
+            if (!confirm("백업 파일의 고객 " + n + "명 · 사진 " + ph + "장을 불러올까요?\n같은 고객 기록은 백업 파일 내용으로 덮어씁니다. 지금 있는 다른 고객은 그대로 남습니다.")) return;
+            const r = await Store.importAll(data);
+            alert("불러왔습니다 — 고객 " + r.customers + "명 · 방문 " + r.visits + "건 · 사진 " + r.photos + "장");
+            try { await paintList(); await paintPlanCount(); } catch (err) { /* 목록 다시 그리기 실패 */ }
+            backupNote();
+        } catch (err) {
+            alert("불러오지 못했습니다 — " + err.message);
+        }
+    });
+}
 
 export function setCurrent(c) {
     current = c || null;
@@ -107,6 +175,7 @@ function releaseUrls() {
 let findTimer = 0;
 
 async function paintList() {
+    backupNote();
     const q = $("crm-q").value.trim();
     const list = await Store.findCustomers(q, 60);
     const box = $("crm-list");
@@ -858,6 +927,7 @@ export function init(opts = {}) {
         findTimer = setTimeout(paintList, 160);
     });
 
+    bindBackup();
     $("crm-new").addEventListener("click", () => openEdit(null));
     $("crm-close").addEventListener("click", close);
     $("crm-back").addEventListener("click", async () => {
