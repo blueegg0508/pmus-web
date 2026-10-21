@@ -1,0 +1,97 @@
+/* =========================================================================
+   skins.css — 화면 디자인(스킨) 색표 (2026-10-21)
+   -------------------------------------------------------------------------
+   화면의 색은 모두 여기 이름(var(--…))으로 쓴다. 스킨을 고르면 <html data-skin="…">
+   이 바뀌고, 아래 표의 값만 갈아 끼워진다. 앱 본체와 편집 화면(iframe) 모두 이 파일을 싣는다.
+   색 값을 박아 넣은 스타일은 tools/tokenize-colors.py 로 이 이름들로 바꿨다.
+
+   이름                뜻
+   --bg / --bg-deep    바탕 / 사진 무대 바탕
+   --surface(-2,-3)    카드 · 시트 / 단추 · 입력칸 / 눌린 단추
+   --surface-deep      위쪽 띠 그라데이션 시작
+   --line / --line-2   테두리 / 진한 테두리
+   --text / --text-2   글자 / 조금 옅은 글자
+   --muted(-2)         설명 글자
+   --link              링크 · 보조 강조 글자
+   --accent            강조(단추 바탕 · 조절바)  --accent-2  강조 글자
+   --accent-line       강조 테두리             --on-accent 강조 바탕 위 글자
+   --sel / --sel-bg    고른 것 테두리 / 바탕
+   --rose(-2) ...      고객관리 · 초기화의 장밋빛
+   --tint-rgb          옅은 덧칠(어두운 스킨은 흰색, 밝은 스킨은 검정)
+   ========================================================================= */
+
+/* ── 미드나잇 골드 (기본) — 처음부터 쓰던 보랏빛 어둠 + 금색 ── */
+:root, html[data-skin="midnight"] {
+    --tab-a: #2e2741; --tab-b: #241e33; --wipe-bg: #2e1b22; --danger: #fca5a5;
+    --bg: #14111c; --bg-deep: #0f0d16;
+    --surface: #1b1626; --surface-2: #272236; --surface-3: #3a3350; --surface-deep: #221c33;
+    --line: #372f4a; --line-2: #4a3f63;
+    --text: #f2eefb; --text-2: #d9d2ea; --muted: #a79dc0; --muted-2: #8c82a8; --link: #c9b8f0;
+    --accent: #c9a227; --accent-2: #e8c65a; --accent-line: #6a5a3a; --on-accent: #221c33;
+    --sel: #7b5cff; --sel-bg: #3d2f63;
+    --rose: #f0b7c2; --rose-2: #c97a8a; --rose-line: #7a3b4a; --on-rose: #2b1218;
+    --ok: #4ade80; --warn: #fbbf24;
+    --tint-rgb: 255, 255, 255; --accent-rgb: 201, 162, 39; --bg-rgb: 20, 17, 28;
+    color-scheme: dark;
+}
+
+/* ── 블랙 샴페인 — 보랏빛을 뺀 깊은 검정 + 샴페인 골드 ── */
+html[data-skin="noir"] {
+    --tab-a: #26262b; --tab-b: #1d1d21; --wipe-bg: #2a1a1d; --danger: #f5a3a3;
+    --bg: #0e0e10; --bg-deep: #08080a;
+    --surface: #17171a; --surface-2: #212125; --surface-3: #2d2d32; --surface-deep: #1b1b1e;
+    --line: #2d2d33; --line-2: #3e3e46;
+    --text: #f5f2ec; --text-2: #dcd7ce; --muted: #a39d93; --muted-2: #878178; --link: #dcc9a2;
+    --accent: #c8a96a; --accent-2: #e5cc93; --accent-line: #5e5039; --on-accent: #17140f;
+    --sel: #c8a96a; --sel-bg: #2e281d;
+    --rose: #e8b4b8; --rose-2: #b98089; --rose-line: #6b3c44; --on-rose: #2a1418;
+    --ok: #5fd38d; --warn: #f2c14e;
+    --tint-rgb: 255, 255, 255; --accent-rgb: 200, 169, 106; --bg-rgb: 14, 14, 16;
+    color-scheme: dark;
+}
+
+/* ── 아이보리 골드 — 밝은 크림 바탕 + 앤틱 골드 (밝은 샵) ── */
+html[data-skin="ivory"] {
+    --tab-a: #ece4d6; --tab-b: #e4dac8; --wipe-bg: #f8e1e1; --danger: #b8322f;
+    --bg: #f6f2ea; --bg-deep: #e9e3d8;
+    --surface: #fffdf9; --surface-2: #f1ebe1; --surface-3: #e5dccc; --surface-deep: #fbf8f2;
+    --line: #e2d9c9; --line-2: #cbbfa9;
+    --text: #2a241c; --text-2: #463d31; --muted: #776c5c; --muted-2: #958a79; --link: #8a6a2e;
+    --accent: #b08a3e; --accent-2: #86661f; --accent-line: #d6bf94; --on-accent: #ffffff;
+    --sel: #b08a3e; --sel-bg: #f4e9d2;
+    --rose: #b25d6c; --rose-2: #d9979f; --rose-line: #e8c2c9; --on-rose: #ffffff;
+    --ok: #1f9d55; --warn: #b7791f;
+    --tint-rgb: 60, 45, 20; --accent-rgb: 176, 138, 62; --bg-rgb: 246, 242, 234;
+    color-scheme: light;
+}
+
+/* ── 로즈 누드 — 옅은 분홍 베이지 + 로즈 (뷰티 샵 분위기) ── */
+html[data-skin="rose"] {
+    --tab-a: #f0dfdc; --tab-b: #e8d2ce; --wipe-bg: #f6dcdf; --danger: #b8322f;
+    --bg: #f8efed; --bg-deep: #eee0dd;
+    --surface: #fffafa; --surface-2: #f5e8e6; --surface-3: #ebd7d4; --surface-deep: #fdf6f5;
+    --line: #ead6d2; --line-2: #d8b8b2;
+    --text: #3a2629; --text-2: #523a3d; --muted: #866a6d; --muted-2: #a2878a; --link: #a5536a;
+    --accent: #c0727f; --accent-2: #9d4a5b; --accent-line: #e3b7bf; --on-accent: #ffffff;
+    --sel: #c0727f; --sel-bg: #f7dfe3;
+    --rose: #9d4a5b; --rose-2: #d9909c; --rose-line: #ecc6cc; --on-rose: #ffffff;
+    --ok: #1f9d55; --warn: #b7791f;
+    --tint-rgb: 70, 30, 35; --accent-rgb: 192, 114, 127; --bg-rgb: 248, 239, 237;
+    color-scheme: light;
+}
+
+/* ── 밝은 스킨에서만 손볼 것 ─────────────────────────────────────────── */
+/* 디자인 견본 그림: 어두운 판에서는 희게 뒤집어 보여 주던 것을 밝은 판에서는 어둡게 */
+html[data-skin="ivory"] .design-card img, html[data-skin="rose"] .design-card img,
+html[data-skin="ivory"] .mui-qdesign img, html[data-skin="rose"] .mui-qdesign img { filter: brightness(0) opacity(.55); }
+html[data-skin="ivory"] .design-card.is-active img, html[data-skin="rose"] .design-card.is-active img,
+html[data-skin="ivory"] .mui-qdesign.is-active img, html[data-skin="rose"] .mui-qdesign.is-active img { filter: brightness(0) opacity(.9); }
+/* 편집 화면 칩 줄: 눈썹 · 입술 화면이 원래 갖고 있던 갈색 단추를 스킨 색으로 */
+html[data-skin="ivory"].mui-on .mui-chips.mui-chips > *, html[data-skin="rose"].mui-on .mui-chips.mui-chips > * {
+    background: var(--surface-2) !important; color: var(--text-2) !important;
+    border: 1px solid var(--line-2) !important; box-shadow: none !important; text-shadow: none !important;
+}
+html[data-skin="ivory"].mui-on .mui-chips.mui-chips > .active, html[data-skin="rose"].mui-on .mui-chips.mui-chips > .active,
+html[data-skin="ivory"].mui-on .mui-chips.mui-chips > .is-active, html[data-skin="rose"].mui-on .mui-chips.mui-chips > .is-active {
+    background: var(--accent) !important; color: var(--on-accent) !important; border-color: var(--accent) !important;
+}

@@ -11,7 +11,7 @@
 html.mui-on, html.mui-on body {
     height: 100%;
     overflow: hidden;                 /* 페이지 전체 스크롤 제거 (시트 안에서만 스크롤) */
-    background: #14111c;
+    background: var(--bg);
     overscroll-behavior: none;
 }
 
@@ -27,7 +27,7 @@ html.mui-on .mui-shell {
     display: flex;
     flex-direction: column;
     font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif;
-    color: #F2EEFB;
+    color: var(--text);
 }
 
 /* ── 상단 액션바 ─────────────────────────────────────────────────────── */
@@ -40,8 +40,8 @@ html.mui-on .mui-shell {
     align-items: center;
     gap: 8px;
     padding: 7px calc(10px + var(--sa-right)) 7px calc(10px + var(--sa-left));
-    background: #1B1626;
-    border-bottom: 1px solid #372F4A;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
     z-index: 5;
 }
 
@@ -51,21 +51,21 @@ html.mui-on .mui-shell {
     flex: 0 0 auto;
     width: 100%;
     border: 0;
-    border-bottom: 1px solid #372F4A;
-    background: #272236;
-    color: #E8C65A;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--accent-2);
     font-family: inherit;
     font-size: 13.5px;
     font-weight: 800;
     padding: calc(11px + var(--sa-top)) 12px 11px;
     cursor: pointer;
 }
-.mui-settings:active { background: #3A3350; }
+.mui-settings:active { background: var(--surface-3); }
 
 .mui-seg {
     display: flex;
-    background: #272236;
-    border: 1px solid #372F4A;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
     border-radius: 9px;
     padding: 3px;
     gap: 3px;
@@ -74,7 +74,7 @@ html.mui-on .mui-shell {
     appearance: none;
     border: 0;
     background: transparent;
-    color: #A79DC0;
+    color: var(--muted);
     font-family: inherit;
     font-size: 12.5px;
     font-weight: 700;
@@ -83,7 +83,7 @@ html.mui-on .mui-shell {
     cursor: pointer;
     white-space: nowrap;
 }
-.mui-seg button.is-active { background: #C9A227; color: #221C33; }
+.mui-seg button.is-active { background: var(--accent); color: var(--on-accent); }
 
 .mui-actions { margin-left: auto; display: flex; gap: 4px; }
 .mui-actions button {
@@ -91,9 +91,9 @@ html.mui-on .mui-shell {
     height: 34px;
     padding: 0 8px;
     border-radius: 8px;
-    border: 1px solid #372F4A;
-    background: #272236;
-    color: #F2EEFB;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--text);
     font-family: inherit;
     font-size: 11.5px;
     font-weight: 700;
@@ -105,7 +105,7 @@ html.mui-on .mui-shell {
     .mui-actions button { padding: 0 6px; font-size: 10.5px; }
 }
 .mui-actions button:disabled { opacity: .35; }
-.mui-actions button:active:not(:disabled) { background: #3A3350; }
+.mui-actions button:active:not(:disabled) { background: var(--surface-3); }
 
 /* ── 눈썹 이동 대상 칩 ───────────────────────────────────────────────── */
 .mui-chips {
@@ -113,8 +113,8 @@ html.mui-on .mui-shell {
     display: flex;
     gap: 5px;
     padding: 7px calc(10px + var(--sa-right)) 7px calc(10px + var(--sa-left));
-    background: #191424;
-    border-bottom: 1px solid #2C253D;
+    background: var(--surface);
+    border-bottom: 1px solid var(--surface-2);
     overflow-x: auto;
     scrollbar-width: none;
 }
@@ -135,7 +135,7 @@ html.mui-on .mui-chips .brow-move-target-btn {
     align-items: center;
     justify-content: center;
     padding: 8px;
-    background: #0F0D16;
+    background: var(--bg-deep);
     overflow: hidden;
 }
 /* Before / After 중 하나만 보이게 (아래 크기 규칙보다 특정도가 낮으면
@@ -152,7 +152,7 @@ html.mui-on .mui-stage .customer-photo {
     max-width: 100% !important;
     max-height: 100% !important;
     border-radius: 10px;
-    border: 1px solid #372F4A;
+    border: 1px solid var(--line);
     touch-action: none;               /* 캔버스 드래그가 페이지 스크롤로 새지 않게 */
 }
 html.mui-on .mui-stage .customer-photo { touch-action: auto; }
@@ -162,9 +162,9 @@ html.mui-on .mui-stage .customer-photo { touch-action: auto; }
     left: 50%;
     bottom: calc(6px + var(--sa-bottom));
     transform: translateX(-50%);
-    background: rgba(15,13,22,.82);
-    border: 1px solid #372F4A;
-    color: #A79DC0;
+    background: rgba(var(--bg-rgb), .82);
+    border: 1px solid var(--line);
+    color: var(--muted);
     font-size: 10.5px;
     padding: 4px 10px;
     border-radius: 999px;
@@ -184,8 +184,8 @@ html.mui-on .mui-stage .customer-photo { touch-action: auto; }
     left: 0; right: 0; bottom: 0;
     display: flex;
     flex-direction: column;
-    background: #1B1626;
-    border-top: 1px solid #4A3F63;
+    background: var(--surface);
+    border-top: 1px solid var(--line-2);
     border-radius: 16px 16px 0 0;
     box-shadow: 0 -10px 30px rgba(0,0,0,.45);
     transition: height .24s cubic-bezier(.22,.61,.36,1);
@@ -212,7 +212,7 @@ html.mui-on .mui-stage .customer-photo { touch-action: auto; }
     content: "";
     width: 42px; height: 4px;
     border-radius: 999px;
-    background: #5A4E78;
+    background: var(--line-2);
 }
 
 .mui-tabs {
@@ -222,7 +222,7 @@ html.mui-on .mui-stage .customer-photo { touch-action: auto; }
     padding: 4px 8px 8px;
     overflow-x: auto;
     scrollbar-width: none;
-    border-bottom: 1px solid #2C253D;
+    border-bottom: 1px solid var(--surface-2);
 }
 .mui-tabs::-webkit-scrollbar { display: none; }
 .mui-tabs button {
@@ -230,7 +230,7 @@ html.mui-on .mui-stage .customer-photo { touch-action: auto; }
     flex: 1 0 auto;
     border: 1px solid transparent;
     background: transparent;
-    color: #A79DC0;
+    color: var(--muted);
     font-family: inherit;
     font-size: 11.5px;
     font-weight: 700;
@@ -246,9 +246,9 @@ html.mui-on .mui-stage .customer-photo { touch-action: auto; }
 }
 .mui-tabs button i { font-style: normal; font-size: 15px; }
 .mui-tabs button.is-active {
-    background: rgba(201,162,39,.14);
-    border-color: #C9A227;
-    color: #E8C65A;
+    background: rgba(var(--accent-rgb), .14);
+    border-color: var(--accent);
+    color: var(--accent-2);
 }
 
 .mui-panes {
@@ -263,7 +263,7 @@ html.mui-on .mui-stage .customer-photo { touch-action: auto; }
     padding: 10px calc(48px + var(--sa-right)) calc(36px + var(--sa-bottom)) calc(12px + var(--sa-left));
     /* 스크롤 여백이 어디인지 알려주는 점선 레일 (내용과 함께 흐르지 않게 고정) */
     background-image: repeating-linear-gradient(
-        to bottom, #3A3350 0 5px, transparent 5px 12px);
+        to bottom, var(--surface-3) 0 5px, transparent 5px 12px);
     background-repeat: repeat-y;
     background-size: 3px 12px;
     background-position: right calc(21px + var(--sa-right)) top;
@@ -290,7 +290,7 @@ html.mui-on .mui-panes .ctrl-row label {
 html.mui-on .mui-panes input[type="range"] {
     width: 100% !important;
     height: 30px !important;
-    accent-color: #C9A227;
+    accent-color: var(--accent);
     touch-action: pan-y;
 }
 html.mui-on .mui-panes button {
@@ -320,7 +320,7 @@ html.mui-on .mui-panes * { max-width: 100%; }
 .mui-pane-title {
     font-size: 12px;
     font-weight: 800;
-    color: #E8C65A;
+    color: var(--accent-2);
     margin: 2px 0 12px;
     letter-spacing: -.2px;
 }
@@ -347,7 +347,7 @@ html.mui-on .mui-seg .view-btn {
     flex: 0 0 auto;
     background: transparent;
     border: 0;
-    color: #A79DC0;
+    color: var(--muted);
     font-family: inherit;
     font-size: 12.5px;
     font-weight: 700;
@@ -357,17 +357,17 @@ html.mui-on .mui-seg .view-btn {
     transition: none;
 }
 html.mui-on .mui-seg .view-btn.active {
-    background: #C9A227;
-    color: #221C33;
+    background: var(--accent);
+    color: var(--on-accent);
     font-weight: 800;
 }
 
 /* 액션바에 들어온 되돌리기 · 원본복원 */
 html.mui-on .mui-actions .btn-contour-action {
     flex: 0 0 auto;
-    background: #272236;
-    color: #F2EEFB;
-    border: 1px solid #372F4A;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--line);
     border-radius: 8px;
 }
 
@@ -443,17 +443,17 @@ html.mui-on .mui-panes .acc-body > div:last-child { margin-bottom: 0; }
 html.mui-on .mui-panes .mui-histtools .mui-histbtn {
     appearance: none;
     min-height: 46px;
-    border: 1px solid #4A3F63;
+    border: 1px solid var(--line-2);
     border-radius: 10px;
-    background: #272236;
-    color: #E8C65A;
+    background: var(--surface-2);
+    color: var(--accent-2);
     font-family: inherit;
     font-size: clamp(11px, 3.4vw, 13px) !important;
     font-weight: 800;
     white-space: nowrap;
     cursor: pointer;
 }
-html.mui-on .mui-panes .mui-histtools .mui-histbtn:active { background: #3A3350; }
+html.mui-on .mui-panes .mui-histtools .mui-histbtn:active { background: var(--surface-3); }
 
 /* ── 비교 화면 ──────────────────────────────────────────────────────────
    상담용 화면이라 버튼·설명을 걷어내고 사진만 크게 깐다.
@@ -464,7 +464,7 @@ html.mui-on .mui-panes .mui-histtools .mui-histbtn:active { background: #3A3350;
     z-index: 40;
     display: flex;
     flex-direction: column;
-    background: #0F0D16;
+    background: var(--bg-deep);
 }
 .mui-compare-bar {
     flex: 0 0 auto;
@@ -472,14 +472,14 @@ html.mui-on .mui-panes .mui-histtools .mui-histbtn:active { background: #3A3350;
     align-items: center;
     gap: 10px;
     padding: calc(10px + var(--sa-top)) calc(12px + var(--sa-right)) 10px calc(12px + var(--sa-left));
-    background: #1B1626;
-    border-bottom: 1px solid #372F4A;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
 }
 .mui-compare-title {
     flex: 0 0 auto;
     font-size: 14px;
     font-weight: 800;
-    color: #F2EEFB;
+    color: var(--text);
     white-space: nowrap;
 }
 /* 버튼 두 개가 자리를 차지하면 안내 문구부터 줄인다 (좁은 화면에서는 감춘다) */
@@ -488,7 +488,7 @@ html.mui-on .mui-panes .mui-histtools .mui-histbtn:active { background: #3A3350;
     min-width: 0;
     font-size: 11px;
     line-height: 1.3;
-    color: #A79DC0;
+    color: var(--muted);
     margin-right: auto;
     overflow: hidden;
 }
@@ -500,10 +500,10 @@ html.mui-on .mui-panes .mui-histtools .mui-histbtn:active { background: #3A3350;
     appearance: none;
     flex: 0 0 auto;
     white-space: nowrap;
-    border: 1px solid #4A3F63;
+    border: 1px solid var(--line-2);
     border-radius: 8px;
-    background: #C9A227;
-    color: #221C33;
+    background: var(--accent);
+    color: var(--on-accent);
     font-family: inherit;
     font-size: 12.5px;
     font-weight: 800;
@@ -529,8 +529,8 @@ html.mui-on .mui-panes .mui-histtools .mui-histbtn:active { background: #3A3350;
 .mui-compare-cell { flex: 0 0 calc(50% - 4px); }
 .mui-compare-cell {
     margin: 0;
-    background: #1B1626;
-    border: 1px solid #372F4A;
+    background: var(--surface);
+    border: 1px solid var(--line);
     border-radius: 10px;
     overflow: hidden;
     cursor: pointer;
@@ -539,7 +539,7 @@ html.mui-on .mui-panes .mui-histtools .mui-histbtn:active { background: #3A3350;
     touch-action: pan-y;
 }
 .mui-compare-cell.is-zoomed {
-    border-color: #C9A227;
+    border-color: var(--accent);
     z-index: 1;
 }
 .mui-compare-cell img {
@@ -554,23 +554,23 @@ html.mui-on .mui-panes .mui-histtools .mui-histbtn:active { background: #3A3350;
     display: block;
     width: 100%;
     height: auto;
-    background: #0F0D16;
+    background: var(--bg-deep);
 }
 .mui-compare-cell figcaption {
     /* 확대하면 사진이 자기 상자 밖으로 넘쳐 이름표를 덮는다. 위로 올려 둔다. */
     position: relative;
     z-index: 2;
-    background: #1B1626;
+    background: var(--surface);
     padding: 7px 8px;
     font-size: 10.5px;
     font-weight: 700;
-    color: #A79DC0;
+    color: var(--muted);
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-.mui-compare-cell.is-wide figcaption { font-size: 12px; color: #E8C65A; }
+.mui-compare-cell.is-wide figcaption { font-size: 12px; color: var(--accent-2); }
 
 
 /* ── 저장 탭의 히스토리 카드 ─────────────────────────────────────────────
@@ -618,10 +618,10 @@ html.mui-on .mui-panes .mui-step .mui-step-btn {
     min-height: 34px;
     flex: 0 0 auto;
     padding: 0 !important;
-    border: 1px solid #4A3F63;
+    border: 1px solid var(--line-2);
     border-radius: 9px;
-    background: #2C2540;
-    color: #F2EEFB;
+    background: var(--surface-2);
+    color: var(--text);
     font-family: inherit;
     font-size: 18px !important;
     font-weight: 700;
@@ -631,9 +631,9 @@ html.mui-on .mui-panes .mui-step .mui-step-btn {
     touch-action: pan-y;
 }
 html.mui-on .mui-panes .mui-step .mui-step-btn:active {
-    background: #C9A227;
-    color: #221C33;
-    border-color: #C9A227;
+    background: var(--accent);
+    color: var(--on-accent);
+    border-color: var(--accent);
 }
 
 /* ── 눈썹 무대: 시술 전 사진 + 결과 캔버스 겹치기 ───────────────────────
@@ -667,7 +667,7 @@ html.mui-on .mui-shot > .mui-before {
     max-width: 100%;
     max-height: 100%;
     border-radius: 10px;
-    border: 1px solid #372F4A;
+    border: 1px solid var(--line);
     pointer-events: none;
 }
 
@@ -724,7 +724,7 @@ html.mui-on .mui-shot.is-compare > .mui-split {
     box-sizing: border-box;
     width: 26px; height: 26px;
     border-radius: 50%;
-    background: rgba(20,17,28,.86) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4'/%3E%3C/svg%3E") center / 14px 14px no-repeat;
+    background: rgba(var(--bg-rgb), .86) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4'/%3E%3C/svg%3E") center / 14px 14px no-repeat;
     border: 1.5px solid rgba(255,255,255,.9);
 }
 
@@ -738,10 +738,10 @@ html.mui-on .mui-shot.is-compare > .mui-split {
 }
 .mui-modebar button {
     appearance: none;
-    border: 1px solid #3A3154;
+    border: 1px solid var(--line);
     border-radius: 10px;
-    background: #221C31;
-    color: #A79DC0;
+    background: var(--surface-2);
+    color: var(--muted);
     font-family: inherit;
     /* 좁은 기기에서 글자가 두 줄로 접히면 버튼이 부풀어 사진을 가린다 */
     font-size: clamp(11px, 3.4vw, 13px);
@@ -752,9 +752,9 @@ html.mui-on .mui-shot.is-compare > .mui-split {
     cursor: pointer;
 }
 .mui-modebar button.is-active {
-    background: #3D2F63;
-    border-color: #7B5CFF;
-    color: #F2EEFB;
+    background: var(--sel-bg);
+    border-color: var(--sel);
+    color: var(--text);
 }
 
 /* ── 퀵 패널 ────────────────────────────────────────────────────────────
@@ -769,7 +769,7 @@ html.mui-on .mui-shot.is-compare > .mui-split {
     font-size: 11px;
     font-weight: 700;
     letter-spacing: .06em;
-    color: #8C82A8;
+    color: var(--muted-2);
     margin: 4px 0 10px;
 }
 .mui-qslot + .mui-qhead,
@@ -797,20 +797,20 @@ html.mui-on .mui-shot.is-compare > .mui-split {
     display: block;
     width: 34px; height: 34px;
     border-radius: 50%;
-    border: 2px solid #2C253D;
+    border: 2px solid var(--surface-2);
     box-shadow: 0 1px 4px rgba(0,0,0,.4);
 }
 .mui-qcolor > em {
     font-style: normal;
     font-size: 10.5px;
     line-height: 1.25;
-    color: #A79DC0;
+    color: var(--muted);
     text-align: center;
     word-break: keep-all;
 }
-.mui-qcolor.is-active { border-color: #7B5CFF; background: #2A2340; }
-.mui-qcolor.is-active > i { border-color: #F2EEFB; }
-.mui-qcolor.is-active > em { color: #F2EEFB; font-weight: 700; }
+.mui-qcolor.is-active { border-color: var(--sel); background: var(--sel-bg); }
+.mui-qcolor.is-active > i { border-color: var(--text); }
+.mui-qcolor.is-active > em { color: var(--text); font-weight: 700; }
 
 /* 세부 조정으로 넘어가는 버튼 */
 .mui-qswitch {
@@ -818,10 +818,10 @@ html.mui-on .mui-shot.is-compare > .mui-split {
     display: block;
     width: 100%;
     margin-top: 18px;
-    border: 1px dashed #4A3F63;
+    border: 1px dashed var(--line-2);
     border-radius: 12px;
-    background: #221C31;
-    color: #A79DC0;
+    background: var(--surface-2);
+    color: var(--muted);
     font-family: inherit;
     font-size: 13px;
     font-weight: 600;
@@ -855,10 +855,10 @@ html.mui-on .mui-shot.is-compare > .mui-split {
     gap: 5px;
     scroll-snap-align: center;
     padding: 8px 6px;
-    border: 1.5px solid #3A3154;
+    border: 1.5px solid var(--line);
     border-radius: 12px;
-    background: #221C31;
-    color: #A79DC0;
+    background: var(--surface-2);
+    color: var(--muted);
     font-family: inherit;
     cursor: pointer;
 }
@@ -877,9 +877,9 @@ html.mui-on .mui-shot.is-compare > .mui-split {
     word-break: keep-all;
 }
 .mui-qdesign.is-active {
-    border-color: #7B5CFF;
-    background: #2E2547;
-    color: #F2EEFB;
+    border-color: var(--sel);
+    background: var(--sel-bg);
+    color: var(--text);
 }
 .mui-qdesign.is-active img { filter: brightness(0) invert(1); }
 
@@ -890,17 +890,17 @@ html.mui-on .mui-compare-cell img {
     display: block;
     width: 100%;
     height: auto;
-    background: #0F0D16;
+    background: var(--bg-deep);
 }
 
 .mui-compare-save {
     appearance: none;
     flex: 0 0 auto;
     white-space: nowrap;
-    border: 1px solid #4A3F63;
+    border: 1px solid var(--line-2);
     border-radius: 8px;
-    background: #2C2540;
-    color: #F2EEFB;
+    background: var(--surface-2);
+    color: var(--text);
     font-family: inherit;
     font-size: 12.5px;
     font-weight: 700;
@@ -916,7 +916,7 @@ html.mui-on .mui-compare-cell img {
     z-index: 60;
     display: flex;
     flex-direction: column;
-    background: #0B0910;
+    background: var(--bg-deep);
 }
 .mui-lightbox-bar {
     flex: 0 0 auto;
@@ -924,15 +924,15 @@ html.mui-on .mui-compare-cell img {
     align-items: center;
     gap: 10px;
     padding: calc(10px + var(--sa-top)) calc(12px + var(--sa-right)) 10px calc(12px + var(--sa-left));
-    background: #1B1626;
-    border-bottom: 1px solid #372F4A;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
 }
 .mui-lightbox-title {
     flex: 1 1 auto;
     min-width: 0;
     font-size: 13.5px;
     font-weight: 800;
-    color: #F2EEFB;
+    color: var(--text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -941,10 +941,10 @@ html.mui-on .mui-compare-cell img {
     appearance: none;
     flex: 0 0 auto;
     white-space: nowrap;
-    border: 1px solid #4A3F63;
+    border: 1px solid var(--line-2);
     border-radius: 8px;
-    background: #C9A227;
-    color: #221C33;
+    background: var(--accent);
+    color: var(--on-accent);
     font-family: inherit;
     font-size: 12.5px;
     font-weight: 800;
@@ -980,10 +980,10 @@ html.mui-on .mui-actions .mui-wipe {
     appearance: none;
     flex: 0 0 auto;
     white-space: nowrap;
-    border: 1px solid #7A3B4A;
+    border: 1px solid var(--rose-line);
     border-radius: 9px;
-    background: #2E1B22;
-    color: #F0B7C2;
+    background: var(--wipe-bg);
+    color: var(--rose);
     font-family: inherit;
     font-weight: 700;
     cursor: pointer;
@@ -1087,9 +1087,9 @@ html.mui-on .mui-chips.mui-chips > * {
 /* '재추출' 은 되돌리는 자리라 구분은 되게 두되, 금색 그라데이션이
    줄에서 혼자 튀지 않도록 톤을 낮춘다. */
 html.mui-on .mui-chips .btn-extract-main {
-    background: #3A3020 !important;
-    color: #F0D480 !important;
-    border: 1px solid #6B5628 !important;
+    background: rgba(var(--accent-rgb), .16) !important;
+    color: var(--accent-2) !important;
+    border: 1px solid var(--accent-line) !important;
     box-shadow: none !important;
     font-weight: 700 !important;
 }
@@ -1098,9 +1098,9 @@ html.mui-on .mui-chips .btn-extract-main {
    갤러리 저장과 달리 '누구의 무엇' 인지가 함께 남는 자리라 크게 둔다. */
 html.mui-on .mui-panes .mui-histtools .mui-histbtn-wide {
     grid-column: 1 / -1;
-    color: #221c33;
-    background: linear-gradient(135deg, #FFE066, #D4AF37);
-    border-color: #FFD700;
+    color: var(--on-accent);
+    background: linear-gradient(135deg, var(--accent-2), var(--accent));
+    border-color: var(--accent-2);
 }
 
 /* ── 넓은 화면(아이패드): 사진·디자인 변경 | 보기 전환(가운데) | 되돌리기 ── */
@@ -1116,7 +1116,7 @@ html.mui-on.mui-wide .mui-topbar > .mui-settings {
     width: auto;
     height: 34px;
     padding: 0 calc(12px * var(--fit));
-    border: 1px solid #5A4A20;
+    border: 1px solid var(--accent-line);
     border-radius: 8px;
     font-size: calc(12.5px * var(--fit));
     white-space: nowrap;
@@ -1137,7 +1137,7 @@ html.mui-on.mui-land .mui-sheet[data-snap] {
     width: var(--panel-w);
     height: auto;
     border-top: 0;
-    border-left: 1px solid #4A3F63;
+    border-left: 1px solid var(--line-2);
     border-radius: 0;
     box-shadow: -10px 0 30px rgba(0,0,0,.35);
     transition: none;
@@ -1151,13 +1151,13 @@ html.mui-on.mui-land .mui-hint { left: calc((100% - var(--panel-w)) / 2); }
     margin: 0 10px 6px;
     padding: 8px 12px;
     border-radius: 10px;
-    background: rgba(201, 162, 39, .14);
-    border: 1px solid rgba(201, 162, 39, .55);
-    color: #F2E3B0;
+    background: rgba(var(--accent-rgb), .14);
+    border: 1px solid rgba(var(--accent-rgb), .55);
+    color: var(--accent-2);
     font-size: 12.5px;
     line-height: 1.4;
 }
-.mui-sidenote b { color: #FFD866; }
+.mui-sidenote b { color: var(--accent-2); }
 .mui-sidenote.is-right { text-align: right; }
 .mui-sidenote[hidden] { display: none; }
 
@@ -1177,11 +1177,11 @@ html.mui-on.mui-land .mui-hint { left: calc((100% - var(--panel-w)) / 2); }
     flex: 0 0 auto;
     margin-right: -6px;
     padding: 7px 13px 8px;
-    border: 1px solid #4A3F63;
+    border: 1px solid var(--line-2);
     border-bottom: 0;
     border-radius: 10px 10px 0 0;
-    background: linear-gradient(180deg, #2E2741, #241E33);
-    color: #A79DC0;
+    background: linear-gradient(180deg, var(--tab-a), var(--tab-b));
+    color: var(--muted);
     font-family: inherit;
     font-size: 12px;
     font-weight: 700;
@@ -1192,9 +1192,9 @@ html.mui-on.mui-land .mui-hint { left: calc((100% - var(--panel-w)) / 2); }
     z-index: calc(10 - var(--i, 0));
 }
 .mui-idx-tab.is-on {
-    background: #1F1A2C;
-    color: #F2D57A;
-    border-color: #6A5A3A;
+    background: var(--surface);
+    color: var(--accent-2);
+    border-color: var(--accent-line);
     transform: none;
     padding-bottom: 11px;
     z-index: 20;
@@ -1205,30 +1205,30 @@ html.mui-on.mui-land .mui-hint { left: calc((100% - var(--panel-w)) / 2); }
     left: 9px; right: 9px; top: -1px;
     height: 3px;
     border-radius: 0 0 3px 3px;
-    background: #C9A227;
+    background: var(--accent);
 }
 .mui-idx-panel {
     position: relative;
     z-index: 15;
     padding: 10px 8px 6px;
-    border: 1px solid #6A5A3A;
+    border: 1px solid var(--accent-line);
     border-radius: 0 12px 12px 12px;
-    background: #1F1A2C;
+    background: var(--surface);
 }
 .mui-idx-panel .mui-qdesigns { margin: 0; }
 .mui-qdesigns-empty {
     padding: 14px 8px;
-    color: #A79DC0;
+    color: var(--muted);
     font-size: 12px;
     line-height: 1.5;
     text-align: center;
 }
-.mui-qdesigns-empty b { color: #E8C65A; }
+.mui-qdesigns-empty b { color: var(--accent-2); }
 
 /* 탭 다섯 개가 좁은 폰에서도 한 줄에 다 보이게 */
 .mui-idx-tabs { overflow: visible; padding: 0 2px; }
 .mui-idx-tab { flex: 1 1 auto; min-width: 0; padding-left: 3px; padding-right: 3px; margin-right: -3px; text-align: center; font-size: clamp(10px, 3vw, 12px); }
 
 /* 눈썹산 위치 조절바 양 끝 안내 */
-.peak-ends { display: flex; justify-content: space-between; margin-top: 2px; font-size: 10.5px; color: #A79DC0; }
+.peak-ends { display: flex; justify-content: space-between; margin-top: 2px; font-size: 10.5px; color: var(--muted); }
 

@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=121";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=121";
-import * as License from "./license.js?v=121";
-import * as Custom from "./custom-designs.js?v=121";
-import * as Update from "./update.js?v=121";
-import * as Crm from "./crm-ui.js?v=121";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=122";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=122";
+import * as License from "./license.js?v=122";
+import * as Custom from "./custom-designs.js?v=122";
+import * as Update from "./update.js?v=122";
+import * as Crm from "./crm-ui.js?v=122";
 
-const BUILD = "121";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "122";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -288,11 +288,12 @@ function bailToSettings(msg) {
 async function mountSimulator(kind, cfg) {
     // 파일을 받아오는 동안에도 화면을 벗어날 수 있다. 받아온 뒤 한 번 더 본다.
     const my = renderToken;
-    const [css, markup, js, muiCss, muiJs, helperJs] = await Promise.all([
+    const [css, markup, js, muiCss, skinCss, muiJs, helperJs] = await Promise.all([
         fetchText(`css/${kind}.css`),
         fetchText(`js/${kind}-markup.html`),
         fetchText(`js/${kind}-canvas.js`),
         fetchText("css/mobile-ui.css"),
+        fetchText("css/skins.css"),
         fetchText("js/mobile-ui.js"),
         // 원래 눈썹을 흐리게 하는 계산. 캔버스 JS 가 바로 쓰므로 그보다 먼저 싣는다.
         kind === "brow" ? fetchText("js/brow-erase.js") : Promise.resolve(""),
@@ -307,7 +308,7 @@ async function mountSimulator(kind, cfg) {
     // 기존 컨트롤의 이벤트 핸들러가 살아 있는 상태로 이동시킬 수 있다.
     const sa = safeAreaInsets();
     let doc = `<!DOCTYPE html>
-<html lang="ko"><head><meta charset="utf-8">
+<html lang="ko" data-skin="${currentSkin()}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>:root{--sa-top:${sa.top}px;--sa-bottom:${sa.bottom}px;--sa-left:${sa.left}px;--sa-right:${sa.right}px}</style>
 <script>(function(){
@@ -318,6 +319,7 @@ s("오류",(e.message||"")+" @"+(e.lineno||0))},true);
 window.addEventListener("unhandledrejection",function(e){var r=e.reason;s("미처리",(r&&r.message)||r)});
 window.__blReport=s;})();<\/script>
 <style>${css}</style>
+<style>${skinCss}</style>
 <style>${muiCss}</style></head>
 <body>
 ${fillTemplate(markup, cfg)}
@@ -643,6 +645,48 @@ function renderTrialForm() {
         });
         location.href = License.kakaoLoginUrl();
     });
+}
+
+// ── 화면 디자인(스킨) (2026-10-21) ────────────────────────────────────
+// 색은 css/skins.css 의 이름으로만 쓰고, 여기서는 <html data-skin> 만 바꾼다.
+const SKINS = [
+    { key: "midnight", name: "미드나잇 골드", note: "보랏빛 어둠 + 금색 (기본)", c: ["#14111c", "#272236", "#c9a227", "#f2eefb"], bar: "#1a1625" },
+    { key: "noir", name: "블랙 샴페인", note: "깊은 검정 + 샴페인 골드", c: ["#0e0e10", "#212125", "#c8a96a", "#f5f2ec"], bar: "#0e0e10" },
+    { key: "ivory", name: "아이보리 골드", note: "밝은 크림 + 앤틱 골드", c: ["#f6f2ea", "#fffdf9", "#b08a3e", "#2a241c"], bar: "#f6f2ea" },
+    { key: "rose", name: "로즈 누드", note: "옅은 분홍 베이지 + 로즈", c: ["#f8efed", "#fffafa", "#c0727f", "#3a2629"], bar: "#f8efed" },
+];
+function currentSkin() {
+    try { const k = localStorage.getItem("pmus.skin"); if (SKINS.some((x) => x.key === k)) return k; } catch (e) { /* 개인 모드 */ }
+    return "midnight";
+}
+function applySkin(key) {
+    const sk = SKINS.find((x) => x.key === key) || SKINS[0];
+    document.documentElement.setAttribute("data-skin", sk.key);
+    try { localStorage.setItem("pmus.skin", sk.key); } catch (e) { /* 개인 모드 */ }
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", sk.bar);
+    // 열려 있는 편집 화면에도 바로 (srcdoc 은 같은 출처라 직접 바꿀 수 있다)
+    try { const fd = $("sim-frame").contentDocument; if (fd && fd.documentElement) fd.documentElement.setAttribute("data-skin", sk.key); } catch (e) { /* 아직 없음 */ }
+    document.querySelectorAll(".skin-card").forEach((b) => b.classList.toggle("is-active", b.dataset.skin === sk.key));
+}
+function bindSkins() {
+    const grid = $("skin-grid");
+    if (!grid) return;
+    grid.innerHTML = SKINS.map((sk) =>
+        '<button type="button" class="skin-card" data-skin="' + sk.key + '">' +
+        '<span class="skin-swatch" style="background:' + sk.c[0] + '">' +
+        '<i class="s-card" style="background:' + sk.c[1] + '"></i>' +
+        '<i class="s-btn" style="background:' + sk.c[2] + '"></i>' +
+        '<i class="s-txt" style="background:' + sk.c[3] + '"></i></span>' +
+        '<b>' + sk.name + '</b><small>' + sk.note + '</small></button>').join("");
+    grid.addEventListener("click", (e) => {
+        const b = e.target.closest(".skin-card");
+        if (b) applySkin(b.dataset.skin);
+    });
+    $("skin-btn").addEventListener("click", () => { $("skin-sheet").hidden = false; });
+    $("skin-close").addEventListener("click", () => { $("skin-sheet").hidden = true; });
+    $("skin-sheet").addEventListener("click", (e) => { if (e.target === $("skin-sheet")) $("skin-sheet").hidden = true; });
+    applySkin(currentSkin());
 }
 
 function hasFeature(f) {
@@ -2476,6 +2520,7 @@ async function renderChangelog() {
 }
 
 function bindDiag() {
+    bindSkins();
     $("diag-btn").addEventListener("click", () => {
         $("diag-sheet").hidden = false;
         const free = state.lic && state.lic.free;

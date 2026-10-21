@@ -12,14 +12,17 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
-<link rel="stylesheet" href="css/app.css?v=121">
+<script>try { var sk = localStorage.getItem("pmus.skin"); if (sk) document.documentElement.setAttribute("data-skin", sk); } catch (e) {}</script>
+<link rel="stylesheet" href="css/skins.css?v=122">
+<link rel="stylesheet" href="css/app.css?v=122">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=121" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=122" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
+        <button id="skin-btn" class="diag-btn skin-btn" type="button" title="화면 디자인" aria-label="화면 디자인 바꾸기">🎨</button>
         <button id="diag-btn" class="diag-btn" type="button">버전</button>
         <button id="lic-badge" class="lic-badge" type="button" hidden></button>
     </div>
@@ -28,7 +31,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=121" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=122" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -186,6 +189,18 @@
         <div id="policy-body" class="policy-body">불러오는 중…</div>
         <div class="lic-sheet-actions">
             <button class="btn btn-primary btn-sm" id="policy-close">닫기</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── 화면 디자인(스킨) 고르기 (2026-10-21) ─────────────────────────── -->
+<div id="skin-sheet" class="lic-sheet" hidden>
+    <div class="lic-sheet-box">
+        <h3 class="lic-sheet-title">🎨 화면 디자인</h3>
+        <p class="lic-desc">샵 분위기에 맞는 화면을 고르세요. 누르면 바로 바뀌고, 이 기기에 기억됩니다. 고객 사진 · 결과 사진에는 영향이 없습니다.</p>
+        <div class="skin-grid" id="skin-grid"></div>
+        <div class="lic-sheet-actions">
+            <button class="btn btn-primary btn-sm" id="skin-close">닫기</button>
         </div>
     </div>
 </div>
@@ -460,7 +475,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=121"></script>
-<script type="module" src="js/app.js?v=121"></script>
+<script type="module" src="js/pwa.js?v=122"></script>
+<script type="module" src="js/app.js?v=122"></script>
 </body>
 </html>

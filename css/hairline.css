@@ -1,6 +1,6 @@
 /* hairline.css — 헤어라인 편집 화면 (베타). 아이라인 화면(eyeline.css)과 같은 모양을 쓰고 아래에 헤어라인 것만 더한다. */
 
-html, body { margin: 0; background: #14111c; }
+html, body { margin: 0; background: var(--bg); }
 
 /* 무대: 눈 뜬 사진 하나, 감은 사진이 있으면 둘을 나란히 */
 html.mui-on .eye-stage > .eye-pair { display: flex !important; }
@@ -32,15 +32,15 @@ html.mui-land .eye-pair { flex-direction: row; }   /* 넓은 화면: 옆으로 *
     max-width: 100%;
     max-height: calc(100% - 22px);
     border-radius: 10px;
-    border: 1px solid #372F4A;
+    border: 1px solid var(--line);
     touch-action: none;
-    background: #0F0D16;
+    background: var(--bg-deep);
 }
 .eye-fig figcaption {
     margin-top: 5px;
     font-size: 11px;
     font-weight: 700;
-    color: #A79DC0;
+    color: var(--muted);
     height: 17px;
 }
 /* 감은 사진이 없으면 이름표는 필요 없다 */
@@ -50,9 +50,9 @@ html.mui-land .eye-pair { flex-direction: row; }   /* 넓은 화면: 옆으로 *
 /* 칩: 지금 고른 보기 */
 html.mui-on .mui-chips .eye-chip {
     appearance: none;
-    border: 1px solid #372F4A;
-    background: #272236;
-    color: #D9D2EA;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--text-2);
     font-family: inherit;
     font-size: 12px;
     font-weight: 700;
@@ -60,8 +60,8 @@ html.mui-on .mui-chips .eye-chip {
     border-radius: 999px;
     cursor: pointer;
 }
-html.mui-on .mui-chips .eye-chip.is-active { background: #3D2F63; border-color: #7B5CFF; color: #fff; }
-html.mui-on .mui-chips .eye-closed-chip { color: #E8C65A; border-style: dashed; }
+html.mui-on .mui-chips .eye-chip.is-active { background: var(--sel-bg); border-color: var(--sel); color: var(--text); }
+html.mui-on .mui-chips .eye-closed-chip { color: var(--accent-2); border-style: dashed; }
 html.mui-on .mui-chips .eye-closed-chip.is-active { border-style: solid; }
 html.mui-on .mui-chips [hidden] { display: none !important; }
 
@@ -78,16 +78,16 @@ html.mui-on .mui-chips [hidden] { display: none !important; }
     align-items: center;
     gap: 5px;
     padding: 8px 4px 7px;
-    border: 1.5px solid #3A3154;
+    border: 1.5px solid var(--line);
     border-radius: 12px;
-    background: #221C31;
-    color: #A79DC0;
+    background: var(--surface-2);
+    color: var(--muted);
     font-family: inherit;
     cursor: pointer;
 }
 .eye-style canvas { width: 100%; height: auto; display: block; }
 .eye-style em { font-style: normal; font-size: 11px; font-weight: 700; word-break: keep-all; text-align: center; line-height: 1.25; }
-.eye-style.is-active { border-color: #7B5CFF; background: #2E2547; color: #F2EEFB; }
+.eye-style.is-active { border-color: var(--sel); background: var(--sel-bg); color: var(--text); }
 
 /* 메뉴얼: 조절할 눈 */
 .eye-sides {
@@ -98,17 +98,17 @@ html.mui-on .mui-chips [hidden] { display: none !important; }
 }
 html.mui-on .mui-panes .eye-sides button {
     appearance: none;
-    border: 1px solid #3A3154;
+    border: 1px solid var(--line);
     border-radius: 10px;
-    background: #221C31;
-    color: #A79DC0;
+    background: var(--surface-2);
+    color: var(--muted);
     font-family: inherit;
     font-weight: 700;
     padding: 6px 2px;
     cursor: pointer;
     white-space: nowrap;
 }
-html.mui-on .mui-panes .eye-sides button.is-active { background: #3D2F63; border-color: #7B5CFF; color: #F2EEFB; }
+html.mui-on .mui-panes .eye-sides button.is-active { background: var(--sel-bg); border-color: var(--sel); color: var(--text); }
 
 /* 조절 행 (눈썹 · 입술과 같은 모양: 이름 ─ [−] 값 [+]) */
 html.mui-on .mui-panes .ctrl-row label {
@@ -116,10 +116,10 @@ html.mui-on .mui-panes .ctrl-row label {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    color: #D9D2EA;
+    color: var(--text-2);
     font-weight: 700;
 }
-.ctrl-row small { display: block; font-size: 11px; color: #8C82A8; font-weight: 500; margin-top: -4px; margin-bottom: 4px; }
+.ctrl-row small { display: block; font-size: 11px; color: var(--muted-2); font-weight: 500; margin-top: -4px; margin-bottom: 4px; }
 
 .eye-pick {
     display: flex;
@@ -127,9 +127,9 @@ html.mui-on .mui-panes .ctrl-row label {
     gap: 10px;
     margin: 10px 0 16px;
     font-size: 12.5px;
-    color: #A79DC0;
+    color: var(--muted);
 }
-.eye-pick input[type="color"] { width: 44px; height: 32px; border: 1px solid #4A3F63; border-radius: 8px; background: #221C31; padding: 2px; }
+.eye-pick input[type="color"] { width: 44px; height: 32px; border: 1px solid var(--line-2); border-radius: 8px; background: var(--surface-2); padding: 2px; }
 
 .eye-tools { margin-top: 18px; }
 
@@ -143,9 +143,9 @@ html.mui-on .mui-panes .ctrl-row label {
     max-width: 86%;
     padding: 12px 16px;
     border-radius: 12px;
-    background: rgba(20, 17, 28, .94);
-    border: 1px solid #4A3F63;
-    color: #F2EEFB;
+    background: rgba(var(--bg-rgb), .94);
+    border: 1px solid var(--line-2);
+    color: var(--text);
     font-size: 13px;
     line-height: 1.5;
     text-align: center;
@@ -158,7 +158,7 @@ html.mui-on .mui-panes .ctrl-row label {
     position: fixed;
     inset: 0;
     z-index: 40;
-    background: #0F0D16;
+    background: var(--bg-deep);
     display: flex;
     flex-direction: column;
 }
@@ -167,19 +167,19 @@ html.mui-on .mui-panes .ctrl-row label {
     align-items: center;
     gap: 8px;
     padding: calc(10px + var(--sa-top)) 12px 10px;
-    background: #1B1626;
-    border-bottom: 1px solid #372F4A;
-    color: #E8C65A;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    color: var(--accent-2);
     font-weight: 800;
     font-size: 14px;
 }
 .eye-compare-bar span { flex: 1 1 auto; }
 .eye-compare-bar button {
     appearance: none;
-    border: 1px solid #4A3F63;
+    border: 1px solid var(--line-2);
     border-radius: 9px;
-    background: #272236;
-    color: #F2EEFB;
+    background: var(--surface-2);
+    color: var(--text);
     font-family: inherit;
     font-weight: 700;
     font-size: 12.5px;
@@ -205,22 +205,22 @@ html.mui-on .mui-panes .ctrl-row label {
     z-index: 4;
     padding: 6px 12px;
     border-radius: 999px;
-    background: rgba(15, 13, 22, .86);
-    border: 1px solid #4A3F63;
-    color: #F2EEFB;
+    background: rgba(var(--bg-rgb), .86);
+    border: 1px solid var(--line-2);
+    color: var(--text);
     font-size: 12px;
     font-weight: 700;
     white-space: nowrap;
     pointer-events: none;
 }
-.hair-measure b { color: #E8C65A; }
+.hair-measure b { color: var(--accent-2); }
 html.mui-land .hair-measure { left: calc((100% - var(--panel-w)) / 2); }
 .hair-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .hair-switch {
     display: flex; align-items: center; gap: 10px;
-    margin: 4px 0 14px; font-size: 13px; color: #D9D2EA; font-weight: 700;
+    margin: 4px 0 14px; font-size: 13px; color: var(--text-2); font-weight: 700;
 }
-.hair-switch input { width: 20px; height: 20px; accent-color: #C9A227; }
+.hair-switch input { width: 20px; height: 20px; accent-color: var(--accent); }
 .hair-auto { grid-column: 1 / -1; }
 html.mui-on .eye-stage > .hair-measure { display: block !important; position: absolute; }
 html.mui-on .eye-stage > .hair-measure[hidden] { display: none !important; }
