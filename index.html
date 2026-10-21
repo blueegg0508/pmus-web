@@ -12,12 +12,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
-<link rel="stylesheet" href="css/app.css?v=120">
+<link rel="stylesheet" href="css/app.css?v=121">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=120" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=121" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="diag-btn" class="diag-btn" type="button">버전</button>
@@ -28,7 +28,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=120" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=121" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -80,6 +80,7 @@
         <div class="drop-actions">
             <button class="btn btn-primary" id="btn-camera">카메라로 촬영</button>
             <label class="btn btn-ghost" id="btn-gallery" for="file-gallery" role="button" tabindex="0">앨범에서 선택</label>
+            <p class="drop-hint" id="samsung-hint" hidden>삼성 인터넷으로 설치한 앱이라 '작업 선택' 이 먼저 뜹니다. <b>파일</b> → 갤러리를 고르시거나, <b>크롬으로 다시 설치</b>하면 갤러리가 바로 열립니다.</p>
         </div>
     </div>
 
@@ -225,21 +226,6 @@
             <div class="lic-sheet-actions">
                 <button class="btn btn-ghost btn-sm" id="diag-copy">복사</button>
                 <button class="btn btn-ghost btn-sm" id="diag-run">다시 진단</button>
-            </div>
-        </details>
-
-        <!-- 설치한 웹앱에서 갤러리가 바로 열리는 방식 찾기 (2026-10-21 · 원인을 찾으면 지운다) -->
-        <details class="ver-diag">
-            <summary>사진 고르기 시험</summary>
-            <p class="design-dlg-guide">아래 단추를 하나씩 눌러 보시고 <strong>'작업 선택' 없이 갤러리가 바로 열리는 번호</strong>를 알려 주세요. 고른 사진은 어디에도 쓰이지 않습니다.</p>
-            <div class="pick-test" id="pick-test">
-                <div class="pt-row"><span>가 — 지금 방식 (이름표)</span><label class="btn btn-ghost btn-sm" for="pt-a">눌러 보기</label><input type="file" id="pt-a" accept="image/jpeg,image/png,image/webp" hidden></div>
-                <div class="pt-row"><span>나 — 입력칸 직접 (사진 3형식)</span><span class="pt-cover btn btn-ghost btn-sm">눌러 보기<input type="file" accept="image/jpeg,image/png,image/webp"></span></div>
-                <div class="pt-row"><span>다 — 입력칸 직접 (사진 2형식)</span><span class="pt-cover btn btn-ghost btn-sm">눌러 보기<input type="file" accept="image/jpeg,image/png"></span></div>
-                <div class="pt-row"><span>라 — 입력칸 직접 (모든 사진)</span><span class="pt-cover btn btn-ghost btn-sm">눌러 보기<input type="file" accept="image/*"></span></div>
-                <div class="pt-row"><span>마 — 입력칸 직접 (형식 제한 없음)</span><span class="pt-cover btn btn-ghost btn-sm">눌러 보기<input type="file"></span></div>
-                <div class="pt-row"><span>바 — 입력칸 직접 (확장자)</span><span class="pt-cover btn btn-ghost btn-sm">눌러 보기<input type="file" accept=".jpg,.jpeg,.png,.webp"></span></div>
-                <p class="design-dlg-guide" id="pt-ua" style="word-break:break-all;font-size:11px;opacity:.7"></p>
             </div>
         </details>
 
@@ -445,6 +431,8 @@
         </div>
         <!-- 안드로이드 (크롬) -->
         <div id="pwa-guide-android" hidden>
+            <p class="pwa-warn" id="pwa-samsung-warn" hidden>⚠️ 지금 <b>삼성 인터넷</b>으로 여셨습니다. <b>크롬</b>으로 이 주소를 다시 열어 설치해 주세요.<br>
+                <small>삼성 인터넷으로 설치하면 '앨범에서 선택' 을 누를 때마다 '작업 선택(카메라 · 캠코더 · 파일)' 이 먼저 뜹니다. 크롬으로 설치하면 갤러리가 바로 열립니다.</small></p>
             <button class="btn btn-primary pwa-install-go" id="pwa-install-go" type="button" hidden>📲 PMUS 앱 설치</button>
             <p class="pwa-desc" id="pwa-install-or" hidden>위 버튼이 가장 쉽습니다. 버튼이 안 되면 아래처럼 해 주세요.</p>
             <ol class="pwa-steps">
@@ -472,7 +460,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=120"></script>
-<script type="module" src="js/app.js?v=120"></script>
+<script type="module" src="js/pwa.js?v=121"></script>
+<script type="module" src="js/app.js?v=121"></script>
 </body>
 </html>

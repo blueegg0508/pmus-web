@@ -1706,9 +1706,8 @@ html.ed-staff body.sim-fullscreen.settings-open .settings-toggle { left: 0; righ
 label.btn { display: block; text-align: center; -webkit-user-select: none; user-select: none; }
 label.design-card { cursor: pointer; }
 
-/* 사진 고르기 시험 (버전 화면) — 투명한 입력칸을 단추 위에 덮어 손가락이 입력칸 자체를 누르게 */
-.pick-test { display: grid; gap: 8px; margin-top: 8px; }
-.pick-test .pt-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
-.pick-test .pt-cover { position: relative; overflow: hidden; display: inline-block; }
-.pick-test .pt-cover input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; font-size: 0; }
-.pick-test .pt-done { color: #8fe08f; }
+
+/* 삼성 인터넷 안내 — 크롬으로 설치해야 갤러리가 바로 열린다 (2026-10-21) */
+.pwa-warn { margin: 0 0 12px; padding: 10px 12px; border-radius: 10px; background: rgba(255,152,0,.12); border: 1px solid rgba(255,152,0,.5); color: #FFD9A0; font-size: 13.5px; line-height: 1.55; }
+.pwa-warn small { color: #E9CFA8; }
+.drop-hint { margin: 2px 0 0; font-size: 12px; line-height: 1.5; color: #E9CFA8; text-align: center; }

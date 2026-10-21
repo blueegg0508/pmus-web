@@ -189,6 +189,9 @@ function bindInstallGuide() {
     const close = $("pwa-install-close");
     if (close) close.addEventListener("click", () => { $("pwa-install").hidden = true; });
 
+    // 삼성 인터넷으로 열었으면 크롬으로 설치하라고 먼저 알린다 (삼성 인터넷 설치 앱은 앨범이 바로 안 열린다)
+    const sw = document.getElementById("pwa-samsung-warn");
+    if (sw) sw.hidden = !/SamsungBrowser/i.test(ua);
     if (isAndroid) {
         $("pwa-guide-ios").hidden = true;
         $("pwa-guide-android").hidden = false;
