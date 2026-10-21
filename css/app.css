@@ -1701,3 +1701,7 @@ html.ed-staff body.sim-fullscreen.settings-open .settings-toggle { left: 0; righ
 .trial-form .kakao-btn { width: 100%; border: 0; font-size: 15px; cursor: pointer; margin-top: 4px; }
 .trial-form small { text-align: center; color: #A79DC0; }
 .trial-consents .tc-policy { font-size: 12px; color: #C9B8F0; margin: 2px 0 0 26px; }
+
+/* 앨범 단추는 입력칸 이름표(label)다 — 단추와 같은 모양으로 */
+label.btn { display: block; text-align: center; -webkit-user-select: none; user-select: none; }
+label.design-card { cursor: pointer; }

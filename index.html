@@ -12,12 +12,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
-<link rel="stylesheet" href="css/app.css?v=118">
+<link rel="stylesheet" href="css/app.css?v=119">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=118" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=119" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="diag-btn" class="diag-btn" type="button">버전</button>
@@ -28,7 +28,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=118" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=119" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -79,7 +79,7 @@
         <p class="drop-sub">정면을 바라본 밝은 사진일수록 인식이 정확합니다</p>
         <div class="drop-actions">
             <button class="btn btn-primary" id="btn-camera">카메라로 촬영</button>
-            <button class="btn btn-ghost" id="btn-gallery">앨범에서 선택</button>
+            <label class="btn btn-ghost" id="btn-gallery" for="file-gallery" role="button" tabindex="0">앨범에서 선택</label>
         </div>
     </div>
 
@@ -139,7 +139,7 @@
     <p class="step-hint">탭을 고르고 디자인을 누르면 <strong>편집 화면</strong>으로 넘어갑니다.
        쓰시던 고유 디자인은 <strong>[내 디자인]</strong> 탭에서 등록하세요 (종이에 그린 그림 사진도 됩니다).</p>
     <div id="design-grid" class="design-grid"></div>
-    <input type="file" id="design-file" accept="image/*" hidden>
+    <input type="file" id="design-file" accept="image/jpeg,image/png,image/webp" hidden>
 </section>
 
 <!-- ── 시뮬레이터 ─────────────────────────────────────────────────── -->
@@ -457,7 +457,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=118"></script>
-<script type="module" src="js/app.js?v=118"></script>
+<script type="module" src="js/pwa.js?v=119"></script>
+<script type="module" src="js/app.js?v=119"></script>
 </body>
 </html>

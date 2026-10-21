@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=118";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=118";
-import * as License from "./license.js?v=118";
-import * as Custom from "./custom-designs.js?v=118";
-import * as Update from "./update.js?v=118";
-import * as Crm from "./crm-ui.js?v=118";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=119";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=119";
+import * as License from "./license.js?v=119";
+import * as Custom from "./custom-designs.js?v=119";
+import * as Update from "./update.js?v=119";
+import * as Crm from "./crm-ui.js?v=119";
 
-const BUILD = "118";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "119";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -1577,7 +1577,7 @@ async function renderHairline(retried) {
 function pickClosedEyePhoto() {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = "image/*";
+    input.accept = "image/jpeg,image/png,image/webp";   // 갤러리가 바로 열리는 형식 목록 (앨범 단추와 같음)
     const tell = (m) => { try { $("sim-frame").contentWindow.postMessage(m, "*"); } catch (e) { /* 편집 화면이 내려갔다 */ } };
     input.addEventListener("change", async () => {
         const file = input.files && input.files[0];
@@ -1791,11 +1791,12 @@ async function buildDesignGrid() {
 
     // '내 디자인' 탭 끝에만 '내 디자인 등록' 카드
     if (designTab !== "mine") return;
-    const add = document.createElement("button");
+    // 이름표(label)로 — 앨범 단추와 같은 이유 (갤러리가 바로 열리게)
+    const add = document.createElement("label");
     add.className = "design-card design-add";
-    add.type = "button";
+    add.htmlFor = "design-file";
+    add.setAttribute("role", "button");
     add.innerHTML = `<i>＋</i><span>내 디자인 등록</span>`;
-    add.addEventListener("click", () => $("design-file").click());
     grid.appendChild(add);
 }
 
@@ -2104,7 +2105,10 @@ async function applyEditMode(mode, fromSim) {
 
 function bindEvents() {
     $("btn-camera").addEventListener("click", openCamera);
-    $("btn-gallery").addEventListener("click", () => $("file-gallery").click());
+    // 앨범: 단추가 입력칸의 이름표(label)라 누르면 브라우저가 바로 연다. 코드로 대신 열면(click())
+    // 삼성 인터넷이 '작업 선택(카메라 · 캠코더 · 파일)' 을 먼저 띄웠다 (2026-10-21 원장님 기기 시험).
+    // 키보드로 고를 때만 대신 열어 준다.
+    $("btn-gallery").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("file-gallery").click(); } });
     $("file-camera").addEventListener("change", (e) => handlePhoto(e.target.files[0]));
     $("file-gallery").addEventListener("change", (e) => handlePhoto(e.target.files[0]));
 
