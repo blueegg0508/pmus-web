@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사진 고르기 시험</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 20px 16px 40px; background: #14111c; color: #F2EEFB; font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 6px; color: #E8C65A; }
+  p { margin: 0 0 16px; color: #A79DC0; font-size: 14px; line-height: 1.6; }
+  .ua { font-size: 12px; color: #8C82A8; word-break: break-all; margin-bottom: 18px; }
+  .row { display: grid; gap: 6px; padding: 14px; margin-bottom: 10px; border: 1px solid #372F4A; border-radius: 12px; background: #1B1626; }
+  .row b { font-size: 16px; }
+  .row small { color: #A79DC0; font-size: 12px; }
+  label.btn { display: block; text-align: center; padding: 14px; border-radius: 10px; background: #C9A227; color: #221C33; font-weight: 800; font-size: 15px; }
+  label.btn input { display: none; }
+  .res { font-size: 13px; color: #9be29b; min-height: 1em; }
+</style>
+</head>
+<body>
+<h1>사진 고르기 시험</h1>
+<p>아래 단추를 하나씩 눌러 보시고, <b>'작업 선택' 없이 갤러리(앨범)가 바로 열리는 번호</b>를 알려 주세요. 사진을 골라도 어디에도 올라가지 않습니다.</p>
+<div class="ua" id="ua"></div>
+
+<div class="row"><b>1번 — 지금 방식</b><small>사진 형식 3가지</small>
+  <label class="btn">눌러 보기<input type="file" accept="image/jpeg,image/png,image/webp"></label><div class="res"></div></div>
+<div class="row"><b>2번</b><small>모든 사진</small>
+  <label class="btn">눌러 보기<input type="file" accept="image/*"></label><div class="res"></div></div>
+<div class="row"><b>3번</b><small>파일 확장자로</small>
+  <label class="btn">눌러 보기<input type="file" accept=".jpg,.jpeg,.png,.webp,.heic"></label><div class="res"></div></div>
+<div class="row"><b>4번</b><small>모든 사진 · 여러 장 고르기 허용</small>
+  <label class="btn">눌러 보기<input type="file" accept="image/*" multiple></label><div class="res"></div></div>
+<div class="row"><b>5번</b><small>사진 형식 2가지</small>
+  <label class="btn">눌러 보기<input type="file" accept="image/jpeg,image/png"></label><div class="res"></div></div>
+<div class="row"><b>6번</b><small>형식 제한 없음</small>
+  <label class="btn">눌러 보기<input type="file"></label><div class="res"></div></div>
+
+<script>
+  document.getElementById("ua").textContent = "이 기기: " + navigator.userAgent;
+  document.querySelectorAll("input[type=file]").forEach(function (inp) {
+    inp.addEventListener("change", function () {
+      var f = inp.files && inp.files[0];
+      inp.closest(".row").querySelector(".res").textContent = f ? "✓ 골랐습니다 (" + Math.round(f.size / 1024) + "KB)" : "";
+    });
+  });
+</script>
+</body>
+</html>
