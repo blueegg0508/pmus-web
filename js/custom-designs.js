@@ -19,7 +19,7 @@
  * =========================================================================
  */
 
-import { resizeTo } from "./prepare-eyebrow.js?v=132";
+import { resizeTo } from "./prepare-eyebrow.js?v=133";
 
 const DB_NAME = "browlist";
 const DB_VERSION = 1;

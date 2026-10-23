@@ -234,37 +234,73 @@
             for (xx = 0; xx < bw; xx++) {
                 var gx = bx + xx, uy0 = upAt(gx, eye.upper), ly0 = upAt(gx, eye.lower);
                 if (uy0 == null || ly0 == null) continue;
-                if (iris && Math.abs(gx - iris.x) < iris.r * 0.95) {
-                    // 눈동자 줄: 눈동자 가운데에서 위로 올라가며, 눈동자보다 확 어두운 속눈썹 그늘이 시작되는 곳
-                    var yc = Math.round(iris.y - by), yTop = Math.max(0, Math.floor(uy0 - len * 0.18 - by)), run = 0;
-                    for (yy = yc; yy > yTop; yy--) {
-                        var oo = (yy * bw + xx) * 4, Lp = 0.299 * d[oo] + 0.587 * d[oo + 1] + 0.114 * d[oo + 2];
-                        if (Lp < irisL * 0.62) { run++; if (run >= 2) { tops[xx] = by + yy + 2; break; } } else run = 0;
-                    }
-                    continue;
+                if (iris && Math.abs(gx - iris.x) < iris.r * 1.05) continue;      // 눈동자 줄은 양옆 흰자 경계에서 곡선으로 잇는다
+                var mid = Math.round((uy0 + ly0) / 2 - by), y1 = Math.min(bh - 1, Math.ceil(ly0 - by) - 1), yS = -1;
+                for (yy = mid; yy < y1; yy++) if (isSclera((yy * bw + xx) * 4)) { yS = yy; break; }
+                if (yS < 0) for (yy = mid; yy > Math.max(0, mid - len * 0.15); yy--) if (isSclera((yy * bw + xx) * 4)) { yS = yy; break; }
+                if (yS < 0) continue;
+                var yTopLim = Math.max(0, Math.floor(uy0 - len * 0.2 - by)), miss = 0, lastW = yS;
+                for (yy = yS; yy > yTopLim; yy--) {
+                    if (isSclera((yy * bw + xx) * 4)) { lastW = yy; miss = 0; } else if (++miss >= 2) break;
                 }
-                var y0 = Math.max(0, Math.floor(uy0 - len * 0.18 - by)), y1 = Math.min(bh - 2, Math.ceil(ly0 - by) - 1);
-                for (yy = y0; yy < y1; yy++) {
-                    if (isSclera((yy * bw + xx) * 4) && isSclera(((yy + 1) * bw + xx) * 4)) { tops[xx] = by + yy; break; }
-                }
+                tops[xx] = by + lastW;
             }
-            // 인식 점을 그 경계로
-            eye.upper = eye.upper.map(function (q, k) {
-                if (k === 0 || k === eye.upper.length - 1) return q;
-                var xi = Math.round(q[0] - bx), acc = 0, n = 0;
-                for (var dx = -2; dx <= 2; dx++) { var v = tops[xi + dx]; if (v != null) { acc += v; n++; } }
-                if (n) return [q[0], q[1] + clamp(acc / n - 0.5 - q[1], -0.14 * len, 0.06 * len)];
-                // 흰자가 없는 줄(눈동자 위): 양옆 가장 가까운 경계로 잇는다
-                var L1 = null, R1 = null;
-                for (var s1 = xi; s1 >= 0; s1--) if (tops[s1] != null) { L1 = [s1, tops[s1]]; break; }
-                for (var s2 = xi; s2 < bw; s2++) if (tops[s2] != null) { R1 = [s2, tops[s2]]; break; }
-                if (L1 && R1) {
-                    var uL = upAt(bx + L1[0], eye.upper), uR = upAt(bx + R1[0], eye.upper), t2 = (xi - L1[0]) / ((R1[0] - L1[0]) || 1);
-                    var off = (L1[1] - uL) * (1 - t2) + (R1[1] - uR) * t2;           // 양옆에서 인식 선이 어긋난 만큼
-                    return [q[0], q[1] + clamp(off - 0.5, -0.14 * len, 0.06 * len)];
+            // 경계 점들 → 눈 길이 방향(u) 기준 3차 곡선 하나로 맞춘다 (구불거림 없이 깔끔한 호, 2026-10-23)
+            var ax2 = [(eye.outer[0] - eye.inner[0]) / len, (eye.outer[1] - eye.inner[1]) / len];
+            var nrm = [ax2[1], -ax2[0]]; if (nrm[1] > 0) nrm = [-nrm[0], -nrm[1]];   // 위쪽
+            var pts = [];
+            for (xx = 0; xx < bw; xx++) {
+                if (tops[xx] == null) continue;
+                var gx2 = bx + xx, gy2 = tops[xx];
+                var ru = ((gx2 - eye.inner[0]) * ax2[0] + (gy2 - eye.inner[1]) * ax2[1]) / len;
+                var rv = ((gx2 - eye.inner[0]) * nrm[0] + (gy2 - eye.inner[1]) * nrm[1]);
+                if (ru > 0.04 && ru < 0.96) pts.push([ru, rv]);
+            }
+            // 두 눈꼬리는 반드시 지나게 (가중치 크게)
+            var fitPts = pts.map(function (q) { return [q[0], q[1], 1]; }).concat([[0, 0, 40], [1, 0, 40]]);
+            var solve = function (P2) {
+                // 2차 곡선(포물선) — 3차는 한쪽 흰자가 좁은 눈에서 위로 튀었다
+                var M = [[0,0,0],[0,0,0],[0,0,0]], V = [0,0,0];
+                P2.forEach(function (q) { var f = [1, q[0], q[0] * q[0]];
+                    for (var r = 0; r < 3; r++) { V[r] += q[2] * f[r] * q[1]; for (var c2 = 0; c2 < 3; c2++) M[r][c2] += q[2] * f[r] * f[c2]; } });
+                for (var i2 = 0; i2 < 3; i2++) {                   // 가우스 소거
+                    var pv = M[i2][i2] || 1e-9;
+                    for (var j2 = i2 + 1; j2 < 3; j2++) { var k2 = M[j2][i2] / pv; for (var c3 = i2; c3 < 3; c3++) M[j2][c3] -= k2 * M[i2][c3]; V[j2] -= k2 * V[i2]; }
                 }
-                return q;
-            });
+                var X = [0,0,0];
+                for (i2 = 2; i2 >= 0; i2--) { var sm2 = V[i2]; for (c3 = i2 + 1; c3 < 3; c3++) sm2 -= M[i2][c3] * X[c3]; X[i2] = sm2 / (M[i2][i2] || 1e-9); }
+                return X;
+            };
+            if (pts.length >= 6) {
+                var co = solve(fitPts);
+                // 튀는 점(반사광 · 속눈썹 그림자) 빼고 한 번 더
+                var fv = function (u) { return co[0] + co[1] * u + co[2] * u * u; };
+                var res = pts.map(function (q) { return Math.abs(q[1] - fv(q[0])); }).sort(function (p1, p2) { return p1 - p2; });
+                var lim = Math.max(1.5, res[Math.floor(res.length * 0.8)] * 1.5);
+                co = solve(pts.filter(function (q) { return Math.abs(q[1] - fv(q[0])) <= lim; }).map(function (q) { return [q[0], q[1], 1]; }).concat([[0, 0, 40], [1, 0, 40]]));
+                fv = function (u) { return co[0] + co[1] * u + co[2] * u * u; };
+                var U2 = eye.upper.length;
+                eye.upper = eye.upper.map(function (q, k) {
+                    if (k === 0 || k === U2 - 1) return q;
+                    var u = ((q[0] - eye.inner[0]) * ax2[0] + (q[1] - eye.inner[1]) * ax2[1]) / len;
+                    // 인식 선에서 너무 멀어지지 않게 (아래로 6%, 위로 9%)
+                    var vo = (q[0] - eye.inner[0]) * nrm[0] + (q[1] - eye.inner[1]) * nrm[1];
+                    var v = clamp(fv(u) + 0.8, vo - 0.06 * len, vo + 0.09 * len);
+                    return [eye.inner[0] + ax2[0] * u * len + nrm[0] * v, eye.inner[1] + ax2[1] * u * len + nrm[1] * v];
+                });
+            }
+            // 흰자 픽셀 판 (덮지 않을 곳) — 사진 좌표 캔버스로 남겨 그릴 때마다 지운다
+            var wc = document.createElement("canvas"); wc.width = bw; wc.height = bh;
+            var wx = wc.getContext("2d"), wimg = wx.createImageData(bw, bh);
+            for (yy = 0; yy < bh; yy++) for (xx = 0; xx < bw; xx++) {
+                var gx3 = bx + xx, uy3 = upAt(gx3, eye.upper), ly3 = upAt(gx3, eye.lower);
+                if (uy3 == null || ly3 == null) continue;
+                if (by + yy < uy3 - 1 || by + yy > ly3 + 1) continue;
+                var o3 = (yy * bw + xx) * 4;
+                if (isSclera(o3)) { wimg.data[o3 + 3] = 255; }
+            }
+            wx.putImageData(wimg, 0, 0);
+            eye._white = { c: wc, x: bx, y: by };
             eye.refined = true;
         });
         c.width = 0; c.height = 0;
@@ -294,8 +330,9 @@
         if (up[1] > 0) up = [-up[0], -up[1]];               // 사진에서 위쪽을 향하게
 
         var shift = p.dy / 50 * 0.12 * len;
+        var mvx = (p.mx || 0) / 100 * len, mvy = (p.my || 0) / 100 * len;      // 손가락으로 옮긴 만큼
         var N = 48;
-        var P = smoothOpen(eye.upper, N).map(function (q) { return [q[0] + up[0] * shift, q[1] + up[1] * shift]; });
+        var P = smoothOpen(eye.upper, N).map(function (q) { return [q[0] + up[0] * shift + mvx, q[1] + up[1] * shift + mvy]; });
         var nor = P.map(function (q, i) {
             var a = P[Math.max(0, i - 1)], b = P[Math.min(N - 1, i + 1)];
             var tx = b[0] - a[0], ty = b[1] - a[1], tl = Math.hypot(tx, ty) || 1;
@@ -545,6 +582,15 @@
                 lb.fillStyle = "#000";
                 openingPath(lb, eye, TT);
                 lb.fill();
+                if (eye._white) {
+                    // 흰자 픽셀 자체도 한 번 더 지운다 (가장자리 1px 여유)
+                    var wv = eye._white;
+                    lb.filter = "none";
+                    for (var dd = -1; dd <= 1; dd++) {
+                        lb.drawImage(wv.c, (wv.x - TT.ox) * TT.s + dd, (wv.y - TT.oy) * TT.s, wv.c.width * TT.s, wv.c.height * TT.s);
+                        lb.drawImage(wv.c, (wv.x - TT.ox) * TT.s, (wv.y - TT.oy) * TT.s + dd, wv.c.width * TT.s, wv.c.height * TT.s);
+                    }
+                }
                 lb.restore();
             }
 
@@ -867,7 +913,7 @@
         view = b.getAttribute("data-view");
         document.querySelectorAll("#eViewSeg button").forEach(function (x) { x.classList.toggle("is-active", x === b); });
         $("eHint").textContent = view === "compare" ? "사진 위를 좌우로 끌어 시술 전 · 후를 견주세요"
-            : view === "before" ? "시술 전 사진입니다" : "아래 조절바로 두께 · 꼬리를 맞추세요";
+            : view === "before" ? "시술 전 사진입니다" : "라인을 손가락으로 끌어 옮기고, 아래 조절바로 두께 · 꼬리를 맞추세요";
         schedule();
     });
     $("eChips").addEventListener("click", function (e) {
@@ -892,6 +938,46 @@
         ["pointerup", "pointercancel"].forEach(function (t) { cv.addEventListener(t, function () { on = false; }); });
     }
     bindSplit($("eyeCanvas")); bindSplit($("eyeCanvasClosed"));
+
+    // 라인 끌어 옮기기 (2026-10-23 원장님): 눈 가까이를 누르고 끌면 그 눈의 라인이 따라 움직인다.
+    // '두 눈 함께' 일 때는 두 눈이 같이 움직인다. 흰자 · 눈동자는 옮겨도 덮이지 않는다.
+    (function () {
+        var cv = $("eyeCanvas"), drag = null;
+        cv.style.touchAction = "none";
+        function toImg(e) {
+            var r = cv.getBoundingClientRect(), T = transformFor(panels.open, crop);
+            return [(e.clientX - r.left) * cv.width / r.width / T.s + T.ox, (e.clientY - r.top) * cv.height / r.height / T.s + T.oy];
+        }
+        cv.addEventListener("pointerdown", function (e) {
+            if (view === "compare" || !panels.open) return;
+            var q = toImg(e), best = null, bd = Infinity;
+            panels.open.data.eyes.forEach(function (ey) {
+                var cx2 = (ey.inner[0] + ey.outer[0]) / 2, cy2 = (ey.inner[1] + ey.outer[1]) / 2;
+                var L2 = Math.hypot(ey.outer[0] - ey.inner[0], ey.outer[1] - ey.inner[1]);
+                var dd = Math.hypot(q[0] - cx2, q[1] - cy2) / L2;
+                if (dd < bd) { bd = dd; best = ey; }
+            });
+            if (!best || bd > 1.2) return;
+            var L3 = Math.hypot(best.outer[0] - best.inner[0], best.outer[1] - best.inner[1]);
+            var sides = (uiMode === "manual" && side !== "both") ? [side] : ["L", "R"];
+            drag = { q: q, L: L3, sides: sides, start: sides.map(function (k) { return [S[k].mx || 0, S[k].my || 0]; }) };
+            try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 무시 */ }
+            e.preventDefault();
+        });
+        cv.addEventListener("pointermove", function (e) {
+            if (!drag) return;
+            var q = toImg(e), dx = (q[0] - drag.q[0]) / drag.L * 100, dy = (q[1] - drag.q[1]) / drag.L * 100;
+            drag.sides.forEach(function (k, i) {
+                // 두 눈이 같이 움직일 때 가로는 거울처럼 (바깥으로 끌면 둘 다 바깥으로)
+                var mirror = drag.sides.length > 1 && k !== (drag.q[0] < (panels.open.data.eyes[0].outer[0] + panels.open.data.eyes[1].outer[0]) / 2 ? "L" : "R") ? -1 : 1;
+                S[k].mx = clamp(drag.start[i][0] + dx * mirror, -40, 40);
+                S[k].my = clamp(drag.start[i][1] + dy, -40, 40);
+            });
+            schedule();
+            e.preventDefault();
+        });
+        ["pointerup", "pointercancel"].forEach(function (t) { cv.addEventListener(t, function () { if (drag) { drag = null; commit(); } }); });
+    })();
 
     $("eUndo").addEventListener("click", function () {
         if (!undoStack.length) return;
