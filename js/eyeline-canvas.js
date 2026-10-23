@@ -218,7 +218,7 @@
                 return L > scleraL * 0.78 && mx > 0 && (mx - mn) / mx < 0.22;
             };
             // 세로줄마다 흰자 윗경계
-            var iris = eye.iris, tops = new Array(bw).fill(null);
+            var iris = eye.iris, tops = new Array(bw).fill(null), irisTops = new Array(bw).fill(null);
             // 눈동자 밝기 (반사광 빼고 가운데값)
             var irisL = 80;
             if (iris) {
@@ -234,7 +234,19 @@
             for (xx = 0; xx < bw; xx++) {
                 var gx = bx + xx, uy0 = upAt(gx, eye.upper), ly0 = upAt(gx, eye.lower);
                 if (uy0 == null || ly0 == null) continue;
-                if (iris && Math.abs(gx - iris.x) < iris.r * 1.05) continue;      // 눈동자 줄은 양옆 흰자 경계에서 곡선으로 잇는다
+                if (iris && Math.abs(gx - iris.x) < iris.r * 1.05) {
+                    // 눈동자 줄: 동공(가운데 까만 곳)보다 위에서 출발해 올라가며, 눈동자보다 확 어두운
+                    // 속눈썹 그늘이 시작되는 곳 = 눈동자 윗선. 라인은 이보다 아래로 절대 내려오지 않는다.
+                    if (Math.abs(gx - iris.x) < iris.r * 0.85) {
+                        var ys0 = Math.round(iris.y - iris.r * 0.55 - by), yLim = Math.max(0, Math.floor(iris.y - iris.r * 1.25 - by)), run2 = 0;
+                        for (yy = ys0; yy > yLim; yy--) {
+                            if (yy < 0 || yy >= bh) break;
+                            var o4 = (yy * bw + xx) * 4, L4 = 0.299 * d[o4] + 0.587 * d[o4 + 1] + 0.114 * d[o4 + 2];
+                            if (L4 < irisL * 0.7) { if (++run2 >= 2) { irisTops[xx] = by + yy + 2; break; } } else run2 = 0;
+                        }
+                    }
+                    continue;
+                }
                 var mid = Math.round((uy0 + ly0) / 2 - by), y1 = Math.min(bh - 1, Math.ceil(ly0 - by) - 1), yS = -1;
                 for (yy = mid; yy < y1; yy++) if (isSclera((yy * bw + xx) * 4)) { yS = yy; break; }
                 if (yS < 0) for (yy = mid; yy > Math.max(0, mid - len * 0.15); yy--) if (isSclera((yy * bw + xx) * 4)) { yS = yy; break; }
@@ -256,6 +268,14 @@
                 var rv = ((gx2 - eye.inner[0]) * nrm[0] + (gy2 - eye.inner[1]) * nrm[1]);
                 if (ru > 0.04 && ru < 0.96) pts.push([ru, rv]);
             }
+            var irisPts = [];
+            for (xx = 0; xx < bw; xx++) {
+                if (irisTops[xx] == null) continue;
+                var gx5 = bx + xx, gy5 = irisTops[xx];
+                irisPts.push([((gx5 - eye.inner[0]) * ax2[0] + (gy5 - eye.inner[1]) * ax2[1]) / len,
+                              ((gx5 - eye.inner[0]) * nrm[0] + (gy5 - eye.inner[1]) * nrm[1])]);
+            }
+            pts = pts.concat(irisPts);
             // 두 눈꼬리는 반드시 지나게 (가중치 크게)
             var fitPts = pts.map(function (q) { return [q[0], q[1], 1]; }).concat([[0, 0, 40], [1, 0, 40]]);
             var solve = function (P2) {
@@ -285,8 +305,20 @@
                     var u = ((q[0] - eye.inner[0]) * ax2[0] + (q[1] - eye.inner[1]) * ax2[1]) / len;
                     // 인식 선에서 너무 멀어지지 않게 (아래로 6%, 위로 9%)
                     var vo = (q[0] - eye.inner[0]) * nrm[0] + (q[1] - eye.inner[1]) * nrm[1];
-                    var v = clamp(fv(u) + 0.8, vo - 0.06 * len, vo + 0.09 * len);
+                    var v = fv(u);
+                    irisPts.forEach(function (ip) { if (Math.abs(ip[0] - u) < 0.03 && ip[1] > v) v = ip[1]; });
+                    v = clamp(v + Math.max(1, len * 0.012), vo - 0.06 * len, vo + 0.1 * len);
                     return [eye.inner[0] + ax2[0] * u * len + nrm[0] * v, eye.inner[1] + ax2[1] * u * len + nrm[1] * v];
+                });
+            }
+            // 지우는 판의 윗선 = 실제 경계 (라인은 그보다 1.2% 위에서 시작)
+            if (pts.length >= 6) {
+                eye.edge = eye.upper.map(function (q, k) {
+                    if (k === 0 || k === eye.upper.length - 1) return q;
+                    var u = ((q[0] - eye.inner[0]) * ax2[0] + (q[1] - eye.inner[1]) * ax2[1]) / len;
+                    var ve = fv(u);
+                    irisPts.forEach(function (ip) { if (Math.abs(ip[0] - u) < 0.03 && ip[1] > ve) ve = ip[1]; });
+                    return [eye.inner[0] + ax2[0] * u * len + nrm[0] * ve, eye.inner[1] + ax2[1] * u * len + nrm[1] * ve];
                 });
             }
             // 흰자 픽셀 판 (덮지 않을 곳) — 사진 좌표 캔버스로 남겨 그릴 때마다 지운다
@@ -309,7 +341,7 @@
 
     /** 눈 안쪽(흰자 · 눈동자) 판 — 아이라인은 여기를 절대 덮지 않는다 */
     function openingPath(ctx, eye, TT) {
-        var N = 40, U = smoothOpen(eye.upper, N), Lw = smoothOpen(eye.lower, N);
+        var N = 40, U = smoothOpen(eye.edge || eye.upper, N), Lw = smoothOpen(eye.lower, N);
         ctx.beginPath();
         ctx.moveTo((U[0][0] - TT.ox) * TT.s, (U[0][1] - TT.oy) * TT.s);
         for (var i = 1; i < N; i++) ctx.lineTo((U[i][0] - TT.ox) * TT.s, (U[i][1] - TT.oy) * TT.s);
@@ -596,11 +628,9 @@
 
             var op = S.opacity / 100;
             ctx.save();
-            ctx.globalCompositeOperation = "multiply";
-            ctx.globalAlpha = op * 0.9;
-            ctx.drawImage(layerB, bx0, by0);
+            // 눈썹 시뮬레이션과 같은 방식: 라인 모양은 그대로 두고 진하기(투명도)만 (2026-10-23)
             ctx.globalCompositeOperation = "source-over";
-            ctx.globalAlpha = op * 0.6;
+            ctx.globalAlpha = op;
             ctx.drawImage(layerB, bx0, by0);
             ctx.restore();
 
@@ -609,9 +639,9 @@
                 var now = ctx.getImageData(bx0, by0, bw, bh);
                 var rad = Math.max(2, Math.round(0.05 * sh.len * T.s));
                 var m = lashMask(before, bw, bh, rad), k = S.lash / 100;
-                var nd = now.data, od = before.data;
+                var nd = now.data, od = before.data, ld = layerB.getContext("2d").getImageData(0, 0, bw, bh).data;
                 for (var i = 0, n = bw * bh; i < n; i++) {
-                    var a = m[i] * k;
+                    var a = m[i] * k * (1 - Math.min(1, ld[i * 4 + 3] / 255 * 1.4));
                     if (a <= 0) continue;
                     var j = i * 4;
                     nd[j] += (od[j] - nd[j]) * a;
