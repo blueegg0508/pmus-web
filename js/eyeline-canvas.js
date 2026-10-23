@@ -173,6 +173,10 @@
      * 눈동자 위처럼 경계가 흐린 점은 이웃 점에서 이어 받는다. 감은 눈은 건드리지 않는다.
      */
     function refineEyes(img, data) {
+        // 입술 경계를 찾듯이 (2026-10-23 원장님): 사진에서 흰자를 직접 찾아 그 윗경계 = 눈꺼풀 경계(속눈썹 뿌리).
+        //  · 흰자 = 밝고 색이 옅은(채도 낮은) 픽셀. 눈꺼풀 피부(분홍 · 살색)와 속눈썹(어두움)과 갈린다.
+        //  · 세로줄마다 흰자가 시작되는 가장 위 자리를 찾고, 눈동자 위처럼 흰자가 없는 줄은 양옆에서 잇는다.
+        //  · 인식 점을 그 경계로 옮긴다 — 라인은 경계 위(속눈썹 쪽)에만 그려지고, 경계 아래(눈 안)는 지운다.
         if (!data || !data.eyes) return data;
         var W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
         var c = document.createElement("canvas"), x;
@@ -182,53 +186,85 @@
         out.eyes.forEach(function (eye) {
             if (!(eye.open > 0.12)) return;
             var len = Math.hypot(eye.outer[0] - eye.inner[0], eye.outer[1] - eye.inner[1]) || 1;
-            var xs = eye.upper.map(function (q) { return q[0]; }), ys = eye.upper.map(function (q) { return q[1]; });
-            var bx = Math.max(0, Math.floor(Math.min.apply(null, xs) - len * 0.2)), by = Math.max(0, Math.floor(Math.min.apply(null, ys) - len * 0.25));
-            var bw = Math.min(W - bx, Math.ceil(len * 1.4)), bh = Math.min(H - by, Math.ceil(len * 0.7));
-            if (bw < 4 || bh < 4) return;
+            var allY = eye.upper.concat(eye.lower).map(function (q) { return q[1]; });
+            var allX = eye.upper.concat(eye.lower).map(function (q) { return q[0]; });
+            var bx = Math.max(0, Math.floor(Math.min.apply(null, allX))), ex = Math.min(W, Math.ceil(Math.max.apply(null, allX)));
+            var by = Math.max(0, Math.floor(Math.min.apply(null, allY) - len * 0.22)), ey = Math.min(H, Math.ceil(Math.max.apply(null, allY) + 2));
+            var bw = ex - bx, bh = ey - by;
+            if (bw < 6 || bh < 6) return;
             var d;
             try { d = x.getImageData(bx, by, bw, bh).data; } catch (e) { return; }
-            var Lat = function (px, py) {
-                var ix = Math.round(px - bx), iy = Math.round(py - by);
-                if (ix < 0 || iy < 0 || ix >= bw || iy >= bh) return null;
-                var o = (iy * bw + ix) * 4; return 0.299 * d[o] + 0.587 * d[o + 1] + 0.114 * d[o + 2];
-            };
-            var ax = [(eye.outer[0] - eye.inner[0]) / len, (eye.outer[1] - eye.inner[1]) / len];
-            var up = [ax[1], -ax[0]]; if (up[1] > 0) up = [-up[0], -up[1]];
-            var shifts = [], conf = [];
-            var step = Math.max(0.5, len / 160), win = Math.max(2, len * 0.025);
-            for (var i = 0; i < eye.upper.length; i++) {
-                if (i === 0 || i === eye.upper.length - 1) { shifts.push(0); conf.push(1); continue; }
-                var q = eye.upper[i], best = 0, bestC = 0;
-                for (var t = -0.14 * len; t <= 0.08 * len; t += step) {
-                    var below = 0, above = 0, nb = 0, na = 0;
-                    for (var k = step; k <= win; k += step) {
-                        var b1 = Lat(q[0] + up[0] * (t - k), q[1] + up[1] * (t - k));
-                        var a1 = Lat(q[0] + up[0] * (t + k), q[1] + up[1] * (t + k));
-                        if (b1 != null) { below += b1; nb++; }
-                        if (a1 != null) { above += a1; na++; }
-                    }
-                    if (!nb || !na) continue;
-                    var cst = below / nb - above / na;        // 아래(눈 안)가 밝고 위(속눈썹)가 어두울수록 크다
-                    if (cst > bestC) { bestC = cst; best = t; }
+            var upAt = function (xx, list) {                 // 인식 선의 xx 자리 높이
+                for (var i = 0; i < list.length - 1; i++) {
+                    var p0 = list[i], p1 = list[i + 1];
+                    if ((xx - p0[0]) * (xx - p1[0]) <= 0) { var t = (xx - p0[0]) / ((p1[0] - p0[0]) || 1); return p0[1] + (p1[1] - p0[1]) * t; }
                 }
-                shifts.push(best); conf.push(bestC);
+                return null;
+            };
+            // 흰자 판정 기준: 눈 안 가운데 아래쪽(아래 눈꺼풀 바로 위)의 밝은 픽셀들로 그 사진의 흰자 밝기를 잰다
+            var Ls = [];
+            for (var yy = 0; yy < bh; yy++) for (var xx = 0; xx < bw; xx += 2) {
+                var o = (yy * bw + xx) * 4, mx = Math.max(d[o], d[o + 1], d[o + 2]), mn = Math.min(d[o], d[o + 1], d[o + 2]);
+                var uy = upAt(bx + xx, eye.upper), ly = upAt(bx + xx, eye.lower);
+                if (uy == null || ly == null || by + yy <= uy || by + yy >= ly) continue;
+                if (mx > 0 && (mx - mn) / mx < 0.25) Ls.push(0.299 * d[o] + 0.587 * d[o + 1] + 0.114 * d[o + 2]);
             }
-            // 경계가 흐린 점(눈동자 위 등)은 믿을 만한 이웃 값으로 잇는다
-            var good = conf.map(function (cv) { return cv > 18; });
-            for (i = 1; i < shifts.length - 1; i++) {
-                if (good[i]) continue;
-                var a = i - 1, b = i + 1;
-                while (a > 0 && !good[a]) a--;
-                while (b < shifts.length - 1 && !good[b]) b++;
-                shifts[i] = shifts[a] + (shifts[b] - shifts[a]) * (i - a) / (b - a);
+            if (Ls.length < 10) return;
+            Ls.sort(function (p1, p2) { return p1 - p2; });
+            var scleraL = Ls[Math.floor(Ls.length * 0.85)];
+            var isSclera = function (o) {
+                var r = d[o], g = d[o + 1], bl = d[o + 2], mx = Math.max(r, g, bl), mn = Math.min(r, g, bl);
+                var L = 0.299 * r + 0.587 * g + 0.114 * bl;
+                return L > scleraL * 0.78 && mx > 0 && (mx - mn) / mx < 0.22;
+            };
+            // 세로줄마다 흰자 윗경계
+            var iris = eye.iris, tops = new Array(bw).fill(null);
+            // 눈동자 밝기 (반사광 빼고 가운데값)
+            var irisL = 80;
+            if (iris) {
+                var IL = [];
+                for (var iy = -iris.r * 0.6; iy <= iris.r * 0.6; iy += 1) for (var ix = -iris.r * 0.6; ix <= iris.r * 0.6; ix += 1) {
+                    var px2 = Math.round(iris.x + ix - bx), py2 = Math.round(iris.y + iy - by);
+                    if (px2 < 0 || py2 < 0 || px2 >= bw || py2 >= bh) continue;
+                    var o2 = (py2 * bw + px2) * 4, l2 = 0.299 * d[o2] + 0.587 * d[o2 + 1] + 0.114 * d[o2 + 2];
+                    if (l2 < scleraL * 0.8) IL.push(l2);
+                }
+                if (IL.length > 5) { IL.sort(function (p1, p2) { return p1 - p2; }); irisL = IL[Math.floor(IL.length / 2)]; }
             }
-            // 튀는 값 다듬기 + 한계 (눈 길이의 -10% ~ +6%)
-            var sm = shifts.map(function (v, k) {
-                var s0 = shifts[Math.max(0, k - 1)], s2 = shifts[Math.min(shifts.length - 1, k + 1)];
-                return clamp((s0 + v * 2 + s2) / 4, -0.10 * len, 0.06 * len);
+            for (xx = 0; xx < bw; xx++) {
+                var gx = bx + xx, uy0 = upAt(gx, eye.upper), ly0 = upAt(gx, eye.lower);
+                if (uy0 == null || ly0 == null) continue;
+                if (iris && Math.abs(gx - iris.x) < iris.r * 0.95) {
+                    // 눈동자 줄: 눈동자 가운데에서 위로 올라가며, 눈동자보다 확 어두운 속눈썹 그늘이 시작되는 곳
+                    var yc = Math.round(iris.y - by), yTop = Math.max(0, Math.floor(uy0 - len * 0.18 - by)), run = 0;
+                    for (yy = yc; yy > yTop; yy--) {
+                        var oo = (yy * bw + xx) * 4, Lp = 0.299 * d[oo] + 0.587 * d[oo + 1] + 0.114 * d[oo + 2];
+                        if (Lp < irisL * 0.62) { run++; if (run >= 2) { tops[xx] = by + yy + 2; break; } } else run = 0;
+                    }
+                    continue;
+                }
+                var y0 = Math.max(0, Math.floor(uy0 - len * 0.18 - by)), y1 = Math.min(bh - 2, Math.ceil(ly0 - by) - 1);
+                for (yy = y0; yy < y1; yy++) {
+                    if (isSclera((yy * bw + xx) * 4) && isSclera(((yy + 1) * bw + xx) * 4)) { tops[xx] = by + yy; break; }
+                }
+            }
+            // 인식 점을 그 경계로
+            eye.upper = eye.upper.map(function (q, k) {
+                if (k === 0 || k === eye.upper.length - 1) return q;
+                var xi = Math.round(q[0] - bx), acc = 0, n = 0;
+                for (var dx = -2; dx <= 2; dx++) { var v = tops[xi + dx]; if (v != null) { acc += v; n++; } }
+                if (n) return [q[0], q[1] + clamp(acc / n - 0.5 - q[1], -0.14 * len, 0.06 * len)];
+                // 흰자가 없는 줄(눈동자 위): 양옆 가장 가까운 경계로 잇는다
+                var L1 = null, R1 = null;
+                for (var s1 = xi; s1 >= 0; s1--) if (tops[s1] != null) { L1 = [s1, tops[s1]]; break; }
+                for (var s2 = xi; s2 < bw; s2++) if (tops[s2] != null) { R1 = [s2, tops[s2]]; break; }
+                if (L1 && R1) {
+                    var uL = upAt(bx + L1[0], eye.upper), uR = upAt(bx + R1[0], eye.upper), t2 = (xi - L1[0]) / ((R1[0] - L1[0]) || 1);
+                    var off = (L1[1] - uL) * (1 - t2) + (R1[1] - uR) * t2;           // 양옆에서 인식 선이 어긋난 만큼
+                    return [q[0], q[1] + clamp(off - 0.5, -0.14 * len, 0.06 * len)];
+                }
+                return q;
             });
-            eye.upper = eye.upper.map(function (q, k) { return [q[0] + up[0] * sm[k], q[1] + up[1] * sm[k]]; });
             eye.refined = true;
         });
         c.width = 0; c.height = 0;
@@ -280,7 +316,7 @@
             if (!hasTail) v *= 1 - 0.55 * smooth(0.82, 1, u);     // 꼬리 없으면 눈꼬리에서 가늘게 끝
             return v;
         }
-        var baseDrop = Math.min(0.3 * T, 0.016 * len);
+        var baseDrop = eye.refined ? 0 : Math.min(0.3 * T, 0.016 * len);   // 바로잡은 눈꺼풀이면 경계에서 바로 시작 (흰자로 내려가지 않게)
 
         var unit = function (a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; };
         // 바깥 연장 (2026-10-19 원장님 요청): 꼬리와 따로, 라인 자체를 눈꼬리 밖으로 길게.
