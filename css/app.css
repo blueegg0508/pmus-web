@@ -1568,6 +1568,21 @@ body.is-free .lic-desc { margin-bottom: 4px; }
     padding: calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
 }
 .pwa-gate[hidden] { display: none; }
+.pwa-gate { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.pwa-gate .pwa-gate-inner { margin: auto 0; }
+/* 아이폰 · 아이패드 3단계가 보일 때: 로고를 줄이고 아래 화살표 자리를 비운다 */
+.pwa-gate.is-ios { padding-bottom: calc(64px + env(safe-area-inset-bottom)); padding-top: calc(48px + env(safe-area-inset-top)); }
+.pwa-gate.is-ios .pwa-gate-logo { width: min(180px, 44vw); margin-bottom: 0; }
+.pwa-gate.is-ios .pwa-gate-inner { gap: 10px; }
+.pwa-gate.is-ios .pwa-point-arrow { position: fixed; }
+@media (max-height: 800px) {
+    .pwa-gate.is-ios { padding-top: calc(14px + env(safe-area-inset-top)); }
+    .pwa-gate.is-ios .pwa-gate-logo { width: min(130px, 34vw); }
+    .pwa-gate.is-ios .pwa-gate-desc { display: none; }
+    .pwa-gate.is-ios .pwa-ios li { padding: 10px 12px; }
+    .pwa-gate.is-ios .pwa-ios p { font-size: 14.5px; }
+    .pwa-gate.is-ios .pwa-mock span { padding: 6px 12px; font-size: 13px; }
+}
 .pwa-gate-inner { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
 .pwa-gate-logo { width: min(260px, 70vw); height: auto; margin-bottom: 6px; }
 .pwa-gate-title { margin: 0; font-size: 22px; color: var(--accent-2); }
@@ -1575,6 +1590,26 @@ body.is-free .lic-desc { margin-bottom: 4px; }
 .pwa-gate-go { width: 100%; min-height: 56px; font-size: 18px; font-weight: 800; margin-top: 8px; }
 .pwa-gate-sub { margin: 0; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.06); border: 1px solid var(--line); font-size: 14px; line-height: 1.6; color: var(--text); }
 .pwa-gate-sub b { color: var(--accent-2); }
+
+/* 아이폰 · 아이패드: 설치 화면 안에 바로 보이는 3단계 */
+.pwa-ios { list-style: none; margin: 4px 0 0; padding: 0; width: 100%; display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.pwa-ios[hidden] { display: none; }
+.pwa-ios li { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.pwa-ios .n {
+    flex: 0 0 28px; height: 28px; border-radius: 50%; background: var(--accent-2); color: #221c33;
+    display: inline-flex; align-items: center; justify-content: center; font-style: normal; font-weight: 800; font-size: 15px;
+}
+.pwa-ios p { margin: 2px 0 0; font-size: 15.5px; line-height: 1.55; color: var(--text); }
+.pwa-ios small { display: block; margin-top: 6px; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.pwa-ios small b { color: var(--text); }
+/* 공유 목록 흉내 — '홈 화면에 추가' 가 깜빡인다 */
+.pwa-mock { margin-top: 8px; border-radius: 12px; overflow: hidden; background: #f2f2f7; display: flex; flex-direction: column; }
+.pwa-mock span { padding: 8px 12px; font-size: 13.5px; color: #1c1c1e; border-top: 1px solid #d8d8de; }
+.pwa-mock span:first-child { border-top: 0; }
+.pwa-mock span.hit { font-weight: 700; background: #fff4c7; animation: pwa-hit 1.2s ease-in-out infinite alternate; }
+.pwa-mock em { font-style: normal; margin-right: 6px; }
+@keyframes pwa-hit { from { background: #fff4c7; } to { background: #ffd95a; } }
+@media (prefers-reduced-motion: reduce) { .pwa-mock span.hit { animation: none; } }
 
 /* 아이폰 · 아이패드: 공유 버튼 자리를 가리키는 화살표 */
 .pwa-point { position: fixed; inset: 0; z-index: 4001; background: rgba(8, 6, 14, .72); }

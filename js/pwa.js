@@ -184,6 +184,8 @@ const inKakao = /KAKAOTALK/i.test(ua);
 const inOtherApp = /NAVER\(inapp|; ?NAVER|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp|BAND\/|; wv\)/i.test(ua);
 const isSamsung = /SamsungBrowser/i.test(ua);
 const isIOSChrome = isIOS && /CriOS|EdgiOS|FxiOS/i.test(ua);
+// iOS 26 사파리(아이폰)는 공유 버튼이 아래 ⋯ 메뉴 안으로 들어갔다 (Version/26)
+const safariVer = parseInt((ua.match(/Version\/(\d+)/) || [])[1] || "0", 10);
 
 let installEvent = null;
 
@@ -240,9 +242,10 @@ async function onInstallClick() {
         return;
     }
     if (isIOS) {
-        // 5) 네이버 · 인스타 등 앱 안에서는 홈 화면에 추가가 없다
+        // 5) 네이버 · 인스타 등 앱 안에서는 홈 화면에 추가가 없다 → 사파리로 바로 연다 (iOS 17+)
         if (inOtherApp) {
-            gateSay("지금 다른 앱 안에서 열렸습니다. 화면 아래나 위의 메뉴(<b>⋯</b>)에서 <b>Safari로 열기</b>를 누른 뒤, 한 번 더 버튼을 눌러 주세요.");
+            location.href = "x-safari-" + location.href;
+            gateSay("사파리가 열리지 않으면 화면 아래나 위의 메뉴(<b>⋯</b>)에서 <b>Safari로 열기</b>를 눌러 주세요.");
             return;
         }
         // 6) 사파리 · 크롬: 공유 버튼 자리를 가리킨다
@@ -257,6 +260,33 @@ async function alreadyInstalled() {
         if (!navigator.getInstalledRelatedApps) return false;
         return (await navigator.getInstalledRelatedApps()).length > 0;
     } catch (e) { return false; }
+}
+
+/**
+ * 아이폰 · 아이패드: 버튼을 누를 것 없이 바로 3단계 그림 + 공유 버튼을 가리키는 화살표.
+ * 공유 버튼 자리는 기기 · 브라우저마다 다르다.
+ */
+function showIOSSteps() {
+    $("pwa-install-go").hidden = true;
+    $("pwa-install-title").textContent = "홈 화면에 추가하면 끝";
+    $("pwa-gate-desc").innerHTML = "세 번만 누르면 PMUS 아이콘이 생기고,<br>주소창 없이 전체 화면 앱으로 열립니다.";
+    const arrow = $("pwa-point-arrow");
+    const one = $("pwa-ios-1");
+    const SH = '<span class="pwa-k">공유 <span class="pwa-share" aria-hidden="true"></span></span>';
+    if (isIPad || isIOSChrome) {
+        arrow.className = "pwa-point-arrow up right";
+        one.innerHTML = (isIOSChrome ? "주소창 오른쪽 " : "오른쪽 위 ") + SH + " 버튼을 누르세요 (화살표)";
+    } else if (safariVer >= 26) {
+        arrow.className = "pwa-point-arrow down right";
+        one.innerHTML = '화면 아래 오른쪽 <span class="pwa-k">⋯</span> 을 누르고 ' + SH + " 를 누르세요";
+    } else {
+        arrow.className = "pwa-point-arrow down center";
+        one.innerHTML = "화면 아래 가운데 " + SH + " 버튼을 누르세요 (화살표)";
+    }
+    // 화살표만 설치 화면 위에 띄운다 (안내 카드는 설치 화면 안에 있다)
+    $("pwa-install").appendChild(arrow);
+    $("pwa-ios").hidden = false;
+    $("pwa-install").classList.add("is-ios");
 }
 
 function showInstallGuide() {
@@ -284,6 +314,8 @@ function bindInstallGuide() {
         showInstallGuide();
         if (inKakao || (isIOS && inOtherApp)) {
             $("pwa-gate-desc").innerHTML = "지금은 다른 앱 안에서 열렸습니다.<br>버튼을 누르면 브라우저로 옮겨 설치를 이어 갑니다.";
+        } else if (isIOS) {
+            showIOSSteps();
         }
     }
 }

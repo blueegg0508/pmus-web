@@ -13,13 +13,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
 <script>try { var sk = localStorage.getItem("pmus.skin"); if (sk) document.documentElement.setAttribute("data-skin", sk); } catch (e) {}</script>
-<link rel="stylesheet" href="css/skins.css?v=135">
-<link rel="stylesheet" href="css/app.css?v=135">
+<link rel="stylesheet" href="css/skins.css?v=136">
+<link rel="stylesheet" href="css/app.css?v=136">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=135" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=136" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="skin-btn" class="diag-btn skin-btn" type="button" title="화면 디자인" aria-label="화면 디자인 바꾸기">🎨</button>
@@ -31,7 +31,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=135" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=136" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -448,6 +448,29 @@
         <p class="pwa-gate-desc" id="pwa-gate-desc">아래 버튼을 누르면 홈 화면에 PMUS 앱이 생깁니다.<br>앱은 주소창 없이 전체 화면으로 열립니다.</p>
         <button class="btn btn-primary pwa-gate-go" id="pwa-install-go" type="button">📲 PMUS 앱 설치하기</button>
         <p class="pwa-gate-sub" id="pwa-gate-sub" hidden></p>
+        <!-- 아이폰 · 아이패드: 버튼 없이 바로 그림으로 (애플은 웹에서 설치 창을 띄울 수 없다) -->
+        <ol class="pwa-ios" id="pwa-ios" hidden>
+            <li>
+                <i class="n">1</i>
+                <div><p id="pwa-ios-1">화살표가 가리키는 <span class="pwa-k">공유 <span class="pwa-share" aria-hidden="true"></span></span> 버튼을 누르세요</p></div>
+            </li>
+            <li>
+                <i class="n">2</i>
+                <div>
+                    <p>목록에서 <span class="pwa-k">홈 화면에 추가</span>를 누르세요</p>
+                    <div class="pwa-mock" aria-hidden="true">
+                        <span>복사</span><span>즐겨찾기에 추가</span>
+                        <span class="hit"><em>⊞</em> 홈 화면에 추가</span>
+                    </div>
+                    <small id="pwa-ios-2s">안 보이면 목록을 위로 올리거나 <b>더 보기</b>를 누르세요</small>
+                </div>
+            </li>
+            <li>
+                <i class="n">3</i>
+                <div><p>오른쪽 위 <span class="pwa-k">추가</span>를 누르면 끝</p>
+                    <small><b>웹 앱으로 열기</b>가 보이면 켜 둔 채로 추가하세요. 이후 홈 화면의 <b>PMUS 아이콘</b>으로 엽니다.</small></div>
+            </li>
+        </ol>
     </div>
     <!-- 아이폰 · 아이패드: 버튼을 누르면 공유 버튼 자리를 가리키는 안내 -->
     <div class="pwa-point" id="pwa-point" hidden>
@@ -471,7 +494,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=135"></script>
-<script type="module" src="js/app.js?v=135"></script>
+<script type="module" src="js/pwa.js?v=136"></script>
+<script type="module" src="js/app.js?v=136"></script>
 </body>
 </html>
