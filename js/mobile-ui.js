@@ -454,6 +454,8 @@
                         "rngHeight",    // 세로 두께
                         "rngRound",     // 꼬리 상단 두께
                         "rngRot",       // 꼬리 높이
+                        "rngTail",      // 꼬리 내리기 (앞머리·산은 그대로)
+                        "rngHead",      // 앞머리 진하기
                         "rngOpacity",   // 눈썹 투명도
                         "rngNatBrow"    // 고객의 원래 눈썹 진하기 (진한 눈썹 흐리게)
                        ].map(rowOf);
@@ -466,11 +468,15 @@
         {
             key: "sides", icon: "⚖️", label: "좌우", title: "좌 · 우 개별 미세 조정",
             nodes: function () {
-                var out = [rowOf("rngLRot"), rowOf("rngRRot")];
+                var out = [rowOf("rngLRot"), rowOf("rngRRot"), $("rotNote")];
                 var sync = $("btnSyncYLevel");
                 if (sync) out.push(sync);
                 return out;
             }
+        },
+        {
+            key: "erase", icon: "🧽", label: "지우개", title: "디자인 부분 지우개",
+            nodes: function () { return [$("eraseBlock")]; }
         },
         {
             key: "guide", icon: "📏", label: "가이드", title: "3등분 가이드선 & 비율",
@@ -1500,6 +1506,8 @@
         borrow(rowOf("rngWidth"), "↔️ 길이 ");
         borrow(rowOf("rngHeight"), "↕️ 두께 ");
         borrow(rowOf("rngRot"), "↗️ 각도 ");
+        borrow(rowOf("rngTail"), "↘️ 꼬리 내리기 ");
+        borrow(rowOf("rngHead"), "🌱 앞머리 진하기 ");
         borrow(rowOf("rngVert"), "↕️ 위아래 ");
         // 눈썹산 위치 — 골격에 따라 같은 디자인도 산이 달라 보인다. 눈동자 끝·눈꼬리 기준선을 보며 맞춘다.
         borrow(rowOf("rngPeak"), "⛰️ 눈썹산 위치 ");

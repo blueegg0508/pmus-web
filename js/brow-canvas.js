@@ -252,11 +252,21 @@
         let curLRot = 0;
         let curRRot = 0;
         let curRound = 0;
+        /** 🌱 앞머리 진하기 (2026-10-27 현장 피드백) — 100 = 디자인 그대로, 낮추면 앞머리가 그라데이션처럼 흐려진다 */
+        let curHead = 100;
+        /** ↘️ 꼬리 내리기 — 앞머리·산은 그대로 두고 산~꼬리만 아래(+) / 위(-) 로 휜다. 눈썹 폭의 % */
+        let curTail = 0;
+        /** 🧽 디자인 지우개 — 눈썹마다 지운 자리 [u, v, r] (눈썹 상자 기준 비율, 가운데가 0) */
+        let eraseMarks = { left: [], right: [] };
+        let eraseMode = false;
+        let eraseSize = 3;          // 1~5
+        let isErasing = false;
+        let eraseCursor = null;     // 지우는 동안 손가락 자리에 동그라미
 
         // 왼쪽·오른쪽 눈썹 따로 맞추기 — 타고난 비대칭 얼굴은 같은 값이면 오히려 어색하다.
         // 아래는 '함께' 값에 더하는 차이다. [왼쪽]/[오른쪽] 을 고른 채 조절바를 움직이면
         // 그쪽 차이만 바뀌고, [함께] 로 움직이면 두 눈썹이 그 차이를 지닌 채 같이 바뀐다.
-        function zeroSide() { return { scale: 0, width: 0, height: 0, rot: 0, spacing: 0, vert: 0, opacity: 0, round: 0, peak: 0 }; }
+        function zeroSide() { return { scale: 0, width: 0, height: 0, rot: 0, spacing: 0, vert: 0, opacity: 0, round: 0, peak: 0, head: 0, tail: 0 }; }
 
         // ⛰️ 눈썹산 위치 — 눈썹 폭의 % 만큼 산을 앞(-) / 뒤(+) 로 옮긴다. 앞머리·꼬리 끝은 그대로.
         let curPeak = 0;
@@ -297,6 +307,81 @@
             } catch (e) {}
             peakInfoCache.set(key, info);
             return info;
+        }
+        const shapeCache = new Map();
+        /**
+         * 앞머리 진하기 · 꼬리 내리기 (2026-10-27 현장 피드백).
+         *  · 앞머리 진하기: 앞머리 끝에서 눈썹 폭의 45% 까지 진하기를 부드럽게 낮춘다 (산 · 꼬리는 그대로).
+         *  · 꼬리 내리기: 산에서 꼬리 끝으로 갈수록 세로로 더 많이 옮긴다 (앞머리 · 산은 제자리).
+         * 꼬리가 상자 밖으로 나가지 않게 위아래 여백(_pad)을 붙여 돌려준다.
+         */
+        function shapeExtra(src, rawImg, g, tailLeft, key) {
+            if (g.head >= 100 && !g.tail) return src;
+            const ck = key + '|' + g.peak + '|' + g.head + '|' + g.tail;
+            if (shapeCache.has(ck)) return shapeCache.get(ck);
+            const info = peakInfo(rawImg);
+            const w = src.width, h = src.height;
+            const x0 = (info.x0 || 0) * w, x1 = (info.x1 || 1) * w, span = Math.max(1, x1 - x0);
+            const p = clampN(info.x + (tailLeft ? -1 : 1) * g.peak / 100 * span / w, 0.05, 0.95) * w;
+            const dMax = g.tail / 100 * span * 0.5;
+            const pad = g.tail ? Math.ceil(Math.abs(dMax)) + 2 : 0;
+            const out = document.createElement('canvas'); out.width = w; out.height = h + pad * 2;
+            const o = out.getContext('2d');
+            if (g.tail) {
+                // 꼬리 쪽 세로줄을 조금씩 내려 그린다 (산에서 0, 꼬리 끝에서 dMax)
+                // 1px 세로줄 단위로 겹치지 않게 (겹쳐 그리면 결이 격자무늬로 진해진다)
+                for (let x = 0; x < w; x++) {
+                    const cx = x + 0.5;
+                    let t = tailLeft ? (p - cx) / Math.max(1, p - x0) : (cx - p) / Math.max(1, x1 - p);
+                    t = clampN(t, 0, 1.2);
+                    const dy = dMax * Math.pow(t, 1.6);
+                    o.drawImage(src, x, 0, 1, h, x, pad + dy, 1, h);
+                }
+            } else {
+                o.drawImage(src, 0, pad);
+            }
+            if (g.head < 100) {
+                // 앞머리 끝(꼬리 반대쪽)에서 안쪽으로 진하기를 올린다
+                const lo = g.head / 100;
+                const hx = tailLeft ? x1 : x0, ex = tailLeft ? x1 - span * 0.45 : x0 + span * 0.45;
+                const gr = o.createLinearGradient(hx, 0, ex, 0);
+                for (let k = 0; k <= 6; k++) {
+                    const t = k / 6, sm = t * t * (3 - 2 * t);
+                    gr.addColorStop(t, 'rgba(0,0,0,' + (lo + (1 - lo) * sm).toFixed(3) + ')');
+                }
+                o.globalCompositeOperation = 'destination-in';
+                o.fillStyle = gr;
+                o.fillRect(0, 0, w, h + pad * 2);
+                o.globalCompositeOperation = 'source-over';
+            }
+            out._pad = pad;
+            if (shapeCache.size > 16) shapeCache.clear();
+            shapeCache.set(ck, out);
+            return out;
+        }
+        /** 지운 자리를 뺀 그림 (지운 게 없으면 그대로) */
+        function applyErase(src, marks, rawH) {
+            if (!marks || !marks.length) return src;
+            const pad = src._pad || 0, W = src.width, H = src.height - pad * 2;
+            const out = document.createElement('canvas'); out.width = src.width; out.height = src.height;
+            const o = out.getContext('2d');
+            o.drawImage(src, 0, 0);
+            o.globalCompositeOperation = 'destination-out';
+            marks.forEach(function (m) {
+                const cx = (m[0] + 0.5) * W, cy = pad + (m[1] + 0.5) * H, r = Math.max(1, m[2] * W);
+                const gr = o.createRadialGradient(cx, cy, r * 0.45, cx, cy, r);
+                gr.addColorStop(0, 'rgba(0,0,0,1)');
+                gr.addColorStop(1, 'rgba(0,0,0,0)');
+                o.fillStyle = gr;
+                o.beginPath(); o.arc(cx, cy, r, 0, Math.PI * 2); o.fill();
+            });
+            out._pad = pad;
+            return out;
+        }
+        /** 눈썹 하나를 (여백 포함해) 그린다 */
+        function drawBrowImg(c2, img, g) {
+            const ph = img._pad ? g.h * img._pad / (img.height - img._pad * 2) : 0;
+            c2.drawImage(img, -g.w / 2.0, -g.h / 2.0 - ph, g.w, g.h + ph * 2);
         }
         const peakWarpCache = new Map();
         /**
@@ -349,6 +434,8 @@
                 alpha: clampN(curOpacity + a.opacity, 0, 100) / 100.0,
                 round: clampN(curRound + a.round, 0, 100),
                 peak: clampN(curPeak + a.peak, -30, 30),
+                head: clampN(curHead + (a.head || 0), 0, 100),
+                tail: clampN(curTail + (a.tail || 0), -20, 40),
                 x: isL ? leftPos.x - ((curSpacing + a.spacing) / 2.0) : rightPos.x + ((curSpacing + a.spacing) / 2.0),
                 y: isL ? leftPos.y : rightPos.y,
                 rot: isL ? (curRot + a.rot + curLRot) : (-(curRot + a.rot) + curRRot),
@@ -480,6 +567,9 @@
                 curLRot: curLRot,
                 curRRot: curRRot,
                 curPeak: curPeak,
+                curHead: curHead,
+                curTail: curTail,
+                eraseMarks: eraseMarks,
                 sideAdj: JSON.parse(JSON.stringify(sideAdj)),
                 curHex: curHex,
                 curBright: curBright,
@@ -563,6 +653,9 @@
                 curLRot = st.curLRot;
                 curRRot = st.curRRot;
                 curPeak = st.curPeak || 0;
+                curHead = (st.curHead !== undefined) ? st.curHead : 100;
+                curTail = st.curTail || 0;
+                eraseMarks = st.eraseMarks ? JSON.parse(JSON.stringify(st.eraseMarks)) : { left: [], right: [] };
                 sideAdj = st.sideAdj ? JSON.parse(JSON.stringify(st.sideAdj)) : { left: zeroSide(), right: zeroSide() };
                 curHex = st.curHex;
                 curBright = st.curBright;
@@ -623,6 +716,44 @@
             if (btnR) btnR.disabled = (redoStack.length === 0);
         }
 
+        function updateEraseUi() {
+            const b = document.getElementById('btnEraseMode');
+            if (b) {
+                b.classList.toggle('is-on', eraseMode);
+                b.textContent = eraseMode ? '🧽 지우개 켜짐 (누르면 끄기)' : '🧽 디자인 지우개 켜기';
+            }
+            const c = document.getElementById('btnEraseClear');
+            if (c) c.disabled = !(eraseMarks.left.length || eraseMarks.right.length);
+            canvas.classList.toggle('erase-on', eraseMode);
+        }
+
+        /** 지우개: 화면 자리(사진 좌표) → 그 눈썹 상자 안 비율 자리에 지운 점을 더한다 */
+        function eraseAt(x, y) {
+            const sides = (browMoveTarget === 'left' || browMoveTarget === 'right') ? [browMoveTarget] : ['left', 'right'];
+            let best = null, bd = Infinity;
+            sides.forEach(function (sd) {
+                const g = browGeom(sd);
+                const dx = x - g.x, dy = y - g.y, a = -g.rot * Math.PI / 180;
+                const lx = dx * Math.cos(a) - dy * Math.sin(a), ly = dx * Math.sin(a) + dy * Math.cos(a);
+                const u = lx / g.w, v = ly / g.h;
+                const d = Math.hypot(u, v * g.h / g.w);
+                if (Math.abs(u) < 0.6 && Math.abs(v) < 1.2 && d < bd) { bd = d; best = { sd: sd, u: u, v: v, g: g }; }
+            });
+            const R = [0, 0.05, 0.08, 0.12, 0.18, 0.26][eraseSize] || 0.12;   // 눈썹 높이 대비
+            if (best) {
+                const r = R * best.g.h / best.g.w;
+                const arr = eraseMarks[best.sd];
+                const last = arr[arr.length - 1];
+                // 너무 촘촘하면 건너뛴다 (반지름의 1/3 보다 가까우면)
+                if (!last || Math.hypot(last[0] - best.u, (last[1] - best.v) * best.g.h / best.g.w) > r / 3) {
+                    arr.push([+best.u.toFixed(4), +best.v.toFixed(4), +r.toFixed(4)]);
+                }
+            }
+            const gg = browGeom('left');
+            eraseCursor = { x: x, y: y, r: R * gg.h };
+            requestDraw();
+        }
+
         function syncAllControlsFromState() {
             const setVal = (id, val, suffix) => {
                 const el = document.getElementById(id);
@@ -643,6 +774,9 @@
             setVal('rngOpacity', sv(curOpacity, 'opacity'), '%');
             setVal('rngNatBrow', curNatBrow, '%');
             setVal('rngRound', sv(curRound, 'round'), '%');
+            setVal('rngHead', sd ? curHead + (sideAdj[sd].head || 0) : curHead, '%');
+            setVal('rngTail', sd ? curTail + (sideAdj[sd].tail || 0) : curTail, '%');
+            updateEraseUi();
             {
                 const pv = sv(curPeak, 'peak');
                 const el = document.getElementById('rngPeak'); if (el) el.value = pv;
@@ -1019,15 +1153,16 @@
 
                 if (isLReady && isRReady) {
                     // 왼쪽 그림은 꼬리가 왼쪽, 오른쪽 그림은 꼬리가 오른쪽
-                    const drawLImg = peakWarp(getProcessedEyebrow(rawLImg, curHex, gL.round), rawLImg, gL.peak, true, 'L' + curHex + gL.round + (rawLImg.src || '').length);
-                    const drawRImg = peakWarp(getProcessedEyebrow(rawRImg, curHex, gR.round), rawRImg, gR.peak, false, 'R' + curHex + gR.round + (rawRImg.src || '').length);
+                    const kL = 'L' + curHex + gL.round + (rawLImg.src || '').length, kR = 'R' + curHex + gR.round + (rawRImg.src || '').length;
+                    const drawLImg = applyErase(shapeExtra(peakWarp(getProcessedEyebrow(rawLImg, curHex, gL.round), rawLImg, gL.peak, true, kL), rawLImg, gL, true, kL), eraseMarks.left);
+                    const drawRImg = applyErase(shapeExtra(peakWarp(getProcessedEyebrow(rawRImg, curHex, gR.round), rawRImg, gR.peak, false, kR), rawRImg, gR, false, kR), eraseMarks.right);
 
                     // 왼쪽 눈썹
                     ctx.save();
                     ctx.translate(gL.x, gL.y);
                     ctx.rotate(gL.rot * Math.PI / 180.0);
                     ctx.globalAlpha = gL.alpha;
-                    ctx.drawImage(drawLImg, -gL.w / 2.0, -gL.h / 2.0, gL.w, gL.h);
+                    drawBrowImg(ctx, drawLImg, gL);
                     ctx.restore();
 
                     // 오른쪽 눈썹
@@ -1035,8 +1170,18 @@
                     ctx.translate(gR.x, gR.y);
                     ctx.rotate(gR.rot * Math.PI / 180.0);
                     ctx.globalAlpha = gR.alpha;
-                    ctx.drawImage(drawRImg, -gR.w / 2.0, -gR.h / 2.0, gR.w, gR.h);
+                    drawBrowImg(ctx, drawRImg, gR);
                     ctx.restore();
+
+                    // 지우는 중: 손가락 자리에 지우개 크기 동그라미
+                    if (isErasing && eraseCursor) {
+                        ctx.save();
+                        ctx.strokeStyle = 'rgba(255,255,255,.9)';
+                        ctx.lineWidth = Math.max(1, 1.5 / zoomF);
+                        ctx.setLineDash([4 / zoomF, 3 / zoomF]);
+                        ctx.beginPath(); ctx.arc(eraseCursor.x, eraseCursor.y, eraseCursor.r, 0, Math.PI * 2); ctx.stroke();
+                        ctx.restore();
+                    }
 
                     if (Date.now() < peakGuideUntil) drawPeakGuides(gL, gR, zoomF);
                 }
@@ -1653,6 +1798,44 @@
                 requestDraw();
             };
 
+            // 🌱 앞머리 진하기 · ↘️ 꼬리 내리기 — [왼쪽]/[오른쪽] 을 고르면 그쪽만
+            [['rngHead', 'head', '%'], ['rngTail', 'tail', '%']].forEach(function (d) {
+                const el = document.getElementById(d[0]);
+                if (!el) return;
+                bindSliderHistory(el);
+                el.oninput = function () {
+                    onSliderInputStart();
+                    const v = parseFloat(this.value);
+                    const side = sliderSide();
+                    if (d[1] === 'head') { if (side) sideAdj[side].head = v - curHead; else curHead = v; }
+                    else { if (side) sideAdj[side].tail = v - curTail; else curTail = v; }
+                    document.getElementById('val' + d[0].replace('rng', '')).innerText = v + d[2];
+                    requestDraw();
+                };
+            });
+
+            // 🧽 디자인 지우개
+            const btnErase = document.getElementById('btnEraseMode');
+            if (btnErase) btnErase.onclick = function () {
+                eraseMode = !eraseMode;
+                updateEraseUi();
+                showToast(eraseMode ? '🧽 지우개 켜짐 — 디자인을 문지르면 지워집니다 (두 손가락은 확대)' : '✋ 지우개 꺼짐 — 다시 눈썹을 끌어 옮길 수 있습니다');
+            };
+            const rngErase = document.getElementById('rngEraseSize');
+            if (rngErase) rngErase.oninput = function () {
+                eraseSize = parseFloat(this.value);
+                document.getElementById('valEraseSize').innerText = ['', '아주 작게', '작게', '보통', '크게', '아주 크게'][eraseSize] || eraseSize;
+            };
+            const btnEraseClear = document.getElementById('btnEraseClear');
+            if (btnEraseClear) btnEraseClear.onclick = function () {
+                if (!eraseMarks.left.length && !eraseMarks.right.length) return;
+                recordHistory();
+                eraseMarks = { left: [], right: [] };
+                updateEraseUi();
+                requestDraw();
+                showToast('↺ 지운 부분을 모두 되살렸습니다.');
+            };
+
             rngLRot.oninput = function() {
                 onSliderInputStart();
                 curLRot = parseFloat(this.value);
@@ -1720,6 +1903,7 @@
                 curScale = 100; curWidth = 100; curHeight = 100;
                 curRot = 0; curSpacing = 0; curVert = 0; curOpacity = 85; curNatBrow = 100;
                 curRound = 0; curLRot = 0; curRRot = 0; curPeak = 0;
+                curHead = 100; curTail = 0; eraseMarks = { left: [], right: [] };
                 sideAdj = { left: zeroSide(), right: zeroSide() };
 
                 curBright = 100; curContrast = 100; curSaturate = 100;
@@ -2555,6 +2739,11 @@
                     return;
                 }
 
+                if (eraseMode) {
+                    isErasing = true;
+                    eraseAt(pos.x, pos.y);
+                    return;
+                }
                 // 🖱️ 좌클릭: 눈썹 위치 이동
                 activeBrowDrag = determineActiveBrowDrag(pos);
                 isDragging = true;
@@ -2577,6 +2766,11 @@
         });
 
         window.addEventListener('mousemove', function(e) {
+            if (isErasing) {
+                const pos = getMousePos(e);
+                eraseAt(pos.x, pos.y);
+                return;
+            }
             if (isPanningPhoto) {
                 const dx = e.clientX - startPanMouseX;
                 const dy = e.clientY - startPanMouseY;
@@ -2662,6 +2856,7 @@
         });
 
         window.addEventListener('mouseup', function(e) {
+            if (isErasing) { isErasing = false; eraseCursor = null; updateEraseUi(); requestDraw(); }
             if (interactionInitialState) {
                 if (isStateDifferent(interactionInitialState, captureStateSnapshot())) {
                     recordHistory(interactionInitialState);
@@ -2756,6 +2951,23 @@
         let initialPanX = 0;
         let initialPanY = 0;
 
+        // 🔄 두 손가락 비틀기 → 눈썹 회전 (2026-10-27 현장 피드백: 조절바로 각도 맞추기가 오래 걸림)
+        // 처음 움직임이 '비틀기' 쪽이면 회전으로, '벌리기' 쪽이면 지금처럼 사진 확대로 정한다.
+        let pinchMode = null;          // null | 'zoom' | 'rotate'
+        let initialPinchAngle = 0;
+        let rotateTarget = 'both';
+        let rotStart = { L: 0, R: 0 };
+        function getTouchAngle(t1, t2) { return Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * 180 / Math.PI; }
+        function toImgPt(t) {
+            const rect = canvas.getBoundingClientRect();
+            const rawX = (t.clientX - rect.left) * (canvas.width / rect.width);
+            const rawY = (t.clientY - rect.top) * (canvas.height / rect.height);
+            const zoomF = curImgZoom / 100.0;
+            return { x: (rawX - canvas.width / 2.0 - curImgPanX) / zoomF + canvas.width / 2.0,
+                     y: (rawY - canvas.height / 2.0 - curImgPanY) / zoomF + canvas.height / 2.0 };
+        }
+        const wrap180 = (a) => { while (a > 180) a -= 360; while (a < -180) a += 360; return a; };
+
         function getTouchDist(t1, t2) {
             const dx = t1.clientX - t2.clientX;
             const dy = t1.clientY - t2.clientY;
@@ -2772,7 +2984,14 @@
         canvas.addEventListener('touchstart', function(e) {
             if (!interactionInitialState) interactionInitialState = captureStateSnapshot();
 
-            if (e.touches.length === 1) {
+            if (e.touches.length === 1 && eraseMode) {
+                isPinching = false;
+                isDragging = false;
+                isErasing = true;
+                const q = toImgPt(e.touches[0]);
+                eraseAt(q.x, q.y);
+                if (e.cancelable) e.preventDefault();
+            } else if (e.touches.length === 1) {
                 isPinching = false;
                 const touch = e.touches[0];
                 const rect = canvas.getBoundingClientRect();
@@ -2786,7 +3005,17 @@
                 requestDraw();
             } else if (e.touches.length === 2) {
                 isDragging = false;
+                if (isErasing) { isErasing = false; eraseCursor = null; }
                 isPinching = true;
+                pinchMode = null;
+                initialPinchAngle = getTouchAngle(e.touches[0], e.touches[1]);
+                {
+                    const a = toImgPt(e.touches[0]), b = toImgPt(e.touches[1]);
+                    rotateTarget = (browMoveTarget === 'left' || browMoveTarget === 'right') ? browMoveTarget
+                        : (browMoveTarget === 'auto' ? determineActiveBrowDrag({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }) : 'both');
+                    if (rotateTarget === 'auto') rotateTarget = 'both';
+                }
+                rotStart = { L: curLRot, R: curRRot };
                 initialPinchDist = getTouchDist(e.touches[0], e.touches[1]);
                 initialPinchZoom = curImgZoom;
                 const mid = getTouchMid(e.touches[0], e.touches[1]);
@@ -2798,10 +3027,35 @@
         }, { passive: false });
 
         canvas.addEventListener('touchmove', function(e) {
+            if (isErasing && e.touches.length === 1) {
+                if (e.cancelable) e.preventDefault();
+                const q = toImgPt(e.touches[0]);
+                eraseAt(q.x, q.y);
+                return;
+            }
             if (isPinching && e.touches.length === 2) {
                 if (e.cancelable) e.preventDefault();
                 const currentDist = getTouchDist(e.touches[0], e.touches[1]);
-                if (initialPinchDist > 0) {
+                const dAng = wrap180(getTouchAngle(e.touches[0], e.touches[1]) - initialPinchAngle);
+                if (!pinchMode && initialPinchDist > 0) {
+                    const sc = Math.abs(currentDist / initialPinchDist - 1);
+                    if (Math.abs(dAng) > 12 && sc < 0.15) pinchMode = 'rotate';
+                    else if (sc > 0.12) pinchMode = 'zoom';
+                }
+                if (pinchMode === 'rotate') {
+                    // 손가락을 돌린 만큼 그대로 (360도 어느 쪽이든). [함께] 는 두 눈썹을 거울처럼.
+                    const d = Math.round(dAng * 2) / 2;
+                    if (rotateTarget === 'left') curLRot = wrap180(rotStart.L + d);
+                    else if (rotateTarget === 'right') curRRot = wrap180(rotStart.R + d);
+                    else { curLRot = wrap180(rotStart.L + d); curRRot = wrap180(rotStart.R - d); }
+                    const vl = document.getElementById('valLRot'), vr = document.getElementById('valRRot');
+                    const rl = document.getElementById('rngLRot'), rr = document.getElementById('rngRRot');
+                    if (rl) rl.value = curLRot; if (vl) vl.innerText = curLRot + '°';
+                    if (rr) rr.value = curRRot; if (vr) vr.innerText = curRRot + '°';
+                    requestDraw();
+                    return;
+                }
+                if (pinchMode === 'zoom' && initialPinchDist > 0) {
                     const factor = currentDist / initialPinchDist;
                     curImgZoom = Math.min(300, Math.max(50, Math.round(initialPinchZoom * factor)));
                     
@@ -2868,12 +3122,18 @@
                 interactionInitialState = null;
             }
 
+            if (isErasing && e.touches.length === 0) {
+                isErasing = false; eraseCursor = null; updateEraseUi();
+            }
             if (e.touches.length === 0) {
                 isDragging = false;
                 isPinching = false;
+                pinchMode = null;
                 requestDraw();
             } else if (e.touches.length === 1) {
                 isPinching = false;
+                pinchMode = null;
+                if (eraseMode) return;   // 지우개 중엔 남은 한 손가락으로 눈썹을 옮기지 않는다
                 const touch = e.touches[0];
                 const rect = canvas.getBoundingClientRect();
                 const rawX = (touch.clientX - rect.left) * (canvas.width / rect.width);

@@ -13,13 +13,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
 <script>try { var sk = localStorage.getItem("pmus.skin"); if (sk) document.documentElement.setAttribute("data-skin", sk); } catch (e) {}</script>
-<link rel="stylesheet" href="css/skins.css?v=134">
-<link rel="stylesheet" href="css/app.css?v=134">
+<link rel="stylesheet" href="css/skins.css?v=135">
+<link rel="stylesheet" href="css/app.css?v=135">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=134" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=135" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="skin-btn" class="diag-btn skin-btn" type="button" title="화면 디자인" aria-label="화면 디자인 바꾸기">🎨</button>
@@ -31,7 +31,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=134" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=135" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -438,39 +438,26 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<!-- ── 아이폰 웹앱: 홈 화면에 추가 안내 ───────────────────────────── -->
-<div id="pwa-install" class="pwa-sheet" hidden>
-    <div class="pwa-card" role="dialog" aria-labelledby="pwa-install-title">
-        <h2 id="pwa-install-title" class="pwa-title">홈 화면에 추가해 주세요</h2>
-        <p class="pwa-desc">앱처럼 아이콘으로 열리고, 한 번 연 뒤로는 인터넷 없이도 씁니다.</p>
-        <!-- 아이폰·아이패드 (사파리) -->
-        <div id="pwa-guide-ios">
-            <ol class="pwa-steps">
-                <li><b>1.</b> 사파리 아래쪽 <span class="pwa-k">공유 <span class="pwa-share" aria-hidden="true"></span></span> 버튼을 누릅니다.</li>
-                <li><b>2.</b> 목록을 내려 <span class="pwa-k">홈 화면에 추가</span>를 누릅니다.</li>
-                <li><b>3.</b> 오른쪽 위 <span class="pwa-k">추가</span>를 누르면 홈 화면에 PMUS 아이콘이 생깁니다.</li>
-                <li><b>4.</b> 앞으로는 <b>그 아이콘으로</b> 여세요. 라이선스도 거기서 등록합니다.</li>
-            </ol>
-            <p class="pwa-note">사파리가 아닌 다른 앱(카카오톡 등) 안에서 열었다면, 오른쪽 위 메뉴에서 <b>사파리로 열기</b>를 먼저 눌러 주세요.</p>
+<!-- ── 폰 · 태블릿을 브라우저 탭으로 열면: 앱 설치 화면 (2026-10-27) ──────
+     브라우저 탭에서는 쓰지 않는다. 홈 화면 앱(전체 화면)으로만 연다.
+     운영체제 · 브라우저를 알아내 버튼 하나로 그 환경에 맞는 설치를 한다 (pwa.js). -->
+<div id="pwa-install" class="pwa-gate" hidden>
+    <div class="pwa-gate-inner" role="dialog" aria-labelledby="pwa-install-title">
+        <img src="assets/logo-full.png" alt="PMUS" class="pwa-gate-logo">
+        <h2 id="pwa-install-title" class="pwa-gate-title">PMUS 앱 설치</h2>
+        <p class="pwa-gate-desc" id="pwa-gate-desc">아래 버튼을 누르면 홈 화면에 PMUS 앱이 생깁니다.<br>앱은 주소창 없이 전체 화면으로 열립니다.</p>
+        <button class="btn btn-primary pwa-gate-go" id="pwa-install-go" type="button">📲 PMUS 앱 설치하기</button>
+        <p class="pwa-gate-sub" id="pwa-gate-sub" hidden></p>
+    </div>
+    <!-- 아이폰 · 아이패드: 버튼을 누르면 공유 버튼 자리를 가리키는 안내 -->
+    <div class="pwa-point" id="pwa-point" hidden>
+        <div class="pwa-point-arrow" id="pwa-point-arrow" aria-hidden="true"></div>
+        <div class="pwa-point-card">
+            <p class="pwa-point-step"><i class="n">1</i> <span id="pwa-point-1">화살표가 가리키는 <span class="pwa-k">공유 <span class="pwa-share" aria-hidden="true"></span></span> 버튼을 누르세요</span></p>
+            <p class="pwa-point-step"><i class="n">2</i> <span><span class="pwa-k">홈 화면에 추가</span> → <span class="pwa-k">추가</span></span></p>
+            <p class="pwa-point-step"><i class="n">3</i> <span>홈 화면의 <b>PMUS 아이콘</b>으로 여세요</span></p>
+            <button class="pwa-point-close" id="pwa-point-close" type="button">닫기</button>
         </div>
-        <!-- 안드로이드 (크롬) -->
-        <div id="pwa-guide-android" hidden>
-            <p class="pwa-warn" id="pwa-samsung-warn" hidden>⚠️ 지금 <b>삼성 인터넷</b>으로 여셨습니다. <b>크롬</b>으로 이 주소를 다시 열어 설치해 주세요.<br>
-                <small>삼성 인터넷으로 설치하면 '앨범에서 선택' 을 누를 때마다 '작업 선택(카메라 · 캠코더 · 파일)' 이 먼저 뜹니다. 크롬으로 설치하면 갤러리가 바로 열립니다.</small></p>
-            <button class="btn btn-primary pwa-install-go" id="pwa-install-go" type="button" hidden>📲 PMUS 앱 설치</button>
-            <p class="pwa-desc" id="pwa-install-or" hidden>위 버튼이 가장 쉽습니다. 버튼이 안 되면 아래처럼 해 주세요.</p>
-            <ol class="pwa-steps">
-                <li><b>1.</b> 크롬 오른쪽 위 <span class="pwa-k">⋮</span> (점 세 개)를 누릅니다.</li>
-                <li><b>2.</b> 메뉴 아래쪽의 <span class="pwa-k">설치 및 바로가기 만들기</span>를 누릅니다.<br>
-                    <small>크롬 버전에 따라 <b>앱 설치</b> 또는 <b>홈 화면에 추가</b>로 보일 수 있습니다.</small></li>
-                <li><b>3.</b> 뜨는 창에서 <span class="pwa-k">설치</span>를 누릅니다.<br>
-                    <small><b>바로가기 만들기</b>가 아니라 <b>설치</b>를 골라야 앱처럼 열립니다.</small></li>
-                <li><b>4.</b> 홈 화면에 생긴 <b>PMUS 아이콘</b>으로 여세요. 라이선스도 거기서 등록합니다.</li>
-            </ol>
-            <p class="pwa-note">카카오톡 등 다른 앱 안에서 열었다면, 메뉴(⋮)에서 <b>다른 브라우저로 열기 → Chrome</b>을 먼저 눌러 주세요.<br>
-            크롬의 <b>인터넷 사용 기록 삭제</b>에서 '쿠키 및 사이트 데이터'를 지우면 라이선스 등록이 풀립니다.</p>
-        </div>
-        <button class="btn btn-primary" id="pwa-install-close" type="button">알겠습니다</button>
     </div>
 </div>
 
@@ -484,7 +471,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=134"></script>
-<script type="module" src="js/app.js?v=134"></script>
+<script type="module" src="js/pwa.js?v=135"></script>
+<script type="module" src="js/app.js?v=135"></script>
 </body>
 </html>

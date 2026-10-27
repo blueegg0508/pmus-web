@@ -134,6 +134,14 @@
                         <label>🌙 꼬리 상단 두께 <span id="valRound">0%</span></label>
                         <input type="range" id="rngRound" min="0" max="100" value="0" step="5">
                     </div>
+                    <div class="ctrl-row">
+                        <label>🌱 앞머리 진하기 <span id="valHead">100%</span></label>
+                        <input type="range" id="rngHead" min="0" max="100" value="100" step="5">
+                    </div>
+                    <div class="ctrl-row">
+                        <label>↘️ 꼬리 내리기 <span id="valTail">0%</span></label>
+                        <input type="range" id="rngTail" min="-20" max="40" value="0" step="1">
+                    </div>
                 </div>
 
                 <details style="background:#1E1A17; padding:7px 9px; border-radius:8px; border:1px solid #3A3026; margin-top:10px;">
@@ -141,17 +149,29 @@
                     <div class="ctrl-grid-2" style="margin-top: 8px;">
                         <div class="ctrl-row">
                             <label>👈 좌측 추가 회전 <span id="valLRot">0°</span></label>
-                            <input type="range" id="rngLRot" min="-15" max="15" value="0" step="0.5">
+                            <input type="range" id="rngLRot" min="-45" max="45" value="0" step="0.5">
                         </div>
                         <div class="ctrl-row">
                             <label>👉 우측 추가 회전 <span id="valRRot">0°</span></label>
-                            <input type="range" id="rngRRot" min="-15" max="15" value="0" step="0.5">
+                            <input type="range" id="rngRRot" min="-45" max="45" value="0" step="0.5">
                         </div>
                     </div>
+                    <p class="rot-note" id="rotNote">💡 두 손가락으로 눈썹 위를 비틀면 바로 돌아갑니다 (360도). 👈왼쪽 / 👉오른쪽을 먼저 고르면 그쪽만 돌아갑니다.</p>
                     <div style="display:flex; justify-content:flex-end; margin-top:6px;">
                         <button type="button" class="btn-sync-y" id="btnSyncYLevel">⚖️ 좌/우 수평 높이 동일하게 맞춤</button>
                     </div>
                 </details>
+
+                <!-- 🧽 디자인 지우개 (2026-10-27) -->
+                <div class="erase-block" id="eraseBlock">
+                    <button type="button" class="btn-erase-mode" id="btnEraseMode">🧽 디자인 지우개 켜기</button>
+                    <div class="ctrl-row">
+                        <label>지우개 크기 <span id="valEraseSize">보통</span></label>
+                        <input type="range" id="rngEraseSize" min="1" max="5" value="3" step="1">
+                    </div>
+                    <button type="button" class="btn-erase-clear" id="btnEraseClear" disabled>↺ 지운 부분 모두 되살리기</button>
+                    <p class="erase-note">켜 둔 동안은 손가락으로 문지른 곳의 디자인 결만 지워집니다 (고객 원래 눈썹은 그대로). 👈왼쪽 / 👉오른쪽을 고르면 그쪽 눈썹만 지워집니다. 잘못 지웠으면 ‘되돌리기’를 누르세요.</p>
+                </div>
 
                 <!-- 📐 [눈썹 3등분 가이드선 & 비율 패널 (세로선 + 가로선)] -->
                 <div style="background:#1E1A17; padding:9px 10px; border-radius:10px; border:1.5px solid #4A3B2C; margin-top:12px;">

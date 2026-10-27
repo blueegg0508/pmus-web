@@ -169,50 +169,123 @@ async function checkUpdate() {
     return registration.waiting ? "ready" : "latest";
 }
 
-// ── 홈 화면에 추가 안내 ──────────────────────────────────────────────────
+// ── 앱 설치 화면 (2026-10-27 원장님) ────────────────────────────────────
+// 폰 · 태블릿을 브라우저 탭으로 열면 앱을 쓰지 않고 설치 화면만 보여 준다.
+// 홈 화면 앱은 주소창 · 탭 없이 전체 화면으로 열린다.
+// 버튼 하나를 누르면 지금 운영체제 · 브라우저에 맞는 방법으로 설치한다:
+//   · 안드로이드 크롬 · 엣지      → 설치 창을 바로 띄운다 (beforeinstallprompt)
+//   · 안드로이드 삼성 인터넷 · 다른 앱 안 → 크롬으로 이 주소를 연다 (거기서 다시 버튼)
+//   · 카카오톡 안 (아이폰 · 안드로이드) → 바깥 브라우저로 연다
+//   · 아이폰 · 아이패드          → 웹으로는 설치 창을 띄울 수 없어(애플 제한),
+//                                  공유 버튼 자리를 화살표로 가리킨다
 
-function showInstallGuide(force) {
-    const el = $("pwa-install");
-    if (!el) return;
-    if (!force) {
-        try { if (sessionStorage.getItem("pwa.guideSeen")) return; } catch (e) {}
-    }
-    el.hidden = false;
-    try { sessionStorage.setItem("pwa.guideSeen", "1"); } catch (e) {}
-}
+const isIPad = isIOS && !/iPhone|iPod/.test(ua);
+const inKakao = /KAKAOTALK/i.test(ua);
+const inOtherApp = /NAVER\(inapp|; ?NAVER|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp|BAND\/|; wv\)/i.test(ua);
+const isSamsung = /SamsungBrowser/i.test(ua);
+const isIOSChrome = isIOS && /CriOS|EdgiOS|FxiOS/i.test(ua);
 
-// 안드로이드 크롬은 설치 창을 직접 띄울 수 있다 (beforeinstallprompt).
-// 그 기회를 잡아 두었다가 [PMUS 앱 설치] 버튼으로 연다.
 let installEvent = null;
 
-function bindInstallGuide() {
-    const close = $("pwa-install-close");
-    if (close) close.addEventListener("click", () => { $("pwa-install").hidden = true; });
+function gateSay(html) {
+    const sub = $("pwa-gate-sub");
+    if (!sub) return;
+    sub.innerHTML = html;
+    sub.hidden = !html;
+}
 
-    // 삼성 인터넷으로 열었으면 크롬으로 설치하라고 먼저 알린다 (삼성 인터넷 설치 앱은 앨범이 바로 안 열린다)
-    const sw = document.getElementById("pwa-samsung-warn");
-    if (sw) sw.hidden = !/SamsungBrowser/i.test(ua);
+function openInChrome() {
+    location.href = "intent://" + location.host + location.pathname + location.search
+        + "#Intent;scheme=https;package=com.android.chrome;end";
+}
+
+function pointAt(where, text) {
+    const arrow = $("pwa-point-arrow");
+    arrow.className = "pwa-point-arrow " + where;
+    if (text) $("pwa-point-1").innerHTML = text;
+    $("pwa-point").hidden = false;
+}
+
+const SHARE = '<span class="pwa-k">공유 <span class="pwa-share" aria-hidden="true"></span></span>';
+
+async function onInstallClick() {
+    // 1) 카카오톡 안 — 아이폰 · 안드로이드 모두 바깥 브라우저로
+    if (inKakao) {
+        location.href = "kakaotalk://web/openExternal?url=" + encodeURIComponent(location.href);
+        gateSay("브라우저가 열리면 거기서 <b>PMUS 앱 설치하기</b>를 한 번 더 눌러 주세요.");
+        return;
+    }
     if (isAndroid) {
-        $("pwa-guide-ios").hidden = true;
-        $("pwa-guide-android").hidden = false;
+        // 2) 크롬 · 엣지: 설치 창을 바로
+        if (installEvent) {
+            installEvent.prompt();
+            let ok = false;
+            try { ok = (await installEvent.userChoice).outcome === "accepted"; } catch (e) {}
+            installEvent = null;
+            if (ok) gateSay("설치하고 있습니다. 끝나면 <b>홈 화면의 PMUS 아이콘</b>으로 여세요.");
+            return;
+        }
+        // 3) 삼성 인터넷 · 네이버 · 인스타 등 앱 안: 크롬으로 연다 (삼성 인터넷 설치 앱은 앨범이 바로 안 열린다)
+        if (isSamsung || inOtherApp || !/Chrome\//.test(ua)) {
+            openInChrome();
+            gateSay("<b>크롬</b>이 열리면 거기서 <b>PMUS 앱 설치하기</b>를 한 번 더 눌러 주세요.");
+            return;
+        }
+        // 4) 크롬인데 설치 창이 안 온다 — 이미 설치했거나, 크롬이 아직 준비 중
+        if (await alreadyInstalled()) {
+            gateSay("이미 설치되어 있습니다. <b>홈 화면의 PMUS 아이콘</b>을 눌러 여세요.");
+            return;
+        }
+        pointAt("up right", '오른쪽 위 <span class="pwa-k">⋮</span> 를 누르고 <span class="pwa-k">앱 설치</span> (또는 홈 화면에 추가 → <b>설치</b>)');
+        return;
+    }
+    if (isIOS) {
+        // 5) 네이버 · 인스타 등 앱 안에서는 홈 화면에 추가가 없다
+        if (inOtherApp) {
+            gateSay("지금 다른 앱 안에서 열렸습니다. 화면 아래나 위의 메뉴(<b>⋯</b>)에서 <b>Safari로 열기</b>를 누른 뒤, 한 번 더 버튼을 눌러 주세요.");
+            return;
+        }
+        // 6) 사파리 · 크롬: 공유 버튼 자리를 가리킨다
+        if (isIPad || isIOSChrome) pointAt("up right", "화살표가 가리키는 " + SHARE + " 버튼을 누르세요");
+        else pointAt("down center", "화면 아래 " + SHARE + " 버튼을 누르세요<br><small>(안 보이면 아래 <b>⋯</b> 버튼 → 공유)</small>");
+    }
+}
+
+/** 크롬: 이 앱이 이미 설치되어 있나 (manifest 의 related_applications) */
+async function alreadyInstalled() {
+    try {
+        if (!navigator.getInstalledRelatedApps) return false;
+        return (await navigator.getInstalledRelatedApps()).length > 0;
+    } catch (e) { return false; }
+}
+
+function showInstallGuide() {
+    const el = $("pwa-install");
+    if (el) el.hidden = false;
+}
+
+function bindInstallGuide() {
+    if (isAndroid) {
         window.addEventListener("beforeinstallprompt", (e) => {
             e.preventDefault();
             installEvent = e;
-            $("pwa-install-go").hidden = false;
-            $("pwa-install-or").hidden = false;
         });
-        $("pwa-install-go").addEventListener("click", async () => {
-            if (!installEvent) return;
-            installEvent.prompt();
-            try { await installEvent.userChoice; } catch (e) {}
-            installEvent = null;
-            $("pwa-install-go").hidden = true;
+        window.addEventListener("appinstalled", () => {
+            gateSay("설치가 끝났습니다. 이 창은 닫고 <b>홈 화면의 PMUS 아이콘</b>으로 여세요.");
         });
-        window.addEventListener("appinstalled", () => { $("pwa-install").hidden = true; });
     }
+    const go = $("pwa-install-go");
+    if (go) go.addEventListener("click", onInstallClick);
+    const pc = $("pwa-point-close");
+    if (pc) pc.addEventListener("click", () => { $("pwa-point").hidden = true; });
 
-    // 브라우저로 열었고 아직 홈 화면 앱이 아니면 안내한다
-    if ((isIOS || isAndroid) && !isStandalone()) showInstallGuide(false);
+    // 폰 · 태블릿을 브라우저 탭으로 열었으면 설치 화면만 보여 준다 (PC 는 그대로 쓴다)
+    if ((isIOS || isAndroid) && !isStandalone()) {
+        showInstallGuide();
+        if (inKakao || (isIOS && inOtherApp)) {
+            $("pwa-gate-desc").innerHTML = "지금은 다른 앱 안에서 열렸습니다.<br>버튼을 누르면 브라우저로 옮겨 설치를 이어 갑니다.";
+        }
+    }
 }
 
 // ── 사진 저장 (공유 창) ──────────────────────────────────────────────────
@@ -290,7 +363,7 @@ window.PMUSWeb = {
     saveImages,
     checkUpdate,
     applyUpdate,
-    showInstallGuide: () => showInstallGuide(true),
+    showInstallGuide: () => showInstallGuide(),
 };
 
 if (!isNative) {

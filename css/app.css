@@ -1560,6 +1560,50 @@ body.is-free .lic-desc { margin-bottom: 4px; }
 }
 .pwa-card .btn { width: 100%; }
 
+/* 폰 · 태블릿 브라우저 탭: 앱 설치 화면 (전체를 덮는다) */
+.pwa-gate {
+    position: fixed; inset: 0; z-index: 4000;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(120% 80% at 50% 0%, #2a2240 0%, var(--bg) 62%);
+    padding: calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+}
+.pwa-gate[hidden] { display: none; }
+.pwa-gate-inner { width: 100%; max-width: 420px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.pwa-gate-logo { width: min(260px, 70vw); height: auto; margin-bottom: 6px; }
+.pwa-gate-title { margin: 0; font-size: 22px; color: var(--accent-2); }
+.pwa-gate-desc { margin: 0; font-size: 15px; line-height: 1.65; color: var(--text); }
+.pwa-gate-go { width: 100%; min-height: 56px; font-size: 18px; font-weight: 800; margin-top: 8px; }
+.pwa-gate-sub { margin: 0; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.06); border: 1px solid var(--line); font-size: 14px; line-height: 1.6; color: var(--text); }
+.pwa-gate-sub b { color: var(--accent-2); }
+
+/* 아이폰 · 아이패드: 공유 버튼 자리를 가리키는 화살표 */
+.pwa-point { position: fixed; inset: 0; z-index: 4001; background: rgba(8, 6, 14, .72); }
+.pwa-point[hidden] { display: none; }
+.pwa-point-arrow {
+    position: absolute; width: 0; height: 0;
+    border-left: 22px solid transparent; border-right: 22px solid transparent;
+    animation: pwa-bob 1s ease-in-out infinite alternate;
+}
+.pwa-point-arrow.up    { top: calc(10px + env(safe-area-inset-top)); border-bottom: 34px solid var(--accent-2); }
+.pwa-point-arrow.down  { bottom: calc(10px + env(safe-area-inset-bottom)); border-top: 34px solid var(--accent-2); }
+.pwa-point-arrow.right { right: 22px; }
+.pwa-point-arrow.center { left: 50%; margin-left: -22px; }
+@keyframes pwa-bob { from { transform: translateY(0); } to { transform: translateY(8px); } }
+.pwa-point-arrow.down { animation-direction: alternate-reverse; }
+@media (prefers-reduced-motion: reduce) { .pwa-point-arrow { animation: none; } }
+.pwa-point-card {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: calc(100% - 48px); max-width: 400px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+    padding: 20px 18px 14px; display: flex; flex-direction: column; gap: 12px;
+}
+.pwa-point-step { margin: 0; font-size: 15.5px; line-height: 1.6; color: var(--text); display: flex; gap: 10px; align-items: baseline; }
+.pwa-point-step > .n { font-style: normal;
+    flex: 0 0 26px; height: 26px; border-radius: 50%; background: var(--accent-2); color: #221c33;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 14px;
+}
+.pwa-point-close { appearance: none; border: 0; background: none; color: var(--muted); font: inherit; font-size: 14px; padding: 8px; cursor: pointer; }
+
 /* 안드로이드 크롬: 설치 창을 바로 여는 버튼 */
 .pwa-install-go { display: block; width: 100%; margin: 4px 0 10px; }
 
