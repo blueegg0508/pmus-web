@@ -330,21 +330,21 @@
             const p = clampN(info.x + (tailLeft ? -1 : 1) * g.peak / 100 * span / w, 0.05, 0.95) * w;
             const dMax = g.tail / 100 * span * 0.5;
             const pad = g.tail ? Math.ceil(Math.abs(dMax)) + 2 : 0;
-            const out = document.createElement('canvas'); out.width = w; out.height = h + pad * 2;
-            const o = out.getContext('2d');
+            let out;
             if (g.tail) {
-                // 꼬리 쪽 세로줄을 조금씩 내려 그린다 (산에서 0, 꼬리 끝에서 dMax)
-                // 1px 세로줄 단위로 겹치지 않게 (겹쳐 그리면 결이 격자무늬로 진해진다)
+                // 세로줄마다 내릴 양만큼 원본을 위에서 읽어 온다 (픽셀 직접 — 겹침 · 줄무늬 없음)
+                const dyAt = new Float32Array(w);
                 for (let x = 0; x < w; x++) {
                     const cx = x + 0.5;
                     let t = tailLeft ? (p - cx) / Math.max(1, p - x0) : (cx - p) / Math.max(1, x1 - p);
-                    t = clampN(t, 0, 1.2);
-                    const dy = dMax * Math.pow(t, 1.6);
-                    o.drawImage(src, x, 0, 1, h, x, pad + dy, 1, h);
+                    dyAt[x] = dMax * Math.pow(clampN(t, 0, 1.2), 1.6);
                 }
+                out = warpPixels(src, w, h + pad * 2, (xd, yd) => [xd, yd - pad - dyAt[Math.min(w - 1, Math.floor(xd))]]);
             } else {
-                o.drawImage(src, 0, pad);
+                out = document.createElement('canvas'); out.width = w; out.height = h + pad * 2;
+                out.getContext('2d').drawImage(src, 0, pad);
             }
+            const o = out.getContext('2d');
             if (g.head < 100) {
                 // 앞머리 끝(꼬리 반대쪽)에서 안쪽으로 진하기를 올린다
                 const lo = g.head / 100;
@@ -457,6 +457,52 @@
             c2.drawImage(fit, -g.w / 2.0, -g.h / 2.0 - ph, g.w, g.h + ph * 2);
         }
         const peakWarpCache = new Map();
+        /** 늘 커지는 함수 f(x) (0~w) 의 거꾸로: 그려질 자리 xd → 원본 자리 x */
+        function invertMonotone(f, w) {
+            const N = Math.max(64, Math.ceil(w * 4)), xs = new Float32Array(N + 1), ys = new Float32Array(N + 1);
+            for (let i = 0; i <= N; i++) { xs[i] = w * i / N; ys[i] = f(xs[i]); }
+            return function (xd) {
+                if (xd <= ys[0]) return xs[0] - (ys[0] - xd);
+                if (xd >= ys[N]) return xs[N] + (xd - ys[N]);
+                let lo = 0, hi = N;
+                while (hi - lo > 1) { const m = (lo + hi) >> 1; if (ys[m] <= xd) lo = m; else hi = m; }
+                const t = (xd - ys[lo]) / Math.max(1e-6, ys[hi] - ys[lo]);
+                return xs[lo] + (xs[hi] - xs[lo]) * t;
+            };
+        }
+        /**
+         * 픽셀을 직접 옮겨 그린다 — 그려질 칸(가운데 xd+0.5, yd+0.5)마다 map 이 알려 준 원본 자리를
+         * 투명도를 곱한 값으로 선형 보간해 읽는다. 조각을 겹쳐 그리지 않으니 줄 · 격자무늬가 생기지 않고,
+         * 브라우저의 늘이기도 쓰지 않는다 (아이패드 줄무늬 원인).
+         */
+        function warpPixels(src, W, H, map) {
+            const sw = src.width, sh = src.height;
+            const sc = document.createElement('canvas'); sc.width = sw; sc.height = sh;
+            const sx = sc.getContext('2d', { willReadFrequently: true });
+            sx.drawImage(src, 0, 0);
+            const sd = sx.getImageData(0, 0, sw, sh).data;
+            const out = document.createElement('canvas'); out.width = W; out.height = H;
+            const ox = out.getContext('2d');
+            const im = ox.createImageData(W, H), d = im.data;
+            for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+                const q = map(x + 0.5, y + 0.5);
+                const fx = q[0] - 0.5, fy = q[1] - 0.5;
+                const x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0;
+                let r = 0, g2 = 0, b = 0, a = 0;
+                for (let k = 0; k < 4; k++) {
+                    const xx = x0 + (k & 1), yy = y0 + (k >> 1);
+                    if (xx < 0 || yy < 0 || xx >= sw || yy >= sh) continue;
+                    const wt = ((k & 1) ? tx : 1 - tx) * ((k >> 1) ? ty : 1 - ty);
+                    if (wt <= 0) continue;
+                    const i = (yy * sw + xx) * 4, al = sd[i + 3] * wt;
+                    r += sd[i] * al; g2 += sd[i + 1] * al; b += sd[i + 2] * al; a += al;
+                }
+                const o = (y * W + x) * 4;
+                if (a > 0) { d[o] = r / a; d[o + 1] = g2 / a; d[o + 2] = b / a; d[o + 3] = a; }
+            }
+            ox.putImageData(im, 0, 0);
+            return out;
+        }
         /**
          * 눈썹산을 옮긴 그림. 가로 방향으로만 늘이고 줄인다 — 산에서 가장 많이,
          * 앞머리·꼬리 쪽으로 갈수록 덜 움직여 양 끝은 제자리다.
@@ -473,16 +519,10 @@
             const d = (tailLeft ? -1 : 1) * shiftPct / 100 * w * ((info.x1 || 1) - (info.x0 || 0));
             const f = (x) => x + (x <= p ? d * Math.sin(Math.PI / 2 * (x / p))
                                          : d * Math.sin(Math.PI / 2 * ((w - x) / (w - p))));
-            const out = document.createElement('canvas'); out.width = w; out.height = h;
-            const g = out.getContext('2d');
-            const N = 48;
-            for (let i = 0; i < N; i++) {
-                const sx0 = w * i / N, sx1 = w * (i + 1) / N;
-                const dx0 = f(sx0), dx1 = f(sx1);
-                if (dx1 - dx0 < 0.5) continue;
-                // 이음새가 벌어지지 않게 반 픽셀씩 겹쳐 그린다
-                g.drawImage(src, sx0, 0, sx1 - sx0, h, dx0 - 0.5, 0, dx1 - dx0 + 1, h);
-            }
+            // 예전에는 48 조각으로 잘라 반 픽셀씩 겹쳐 그렸다 → 겹친 자리가 진해져 세로 줄 · 격자무늬 (2026-10-29).
+            // 이제 그려질 칸마다 원본의 어느 자리인지 거꾸로 찾아 픽셀을 직접 읽는다 (겹침 없음).
+            const inv = invertMonotone(f, w);
+            const out = warpPixels(src, w, h, (xd, yd) => [inv(xd), yd]);
             if (peakWarpCache.size > 12) peakWarpCache.clear();
             peakWarpCache.set(ck, out);
             return out;
