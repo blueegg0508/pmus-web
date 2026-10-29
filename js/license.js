@@ -711,10 +711,79 @@ export async function syncRevocations() {
         (data.revoked || []).forEach((x) => { if (x && x.lic) map[x.lic] = { reason: x.reason || "", at: x.at || "" }; });
         await Preferences.set({ key: KEY_REVOKED, value: JSON.stringify(map) });
         await Preferences.set({ key: KEY_LAST_CHECK, value: String(Date.now()) });
+        // 등록된 기기면 접속 네트워크 대역을 하루 한 번 남긴다 (기다리지 않는다)
+        const tok = (await Preferences.get({ key: KEY_TOKEN })).value;
+        if (tok) {
+            const dc = await getDeviceCode();
+            verifyToken(tok, dc).then((v) => { if (v.ok && v.payload.lic) pingLicense(v.payload, dc); }).catch(() => {});
+        }
         return true;
     } catch (e) {
         return false;
     }
+}
+
+/* -------------------------------------------------------------------
+ * 묶음 할인 키 (2026-10-30)
+ * 한 분이 여러 대를 할인받아 산 키에는 묶음 번호(grp)가 들어 있다.
+ * 등록할 때 카카오 로그인을 받아, 그 묶음에서 처음 등록한 카카오 계정만
+ * 같은 묶음의 다른 키를 등록할 수 있게 한다 (서버 claim_bundle — license/supabase-bundle.sql).
+ * 다른 매장이 빌려 쓰려면 구매자 카카오 계정을 통째로 넘겨받아야 한다.
+ * ------------------------------------------------------------------- */
+const KEY_PENDING = "pmus.pendingToken";    // 카카오 로그인에 다녀오는 동안 붙여 넣은 키를 맡아 둔다
+
+export function savePendingToken(t) { try { localStorage.setItem(KEY_PENDING, String(t || "").trim()); } catch (e) { /* 개인 모드 */ } }
+export function takePendingToken() {
+    try { const t = localStorage.getItem(KEY_PENDING); localStorage.removeItem(KEY_PENDING); return t || ""; } catch (e) { return ""; }
+}
+
+async function claimBundle(p, deviceCode) {
+    let s = null;
+    try { s = await trialSession(); } catch (e) {
+        return { ok: false, reason: "인터넷 연결이 필요합니다", detail: "묶음 구매 키는 등록할 때 인터넷에 연결되어 있어야 합니다" };
+    }
+    if (!s) {
+        return {
+            ok: false, needsKakao: true,
+            reason: "구매하신 원장님 카카오 계정으로 로그인해 주세요",
+            detail: "여러 대를 함께 구매하신 할인 키는 구매하신 분의 카카오 계정으로만 등록됩니다",
+        };
+    }
+    try {
+        const r = await fetch(SB_URL + "/rest/v1/rpc/claim_bundle", {
+            method: "POST",
+            headers: { apikey: SB_KEY, authorization: "Bearer " + s.access_token, "content-type": "application/json" },
+            body: JSON.stringify({ p_grp: p.grp, p_lic: p.lic, p_dev: deviceCode }),
+            cache: "no-store",
+        });
+        if (!r.ok) throw new Error("claim " + r.status);
+        const j = await r.json();
+        if (!j || !j.ok) {
+            return {
+                ok: false,
+                reason: "다른 카카오 계정으로 이미 등록된 묶음 키입니다",
+                detail: "여러 대 할인 키는 구매하신 원장님 한 분(같은 카카오 계정)만 쓸 수 있습니다. 구매처에 문의해 주세요.",
+            };
+        }
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, reason: "인터넷 연결이 필요합니다", detail: "묶음 구매 키는 등록할 때 인터넷에 연결되어 있어야 합니다" };
+    }
+}
+
+/** 라이선스 확인 때 하루 한 번, 접속 네트워크 대역을 서버에 남긴다 (묶음 점검 — 전체 IP · 위치는 남기지 않는다) */
+async function pingLicense(p, deviceCode) {
+    try {
+        const day = new Date().toISOString().slice(0, 10);
+        if (localStorage.getItem("pmus.pingDay") === day + p.lic) return;
+        const r = await fetch(SB_URL + "/rest/v1/rpc/license_ping", {
+            method: "POST",
+            headers: { apikey: SB_KEY, "content-type": "application/json" },
+            body: JSON.stringify({ p_lic: p.lic, p_dev: deviceCode, p_grp: p.grp || null }),
+            cache: "no-store",
+        });
+        if (r.ok) localStorage.setItem("pmus.pingDay", day + p.lic);
+    } catch (e) { /* 인터넷이 없으면 다음에 */ }
 }
 
 /** 토큰을 저장(활성화)합니다. 검증에 실패하면 저장하지 않습니다. */
@@ -730,6 +799,11 @@ export async function activate(token) {
     const now = Math.floor(Date.now() / 1000);
     if (res.payload.exp && now > res.payload.exp) {
         return { ok: false, reason: "이미 만료된 라이선스입니다", detail: `만료일 ${fmtDate(res.payload.exp)}` };
+    }
+
+    if (res.payload.grp) {
+        const c = await claimBundle(res.payload, deviceCode);
+        if (!c.ok) return c;
     }
 
     await Preferences.set({ key: KEY_TOKEN, value: String(token).trim().replace(/\s+/g, "") });

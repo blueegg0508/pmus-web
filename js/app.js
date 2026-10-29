@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=141";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=141";
-import * as License from "./license.js?v=141";
-import * as Custom from "./custom-designs.js?v=141";
-import * as Update from "./update.js?v=141";
-import * as Crm from "./crm-ui.js?v=141";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=142";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=142";
+import * as License from "./license.js?v=142";
+import * as Custom from "./custom-designs.js?v=142";
+import * as Update from "./update.js?v=142";
+import * as Crm from "./crm-ui.js?v=142";
 
-const BUILD = "141";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "142";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -303,6 +303,8 @@ async function mountSimulator(kind, cfg) {
     // CFG 는 아래에서 JSON 으로 굳어 iframe 안에 박히므로, 그 뒤에 넣으면
     // 시뮬레이터는 번호를 모른 채 뜨고 준비 완료 신호가 전부 걸러진다.
     cfg.mount_gen = ++mountGen;
+    // 저장 사진에 찍을 상호 (2026-10-30 — 묶음 할인 키를 다른 매장이 빌려 쓰지 못하게, 정상 구매자에게는 홍보)
+    cfg.owner_shop = ownerShopLabel();
 
     // 모바일 재배치 레이어는 캔버스 JS 가 전부 실행된 뒤에 붙여야
     // 기존 컨트롤의 이벤트 핸들러가 살아 있는 상태로 이동시킬 수 있다.
@@ -709,6 +711,16 @@ function bindSkins() {
     applySkin(currentSkin());
 }
 
+/** 저장 사진에 찍을 이름 — 정식 등록은 발급받은 상호, 그 밖에는 판 이름 */
+function ownerShopLabel() {
+    const l = state.lic;
+    if (!l || !l.active) return "";
+    if (l.staff) return "PMUS 시연용";
+    if (l.free) return "PMUS 교육용";
+    if (l.trial) return "PMUS 무료 체험";
+    return String((l.payload && l.payload.shop) || "").trim().slice(0, 40);
+}
+
 function hasFeature(f) {
     if (!(state.lic && state.lic.active)) return false;
     // 아이라인 · 헤어라인은 따로 팔지 않는다 — 지금 이용권(눈썹 · 입술)에 포함 (2026-10-18 결정)
@@ -968,7 +980,18 @@ function bindLicenseUI() {
         if (!token.trim()) return showLicError("등록 키를 입력해 주세요");
 
         const res = await License.activate(token);
-        if (!res.ok) return showLicError(res.reason, res.detail);
+        if (!res.ok) {
+            showLicError(res.reason, res.detail);
+            if (res.needsKakao) {
+                // 묶음 할인 키 — 구매자 카카오로 로그인하고 돌아오면 이 키로 바로 등록을 이어 간다
+                const b = document.createElement("button");
+                b.type = "button"; b.className = "btn kakao-btn"; b.style.marginTop = "10px";
+                b.textContent = "카카오로 로그인하고 등록하기";
+                b.addEventListener("click", () => { License.savePendingToken(token); location.href = License.kakaoLoginUrl(); });
+                $("lic-error").appendChild(b);
+            }
+            return;
+        }
 
         $("lic-error").hidden = true;
         $("lic-token").value = "";
@@ -2606,8 +2629,18 @@ function bindDiag() {
     });
     $("carry-go").addEventListener("click", startEditing);
     // 카카오 로그인에서 돌아왔으면 로그인 정보를 받아 서버에 체험 시작을 기록한다
-    if (License.takeLoginFromUrl()) await License.syncTrial();
+    let pendingRes = null;
+    if (License.takeLoginFromUrl()) {
+        // 묶음 할인 키를 등록하려고 카카오에 다녀온 경우 — 체험이 아니라 그 키 등록을 이어 간다
+        const pending = License.takePendingToken();
+        if (pending) pendingRes = await License.activate(pending);
+        else await License.syncTrial();
+    }
     await refreshLicense();
+    if (pendingRes) {
+        if (pendingRes.ok) toast(`등록 완료 — ${pendingRes.payload.shop}`);
+        else { showLicError(pendingRes.reason, pendingRes.detail); toast(pendingRes.reason, 4000); }
+    }
     if (!state.lic.active) {            // 등록 전에는 무거운 초기화를 하지 않는다
         hideSplash();
         return;

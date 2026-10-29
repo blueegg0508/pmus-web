@@ -2640,8 +2640,33 @@
             }
         }
 
+
+        /**
+         * 사진 오른쪽 아래에 이 앱을 산 상호를 찍는다 (2026-10-30).
+         * 할인받은 묶음 키를 다른 매장이 빌려 쓰면 그 매장 고객 사진에 남의 가게 이름이 찍힌다.
+         * 정상 구매자에게는 상담 사진이 곧 매장 홍보가 된다. 안내 띠를 잘라 내도 남도록 사진 안에 둔다.
+         */
+        function stampShop(c2, w, h) {
+            const shop = (window.CFG && CFG.owner_shop) || '';
+            if (!shop) return;
+            const t = '© ' + shop;
+            let fs = Math.max(13, Math.round(w * 0.026));
+            c2.save();
+            c2.font = '700 ' + fs + 'px Pretendard, "Malgun Gothic", sans-serif';
+            while (c2.measureText(t).width > w * 0.6 && fs > 10) { fs--; c2.font = '700 ' + fs + 'px Pretendard, "Malgun Gothic", sans-serif'; }
+            c2.textAlign = 'right';
+            c2.textBaseline = 'bottom';
+            const x = w - Math.round(fs * 0.8), y = h - Math.round(fs * 0.6);
+            c2.shadowColor = 'rgba(0,0,0,.55)';
+            c2.shadowBlur = Math.max(2, fs * 0.25);
+            c2.fillStyle = 'rgba(255,255,255,.82)';
+            c2.fillText(t, x, y);
+            c2.restore();
+        }
+
         function renderWatermark(ctx, width, startY, height) {
-            const line1 = '⚠️ [시술 상담 안내] 본 이미지는 디자인 상담을 위한 가상 시뮬레이션이며';
+            const shopTag = (window.CFG && CFG.owner_shop) ? CFG.owner_shop + ' · ' : '';
+            const line1 = '⚠️ [' + shopTag + '시술 상담 안내] 본 이미지는 디자인 상담을 위한 가상 시뮬레이션이며';
             const line2 = '실제 시술 후 모양, 색상 및 결과와 차이가 있을 수 있습니다.';
 
             ctx.fillStyle = '#181614';
@@ -2976,6 +3001,7 @@
             eCtx.fillStyle = '#181614';
             eCtx.fillRect(0, 0, w, h + footerH);
             eCtx.drawImage(canvas, 0, 0, w, h);
+            stampShop(eCtx, w, h);
             renderWatermark(eCtx, w, h, footerH);
 
             const fileName = getDownloadFilename('lip_preview');
