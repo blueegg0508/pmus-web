@@ -1507,7 +1507,7 @@
             var qHeal = el("button", "mui-qsym btn-heal-mode", "🩹 기존 눈썹 잔흔 지우기");
             qHeal.type = "button";
             qHeal.addEventListener("click", function () { $("btnHealMode").click(); });
-            qColorSlot.appendChild(qHeal);
+            quick.insertBefore(qHeal, qColorSlot.nextSibling);   // 색 칸(투명도 · 기존 눈썹 진하기) 바로 다음
         }
         borrow(rowOf("rngSpacing"), "↔️ 눈썹 간격 ");
         borrow(rowOf("rngWidth"), "↔️ 길이 ");

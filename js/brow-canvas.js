@@ -675,13 +675,59 @@
             const grain = sn ? Math.min(6, Math.sqrt(ss / sn)) : 0;
             let seed = 1234567;
             const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff - 0.5; };
+            /*
+             * 자국만 골라 지운다 (2026-10-29 원장님: "눈썹 언저리 밝기를 자동으로 추적해 자연스럽게").
+             * 문지른 자리를 통째로 칠하지 않는다. 바깥 피부에서 끌어온 '여기 피부는 이 밝기여야 한다'(Fc)
+             * 와 지금 사진의 부드러운 밝기(Dl)를 견주어,
+             *   · 피부보다 어두운 그늘(잔흔) → 그만큼만 밝힌다. 모공 · 잔결은 그대로 (비율로 곱한다)
+             *   · 둘레보다 확 어두운 가는 털 → 그 자리만 피부색으로 바꾼다
+             *   · 이미 피부 밝기인 곳 → 건드리지 않는다
+             * 이마 쪽은 밝고 눈두덩 쪽은 어두운 얼굴 명암은 바깥 피부에서 그대로 이어진다.
+             */
+            let rs = 0;
+            marks.forEach(function (m) { rs += m[2]; });
+            const rb = Math.max(2, Math.round(rs / marks.length * 0.35));
+            const Dl = new Float32Array(N * 3), tmp = new Float32Array(N * 3);
+            for (let y = 0; y < bh; y++) {           // 가로 상자 평균
+                for (let k = 0; k < 3; k++) {
+                    let acc = 0;
+                    for (let x = -rb; x <= rb; x++) acc += D[(y * bw + Math.max(0, Math.min(bw - 1, x))) * 4 + k];
+                    for (let x = 0; x < bw; x++) {
+                        tmp[(y * bw + x) * 3 + k] = acc / (2 * rb + 1);
+                        acc += D[(y * bw + Math.min(bw - 1, x + rb + 1)) * 4 + k] - D[(y * bw + Math.max(0, x - rb)) * 4 + k];
+                    }
+                }
+            }
+            for (let x = 0; x < bw; x++) {           // 세로 상자 평균
+                for (let k = 0; k < 3; k++) {
+                    let acc = 0;
+                    for (let y = -rb; y <= rb; y++) acc += tmp[(Math.max(0, Math.min(bh - 1, y)) * bw + x) * 3 + k];
+                    for (let y = 0; y < bh; y++) {
+                        Dl[(y * bw + x) * 3 + k] = acc / (2 * rb + 1);
+                        acc += tmp[(Math.min(bh - 1, y + rb + 1) * bw + x) * 3 + k] - tmp[(Math.max(0, y - rb) * bw + x) * 3 + k];
+                    }
+                }
+            }
+            const lum = (r, g2, b) => 0.299 * r + 0.587 * g2 + 0.114 * b;
+            const sm = (e0, e1, v) => { const t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
             for (let i = 0; i < N; i++) {
                 const a = A[i];
                 if (a <= 0) continue;
+                const o = i * 4, q = i * 3;
+                const fL = lum(Fc[o], Fc[o + 1], Fc[o + 2]);
+                const dL = lum(Dl[q], Dl[q + 1], Dl[q + 2]);
+                const pL = lum(D[o], D[o + 1], D[o + 2]);
+                // 1) 그늘: 피부여야 할 밝기보다 어두운 만큼만 비율로 밝힌다 (밝은 곳은 그대로)
+                const shade = sm(0.01, 0.06, (fL - dL) / Math.max(1, fL));
+                // 2) 가는 털: 둘레 평균보다 확 어두운 픽셀
+                const hair = sm(0.05, 0.16, (dL - pL) / Math.max(1, dL));
                 const nz = grain * rnd() * 1.4;
                 for (let k = 0; k < 3; k++) {
-                    const v = Fc[i * 4 + k] + nz;
-                    D[i * 4 + k] = Math.max(0, Math.min(255, D[i * 4 + k] * (1 - a) + v * a));
+                    const v = D[o + k];
+                    const ratio = Math.max(1, Math.min(1.8, Fc[o + k] / Math.max(1, Dl[q + k])));
+                    let t = v * (1 + (ratio - 1) * shade);                   // 결은 살리고 밝기만
+                    t = t * (1 - hair) + (Fc[o + k] + nz) * hair;            // 털 자리는 피부로
+                    D[o + k] = Math.max(0, Math.min(255, v * (1 - a) + t * a));
                 }
             }
             g.putImageData(im, x0, y0);
