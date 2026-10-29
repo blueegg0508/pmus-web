@@ -475,7 +475,7 @@
             }
         },
         {
-            key: "erase", icon: "🧽", label: "지우개", title: "디자인 부분 지우개",
+            key: "erase", icon: "🧽", label: "지우개", title: "잔흔 지우기 · 디자인 지우개",
             nodes: function () { return [$("eraseBlock")]; }
         },
         {
@@ -1502,6 +1502,13 @@
         // 색상 진하기(투명도)와 기존 눈썹 진하기는 고른 색 바로 아래에 붙인다.
         borrow(rowOf("rngOpacity"), null, qColorSlot);
         borrow(rowOf("rngNatBrow"), "🔅 기존 눈썹 진하기 ", qColorSlot);
+        // 🩹 잔흔 지우기 — 진하기를 낮춰도 남는 자국을 바로 문질러 지우게 (2026-10-29 원장님)
+        if ($("btnHealMode")) {
+            var qHeal = el("button", "mui-qsym btn-heal-mode", "🩹 기존 눈썹 잔흔 지우기");
+            qHeal.type = "button";
+            qHeal.addEventListener("click", function () { $("btnHealMode").click(); });
+            qColorSlot.appendChild(qHeal);
+        }
         borrow(rowOf("rngSpacing"), "↔️ 눈썹 간격 ");
         borrow(rowOf("rngWidth"), "↔️ 길이 ");
         borrow(rowOf("rngHeight"), "↕️ 두께 ");

@@ -262,6 +262,11 @@
         let eraseSize = 3;          // 1~5
         let isErasing = false;
         let eraseCursor = null;     // 지우는 동안 손가락 자리에 동그라미
+        /** 🩹 잔흔 지우기 (2026-10-29) — 사진(고객 원래 눈썹)의 남은 자국을 붓으로 문질러 주변 피부로 메운다.
+         *  [x, y, r] 는 사진 픽셀 자리. '시술 전' 화면은 원본 그대로다. */
+        let healMarks = [];
+        let healMode = false;
+        let healSize = 3;
 
         // 왼쪽·오른쪽 눈썹 따로 맞추기 — 타고난 비대칭 얼굴은 같은 값이면 오히려 어색하다.
         // 아래는 '함께' 값에 더하는 차이다. [왼쪽]/[오른쪽] 을 고른 채 조절바를 움직이면
@@ -378,10 +383,78 @@
             out._pad = pad;
             return out;
         }
-        /** 눈썹 하나를 (여백 포함해) 그린다 */
+        /**
+         * 눈썹 그림을 화면에 그려질 크기로 직접 바꾼다 (2026-10-29 아이패드 세로 줄무늬).
+         * 아이패드(iPadOS 26) 브라우저는 투명한 그림을 늘리거나 줄여 그리면 세로 1자 줄무늬를 만든다.
+         * 그래서 브라우저에 크기 바꾸기를 맡기지 않고, 그려질 픽셀 크기 그대로 미리 만들어 1:1 로 그린다.
+         * (줄이기: 면적 평균 / 키우기: 선형. 투명도를 곱해 섞어 가장자리에 검은 테가 없다)
+         */
+        const fitCache = new WeakMap();
+        function fitBrow(img, W, H) {
+            const sw = img.naturalWidth || img.width, sh = img.naturalHeight || img.height;
+            W = Math.max(1, Math.round(W)); H = Math.max(1, Math.round(H));
+            if (!sw || !sh || (W === sw && H === sh) || W > 4096 || H > 4096) return img;
+            let per = fitCache.get(img);
+            if (per && per.k === W + 'x' + H) return per.c;
+            try {
+                const sc = document.createElement('canvas'); sc.width = sw; sc.height = sh;
+                const sx = sc.getContext('2d', { willReadFrequently: true });
+                sx.drawImage(img, 0, 0);
+                const sd = sx.getImageData(0, 0, sw, sh).data;
+                const plan = (n, m) => {
+                    const out = [], k = n / m;
+                    for (let i = 0; i < m; i++) {
+                        if (m > n) {
+                            const x = Math.max(0, Math.min(n - 1, (i + 0.5) * k - 0.5)), j = Math.floor(x), f = x - j;
+                            out.push(j + 1 < n && f > 1e-6 ? [j, 1 - f, j + 1, f] : [j, 1]);
+                        } else {
+                            const a = i * k, b = Math.min(n, (i + 1) * k), parts = [];
+                            for (let j = Math.floor(a); j < Math.ceil(b); j++) {
+                                const wt = Math.min(b, j + 1) - Math.max(a, j);
+                                if (wt > 1e-6) parts.push(j, wt / (b - a));
+                            }
+                            out.push(parts);
+                        }
+                    }
+                    return out;
+                };
+                const px = plan(sw, W), py = plan(sh, H);
+                const mid = new Float32Array(W * sh * 4);
+                for (let y = 0; y < sh; y++) for (let x = 0; x < W; x++) {
+                    const p = px[x]; let r = 0, g2 = 0, b = 0, al = 0;
+                    for (let t = 0; t < p.length; t += 2) {
+                        const i = (y * sw + p[t]) * 4, a = sd[i + 3] * p[t + 1];
+                        r += sd[i] * a; g2 += sd[i + 1] * a; b += sd[i + 2] * a; al += a;
+                    }
+                    const o = (y * W + x) * 4; mid[o] = r; mid[o + 1] = g2; mid[o + 2] = b; mid[o + 3] = al;
+                }
+                const oc = (per && per.c) || document.createElement('canvas');
+                oc.width = W; oc.height = H;
+                const ox = oc.getContext('2d');
+                const out = ox.createImageData(W, H), d = out.data;
+                for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+                    const p = py[y]; let r = 0, g2 = 0, b = 0, al = 0;
+                    for (let t = 0; t < p.length; t += 2) {
+                        const i = (p[t] * W + x) * 4, wt = p[t + 1];
+                        r += mid[i] * wt; g2 += mid[i + 1] * wt; b += mid[i + 2] * wt; al += mid[i + 3] * wt;
+                    }
+                    const o = (y * W + x) * 4;
+                    if (al > 0) { d[o] = r / al; d[o + 1] = g2 / al; d[o + 2] = b / al; }
+                    d[o + 3] = al;
+                }
+                ox.putImageData(out, 0, 0);
+                fitCache.set(img, { k: W + 'x' + H, c: oc });
+                return oc;
+            } catch (e) {
+                return img;   // 픽셀을 못 읽는 기기 — 예전처럼 브라우저가 그린다
+            }
+        }
+        /** 눈썹 하나를 (여백 포함해) 그린다 — 화면 픽셀 크기 그대로 미리 맞춘 그림을 1:1 로 */
         function drawBrowImg(c2, img, g) {
             const ph = img._pad ? g.h * img._pad / (img.height - img._pad * 2) : 0;
-            c2.drawImage(img, -g.w / 2.0, -g.h / 2.0 - ph, g.w, g.h + ph * 2);
+            const z = curImgZoom / 100.0;
+            const fit = fitBrow(img, g.w * z, (g.h + ph * 2) * z);
+            c2.drawImage(fit, -g.w / 2.0, -g.h / 2.0 - ph, g.w, g.h + ph * 2);
         }
         const peakWarpCache = new Map();
         /**
@@ -505,7 +578,113 @@
                 }
             }
             bCtx.restore();
+            if (healMarks.length) {
+                try { healRegion(bCtx, w, h, healMarks); } catch (e) { console.warn('잔흔 지우기 실패', e); }
+            }
             bgFilterDirty = false;
+        }
+
+        /**
+         * 🩹 잔흔 지우기 — 포토샵 스팟 복구 브러시처럼.
+         * 문지른 자리를 바깥 피부에서 안쪽으로 채워 넣고(밀고-당기기 채움),
+         * 둘레 피부의 잔결만큼 고운 결을 다시 얹어 매끈한 '스티커' 처럼 보이지 않게 한다.
+         * 붓 가장자리는 부드럽게 섞는다.
+         */
+        function healRegion(g, W, H, marks) {
+            let x0 = W, y0 = H, x1 = 0, y1 = 0;
+            marks.forEach(function (m) {
+                x0 = Math.min(x0, m[0] - m[2]); y0 = Math.min(y0, m[1] - m[2]);
+                x1 = Math.max(x1, m[0] + m[2]); y1 = Math.max(y1, m[1] + m[2]);
+            });
+            const mg = 12;
+            x0 = Math.max(0, Math.floor(x0 - mg)); y0 = Math.max(0, Math.floor(y0 - mg));
+            x1 = Math.min(W, Math.ceil(x1 + mg)); y1 = Math.min(H, Math.ceil(y1 + mg));
+            const bw = x1 - x0, bh = y1 - y0;
+            if (bw < 2 || bh < 2) return;
+            const im = g.getImageData(x0, y0, bw, bh), D = im.data, N = bw * bh;
+            // 붓 자국 (0~1, 가운데 60% 는 완전히, 바깥으로 갈수록 옅게)
+            const A = new Float32Array(N);
+            marks.forEach(function (m) {
+                const cx = m[0] - x0, cy = m[1] - y0, r = m[2];
+                const ya = Math.max(0, Math.floor(cy - r)), yb = Math.min(bh - 1, Math.ceil(cy + r));
+                const xa = Math.max(0, Math.floor(cx - r)), xb = Math.min(bw - 1, Math.ceil(cx + r));
+                for (let y = ya; y <= yb; y++) for (let x = xa; x <= xb; x++) {
+                    const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+                    if (d >= r) continue;
+                    const a = d < r * 0.6 ? 1 : (r - d) / (r * 0.4);
+                    const i = y * bw + x;
+                    if (a > A[i]) A[i] = a;
+                }
+            });
+            // 밀고-당기기 채움: 붓이 안 닿은 피부만 재료로 (색 × 비중을 더해 내려가며 모은다)
+            const lv = [];
+            let cw = bw, ch = bh;
+            const C0 = new Float32Array(N * 4);
+            for (let i = 0; i < N; i++) {
+                const k = A[i] > 0.001 ? 0 : 1;
+                C0[i * 4] = D[i * 4] * k; C0[i * 4 + 1] = D[i * 4 + 1] * k; C0[i * 4 + 2] = D[i * 4 + 2] * k; C0[i * 4 + 3] = k;
+            }
+            lv.push({ c: C0, w: cw, h: ch });
+            while (cw > 1 || ch > 1) {
+                const nw = Math.max(1, Math.ceil(cw / 2)), nh = Math.max(1, Math.ceil(ch / 2));
+                const P = lv[lv.length - 1].c, Q = new Float32Array(nw * nh * 4);
+                for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+                    const i = (y * cw + x) * 4, o = ((y >> 1) * nw + (x >> 1)) * 4;
+                    Q[o] += P[i]; Q[o + 1] += P[i + 1]; Q[o + 2] += P[i + 2]; Q[o + 3] += P[i + 3];
+                }
+                lv.push({ c: Q, w: nw, h: nh });
+                cw = nw; ch = nh;
+            }
+            // 가장 거친 단계는 평균 색으로
+            {
+                const T = lv[lv.length - 1];
+                for (let i = 0; i < T.w * T.h; i++) {
+                    const wt = T.c[i * 4 + 3];
+                    if (wt > 0) { for (let k = 0; k < 3; k++) T.c[i * 4 + k] /= wt; }
+                    T.c[i * 4 + 3] = 1;
+                }
+            }
+            // 거친 단계에서 고운 단계로: 재료가 모자란 칸일수록 위(거친) 단계 색을 많이 쓴다
+            for (let L = lv.length - 2; L >= 0; L--) {
+                const F = lv[L], U = lv[L + 1];
+                for (let y = 0; y < F.h; y++) for (let x = 0; x < F.w; x++) {
+                    const i = (y * F.w + x) * 4, wt = F.c[i + 3];
+                    const own = wt > 0 ? 1 / wt : 0, t = Math.min(1, wt);
+                    // 위 단계에서 이 칸 가운데 자리를 선형으로 읽는다 (그대로 읽으면 네모 덩어리가 보인다)
+                    const ux = Math.max(0, Math.min(U.w - 1, (x + 0.5) / 2 - 0.5)), uy = Math.max(0, Math.min(U.h - 1, (y + 0.5) / 2 - 0.5));
+                    const xa = Math.floor(ux), ya = Math.floor(uy), xb = Math.min(U.w - 1, xa + 1), yb = Math.min(U.h - 1, ya + 1);
+                    const fx = ux - xa, fy = uy - ya;
+                    const o00 = (ya * U.w + xa) * 4, o10 = (ya * U.w + xb) * 4, o01 = (yb * U.w + xa) * 4, o11 = (yb * U.w + xb) * 4;
+                    for (let k = 0; k < 3; k++) {
+                        const up = (U.c[o00 + k] * (1 - fx) + U.c[o10 + k] * fx) * (1 - fy) + (U.c[o01 + k] * (1 - fx) + U.c[o11 + k] * fx) * fy;
+                        F.c[i + k] = F.c[i + k] * own * t + up * (1 - t);
+                    }
+                    F.c[i + 3] = 1;
+                }
+            }
+            const Fc = lv[0].c;
+            // 둘레 피부의 잔결 세기 (3×3 평균과의 차이)
+            let ss = 0, sn = 0;
+            for (let y = 1; y < bh - 1; y++) for (let x = 1; x < bw - 1; x++) {
+                const i = y * bw + x;
+                if (A[i] > 0) continue;
+                let m = 0;
+                for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) m += D[(i + dy * bw + dx) * 4 + 1];
+                const dv = D[i * 4 + 1] - m / 9; ss += dv * dv; sn++;
+            }
+            const grain = sn ? Math.min(6, Math.sqrt(ss / sn)) : 0;
+            let seed = 1234567;
+            const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff - 0.5; };
+            for (let i = 0; i < N; i++) {
+                const a = A[i];
+                if (a <= 0) continue;
+                const nz = grain * rnd() * 1.4;
+                for (let k = 0; k < 3; k++) {
+                    const v = Fc[i * 4 + k] + nz;
+                    D[i * 4 + k] = Math.max(0, Math.min(255, D[i * 4 + k] * (1 - a) + v * a));
+                }
+            }
+            g.putImageData(im, x0, y0);
         }
 
         // 사진마다 한 번만 만든다 (맨얼굴·이어 그린 밑그림 각각). 조절바를 끌 때는
@@ -569,7 +748,9 @@
                 curPeak: curPeak,
                 curHead: curHead,
                 curTail: curTail,
-                eraseMarks: eraseMarks,
+                // 붓질은 같은 배열에 점을 더해 가므로 꼭 복사해 둔다 (아니면 '이전 상태' 도 같이 바뀌어 되돌리기가 안 된다)
+                eraseMarks: { left: eraseMarks.left.slice(), right: eraseMarks.right.slice() },
+                healMarks: healMarks.slice(),
                 sideAdj: JSON.parse(JSON.stringify(sideAdj)),
                 curHex: curHex,
                 curBright: curBright,
@@ -656,6 +837,7 @@
                 curHead = (st.curHead !== undefined) ? st.curHead : 100;
                 curTail = st.curTail || 0;
                 eraseMarks = st.eraseMarks ? JSON.parse(JSON.stringify(st.eraseMarks)) : { left: [], right: [] };
+                healMarks = st.healMarks ? JSON.parse(JSON.stringify(st.healMarks)) : [];
                 sideAdj = st.sideAdj ? JSON.parse(JSON.stringify(st.sideAdj)) : { left: zeroSide(), right: zeroSide() };
                 curHex = st.curHex;
                 curBright = st.curBright;
@@ -724,8 +906,31 @@
             }
             const c = document.getElementById('btnEraseClear');
             if (c) c.disabled = !(eraseMarks.left.length || eraseMarks.right.length);
-            canvas.classList.toggle('erase-on', eraseMode);
+            document.querySelectorAll('.btn-heal-mode').forEach(function (hb) {
+                hb.classList.toggle('is-on', healMode);
+                hb.textContent = healMode ? '🩹 잔흔 지우기 켜짐 (누르면 끄기)' : '🩹 기존 눈썹 잔흔 지우기';
+            });
+            const hc = document.getElementById('btnHealClear');
+            if (hc) hc.disabled = !healMarks.length;
+            canvas.classList.toggle('erase-on', eraseMode || healMode);
         }
+
+        /** 잔흔 지우기: 화면 자리(캔버스 좌표) → 사진 픽셀 자리에 붓 자국을 더한다 */
+        const HEAL_R = [0, 0.006, 0.010, 0.015, 0.022, 0.032];
+        function healAt(x, y) {
+            const w = bgImg.naturalWidth || bgImg.width || canvas.width;
+            const k = w / canvas.width;
+            const r = (HEAL_R[healSize] || 0.015) * w;
+            const px = x * k, py = y * k;
+            const last = healMarks[healMarks.length - 1];
+            if (!last || Math.hypot(last[0] - px, last[1] - py) > r / 3) {
+                healMarks.push([Math.round(px * 10) / 10, Math.round(py * 10) / 10, Math.round(r * 10) / 10]);
+                invalidateBgFilter();
+            }
+            eraseCursor = { x: x, y: y, r: r / k };
+            requestDraw();
+        }
+        function brushAt(x, y) { if (healMode) healAt(x, y); else eraseAt(x, y); }
 
         /** 지우개: 화면 자리(사진 좌표) → 그 눈썹 상자 안 비율 자리에 지운 점을 더한다 */
         function eraseAt(x, y) {
@@ -1815,9 +2020,32 @@
             });
 
             // 🧽 디자인 지우개
+            const btnHeal = document.getElementById('btnHealMode');
+            if (btnHeal) btnHeal.onclick = function () {
+                healMode = !healMode;
+                if (healMode) eraseMode = false;
+                updateEraseUi();
+                showToast(healMode ? '🩹 잔흔 지우기 켜짐 — 남은 자국을 문지르면 주변 피부로 메워집니다' : '✋ 잔흔 지우기 꺼짐');
+            };
+            const rngHeal = document.getElementById('rngHealSize');
+            if (rngHeal) rngHeal.oninput = function () {
+                healSize = parseFloat(this.value);
+                document.getElementById('valHealSize').innerText = ['', '아주 작게', '작게', '보통', '크게', '아주 크게'][healSize] || healSize;
+            };
+            const btnHealClear = document.getElementById('btnHealClear');
+            if (btnHealClear) btnHealClear.onclick = function () {
+                if (!healMarks.length) return;
+                recordHistory();
+                healMarks = [];
+                invalidateBgFilter();
+                updateEraseUi();
+                requestDraw();
+                showToast('↺ 잔흔 지운 곳을 모두 원래대로 되돌렸습니다.');
+            };
             const btnErase = document.getElementById('btnEraseMode');
             if (btnErase) btnErase.onclick = function () {
                 eraseMode = !eraseMode;
+                if (eraseMode) healMode = false;
                 updateEraseUi();
                 showToast(eraseMode ? '🧽 지우개 켜짐 — 디자인을 문지르면 지워집니다 (두 손가락은 확대)' : '✋ 지우개 꺼짐 — 다시 눈썹을 끌어 옮길 수 있습니다');
             };
@@ -1903,7 +2131,7 @@
                 curScale = 100; curWidth = 100; curHeight = 100;
                 curRot = 0; curSpacing = 0; curVert = 0; curOpacity = 85; curNatBrow = 100;
                 curRound = 0; curLRot = 0; curRRot = 0; curPeak = 0;
-                curHead = 100; curTail = 0; eraseMarks = { left: [], right: [] };
+                curHead = 100; curTail = 0; eraseMarks = { left: [], right: [] }; healMarks = [];
                 sideAdj = { left: zeroSide(), right: zeroSide() };
 
                 curBright = 100; curContrast = 100; curSaturate = 100;
@@ -2739,9 +2967,9 @@
                     return;
                 }
 
-                if (eraseMode) {
+                if (eraseMode || healMode) {
                     isErasing = true;
-                    eraseAt(pos.x, pos.y);
+                    brushAt(pos.x, pos.y);
                     return;
                 }
                 // 🖱️ 좌클릭: 눈썹 위치 이동
@@ -2768,7 +2996,7 @@
         window.addEventListener('mousemove', function(e) {
             if (isErasing) {
                 const pos = getMousePos(e);
-                eraseAt(pos.x, pos.y);
+                brushAt(pos.x, pos.y);
                 return;
             }
             if (isPanningPhoto) {
@@ -2984,12 +3212,12 @@
         canvas.addEventListener('touchstart', function(e) {
             if (!interactionInitialState) interactionInitialState = captureStateSnapshot();
 
-            if (e.touches.length === 1 && eraseMode) {
+            if (e.touches.length === 1 && (eraseMode || healMode)) {
                 isPinching = false;
                 isDragging = false;
                 isErasing = true;
                 const q = toImgPt(e.touches[0]);
-                eraseAt(q.x, q.y);
+                brushAt(q.x, q.y);
                 if (e.cancelable) e.preventDefault();
             } else if (e.touches.length === 1) {
                 isPinching = false;
@@ -3030,7 +3258,7 @@
             if (isErasing && e.touches.length === 1) {
                 if (e.cancelable) e.preventDefault();
                 const q = toImgPt(e.touches[0]);
-                eraseAt(q.x, q.y);
+                brushAt(q.x, q.y);
                 return;
             }
             if (isPinching && e.touches.length === 2) {
@@ -3133,7 +3361,7 @@
             } else if (e.touches.length === 1) {
                 isPinching = false;
                 pinchMode = null;
-                if (eraseMode) return;   // 지우개 중엔 남은 한 손가락으로 눈썹을 옮기지 않는다
+                if (eraseMode || healMode) return;   // 지우개 중엔 남은 한 손가락으로 눈썹을 옮기지 않는다
                 const touch = e.touches[0];
                 const rect = canvas.getBoundingClientRect();
                 const rawX = (touch.clientX - rect.left) * (canvas.width / rect.width);

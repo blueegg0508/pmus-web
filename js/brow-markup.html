@@ -164,6 +164,15 @@
 
                 <!-- 🧽 디자인 지우개 (2026-10-27) -->
                 <div class="erase-block" id="eraseBlock">
+                    <div class="erase-head">🩹 기존 눈썹 잔흔 지우기 (사진)</div>
+                    <button type="button" class="btn-erase-mode btn-heal-mode" id="btnHealMode">🩹 기존 눈썹 잔흔 지우기 켜기</button>
+                    <div class="ctrl-row">
+                        <label>붓 크기 <span id="valHealSize">보통</span></label>
+                        <input type="range" id="rngHealSize" min="1" max="5" value="3" step="1">
+                    </div>
+                    <button type="button" class="btn-erase-clear" id="btnHealClear" disabled>↺ 잔흔 지운 곳 모두 원래대로</button>
+                    <p class="erase-note">기존 눈썹 진하기를 낮춰도 남는 자국을 손가락으로 문지르면 주변 피부로 자연스럽게 메워집니다 (포토샵 스팟 복구 브러시처럼). ‘시술 전’ 사진은 그대로입니다.</p>
+                    <div class="erase-head">🧽 디자인 지우개</div>
                     <button type="button" class="btn-erase-mode" id="btnEraseMode">🧽 디자인 지우개 켜기</button>
                     <div class="ctrl-row">
                         <label>지우개 크기 <span id="valEraseSize">보통</span></label>

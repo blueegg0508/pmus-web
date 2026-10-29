@@ -1254,3 +1254,7 @@ html.mui-on.mui-land .mui-hint { left: calc((100% - var(--panel-w)) / 2); }
 .erase-note, .rot-note { margin: 0; font-size: 11.5px; line-height: 1.5; color: #A79DC0; }
 .rot-note { margin-top: 8px; }
 canvas.erase-on { cursor: crosshair !important; }
+.erase-head { margin-top: 6px; font-size: 13px; font-weight: 800; color: var(--accent-2, #e8c65a); }
+.erase-block .erase-head:first-child { margin-top: 0; }
+.mui-qsym.btn-heal-mode { margin: 8px 0 12px; }
+.mui-qsym.is-on { background: var(--accent-2, #e8c65a); color: #1a1422; border-color: transparent; }

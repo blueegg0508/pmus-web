@@ -174,7 +174,9 @@ export function sharpenAlpha(src, amount = 0.55) {
 export function resizeTo(src, w, h) {
     w = Math.max(1, Math.round(w) || 1);
     h = Math.max(1, Math.round(h) || 1);
-    if (w < src.width || h < src.height) {
+    // 키울 때도 직접 한다 (2026-10-29): 얼굴을 가까이 찍은 사진은 눈썹 그림을 키우게 되는데,
+    // 아이패드는 키울 때도 투명 그림에 세로 줄무늬를 만들었다.
+    if (w !== src.width || h !== src.height) {
         try { return resampleArea(src, w, h); }
         catch (e) { console.warn("직접 줄이기 실패 — 브라우저 축소로 대신합니다", e); }
     }
@@ -192,9 +194,18 @@ export function resampleArea(src, w, h) {
     const sd = sx.getImageData(0, 0, sw, sh).data;
     releaseCanvas(sc);
 
-    // 한 줄을 n → m 칸으로 줄일 때 각 칸이 덮는 원본 범위와 비중
+    // 한 줄을 n → m 칸으로 바꿀 때 각 칸이 쓰는 원본 칸과 비중
+    // 줄이기: 덮는 범위의 면적 평균 / 키우기: 이웃 두 칸 사이를 선형으로
     function plan(n, m) {
         const out = [], k = n / m;
+        if (m > n) {
+            for (let i = 0; i < m; i++) {
+                const x = Math.max(0, Math.min(n - 1, (i + 0.5) * k - 0.5));
+                const j = Math.floor(x), f = x - j;
+                out.push(j + 1 < n && f > 1e-6 ? [j, 1 - f, j + 1, f] : [j, 1]);
+            }
+            return out;
+        }
         for (let i = 0; i < m; i++) {
             const a = i * k, b = Math.min(n, (i + 1) * k);
             const parts = [];
@@ -206,7 +217,7 @@ export function resampleArea(src, w, h) {
         }
         return out;
     }
-    const px = w < sw ? plan(sw, w) : null, py = h < sh ? plan(sh, h) : null;
+    const px = w !== sw ? plan(sw, w) : null, py = h !== sh ? plan(sh, h) : null;
     const tw = px ? w : sw;
 
     // 1) 가로 (투명도를 곱한 값으로)
