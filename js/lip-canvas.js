@@ -263,6 +263,9 @@
         let currentTech = CFG.default_tech;
         let density = 100;
         let opacity = 85;
+        /** 🔅 기존 입술 진하기 (2026-10-30 현장 피드백) — 100 = 사진 그대로, 낮추면 원래 입술 자리를 피부톤으로 덮는다.
+         *  틴트를 반투명으로 올리면 원래 입술색이 비쳐, 볼륨으로 넓힌 자리(피부 위)와 색이 달라 보였다. */
+        let natLip = 100;
         let gloss = 0;
         let blurVal = 3.5;
 
@@ -1130,6 +1133,142 @@
             return warpCache.canvas ? warpCache : null;
         }
 
+        /**
+         * 원래 입술 자리를 둘레 피부로 메운 조각 (투명도 = 메운 정도).
+         * 덮는 자리 = 인식한 원래 입술 ∪ 지금 디자인 입술(볼륨으로 넓힌 자리) — 입 다문 선(안쪽 입술선)은 남긴다.
+         * 피부색은 바깥 피부에서 끌어오고(밀고-당기기), 입술 주름 · 결은 비율로 남겨 매끈한 스티커처럼 보이지 않게 한다.
+         */
+        let natLipCache = { key: '', piece: null };
+        function natLipPiece(w, h, curves, patch, src) {
+            const up = curves.closedUpperLoop || [], lo = curves.closedLowerLoop || [];
+            const outer = (upperRawPts || []).concat((lowerRawPts || []).slice().reverse());
+            const all = outer.concat(up, lo);
+            if (all.length < 6) return null;
+            let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+            all.forEach(function (q) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1]; });
+            const lw = Math.max(20, x1 - x0), pad = Math.round(lw * 0.18);
+            x0 = Math.max(0, Math.floor(x0 - pad)); y0 = Math.max(0, Math.floor(y0 - pad));
+            x1 = Math.min(w, Math.ceil(x1 + pad)); y1 = Math.min(h, Math.ceil(y1 + pad));
+            const bw = x1 - x0, bh = y1 - y0;
+            if (bw < 8 || bh < 8) return null;
+            const sig = (pts) => pts.length ? [pts[0], pts[pts.length >> 1], pts[pts.length - 1]].map(q => Math.round(q[0]) + ',' + Math.round(q[1])).join(';') : '';
+            const key = [x0, y0, bw, bh, sig(up), sig(lo), patch ? warpCache.key : '', src && (src.src || '').length].join('|');
+            if (natLipCache.key === key) return natLipCache.piece;
+
+            // 1) 바탕: 지금 그리는 사진(+부풀린 조각) 그대로
+            const pc = document.createElement('canvas'); pc.width = bw; pc.height = bh;
+            const px = pc.getContext('2d', { willReadFrequently: true });
+            px.translate(-x0, -y0);
+            if (src) px.drawImage(src, 0, 0, w, h);
+            if (patch && patch.canvas) px.drawImage(patch.canvas, patch.x, patch.y);
+            px.setTransform(1, 0, 0, 1, 0, 0);
+            const im = px.getImageData(0, 0, bw, bh), D = im.data, N = bw * bh;
+
+            // 2) 덮을 자리 (원래 입술 ∪ 디자인 입술, 테두리 조금 넓혀서) — 안쪽 입술선은 뺀다
+            const mc = document.createElement('canvas'); mc.width = bw; mc.height = bh;
+            const mx = mc.getContext('2d', { willReadFrequently: true });
+            mx.translate(-x0, -y0);
+            mx.fillStyle = '#fff'; mx.strokeStyle = '#fff'; mx.lineJoin = 'round';
+            mx.lineWidth = Math.max(2, lw * 0.035);
+            [outer, up, lo].forEach(function (poly) {
+                if (poly.length < 3) return;
+                mx.beginPath(); mx.moveTo(poly[0][0], poly[0][1]);
+                for (let i = 1; i < poly.length; i++) mx.lineTo(poly[i][0], poly[i][1]);
+                mx.closePath(); mx.fill(); mx.stroke();
+            });
+            const ui = upperInnerRawPts || [], li = lowerInnerRawPts || [];
+            if (ui.length > 2 && li.length > 2) {
+                mx.globalCompositeOperation = 'destination-out';
+                const inner = ui.concat(li.slice().reverse());
+                mx.beginPath(); mx.moveTo(inner[0][0], inner[0][1]);
+                for (let i = 1; i < inner.length; i++) mx.lineTo(inner[i][0], inner[i][1]);
+                mx.closePath(); mx.fill();
+                mx.globalCompositeOperation = 'source-over';
+            }
+            const md = mx.getImageData(0, 0, bw, bh).data;
+            // 가장자리를 부드럽게 (상자 평균 두 번)
+            let A = new Float32Array(N);
+            for (let i = 0; i < N; i++) A[i] = md[i * 4 + 3] / 255;
+            const fr = Math.max(1, Math.round(lw * 0.02));
+            const boxA = (src2) => {
+                const t = new Float32Array(N), o = new Float32Array(N);
+                for (let y = 0; y < bh; y++) { let a = 0; for (let x = -fr; x <= fr; x++) a += src2[y * bw + Math.max(0, Math.min(bw - 1, x))];
+                    for (let x = 0; x < bw; x++) { t[y * bw + x] = a / (2 * fr + 1); a += src2[y * bw + Math.min(bw - 1, x + fr + 1)] - src2[y * bw + Math.max(0, x - fr)]; } }
+                for (let x = 0; x < bw; x++) { let a = 0; for (let y = -fr; y <= fr; y++) a += t[Math.max(0, Math.min(bh - 1, y)) * bw + x];
+                    for (let y = 0; y < bh; y++) { o[y * bw + x] = a / (2 * fr + 1); a += t[Math.min(bh - 1, y + fr + 1) * bw + x] - t[Math.max(0, y - fr) * bw + x]; } }
+                return o;
+            };
+            A = boxA(boxA(A));
+
+            // 3) 바깥 피부에서 안쪽으로 채운다 (밀고-당기기)
+            const lv = [];
+            let cw = bw, ch = bh;
+            const C0 = new Float32Array(N * 4);
+            for (let i = 0; i < N; i++) {
+                const k = A[i] > 0.02 ? 0 : 1;
+                C0[i * 4] = D[i * 4] * k; C0[i * 4 + 1] = D[i * 4 + 1] * k; C0[i * 4 + 2] = D[i * 4 + 2] * k; C0[i * 4 + 3] = k;
+            }
+            lv.push({ c: C0, w: cw, h: ch });
+            while (cw > 1 || ch > 1) {
+                const nw = Math.max(1, Math.ceil(cw / 2)), nh = Math.max(1, Math.ceil(ch / 2));
+                const P = lv[lv.length - 1].c, Q = new Float32Array(nw * nh * 4);
+                for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+                    const i = (y * cw + x) * 4, o = ((y >> 1) * nw + (x >> 1)) * 4;
+                    Q[o] += P[i]; Q[o + 1] += P[i + 1]; Q[o + 2] += P[i + 2]; Q[o + 3] += P[i + 3];
+                }
+                lv.push({ c: Q, w: nw, h: nh });
+                cw = nw; ch = nh;
+            }
+            { const T = lv[lv.length - 1];
+              for (let i = 0; i < T.w * T.h; i++) { const wt = T.c[i * 4 + 3]; if (wt > 0) for (let k = 0; k < 3; k++) T.c[i * 4 + k] /= wt; T.c[i * 4 + 3] = 1; } }
+            for (let L = lv.length - 2; L >= 0; L--) {
+                const F = lv[L], U = lv[L + 1];
+                for (let y = 0; y < F.h; y++) for (let x = 0; x < F.w; x++) {
+                    const i = (y * F.w + x) * 4, wt = F.c[i + 3];
+                    const own = wt > 0 ? 1 / wt : 0, t = Math.min(1, wt);
+                    const ux = Math.max(0, Math.min(U.w - 1, (x + 0.5) / 2 - 0.5)), uy = Math.max(0, Math.min(U.h - 1, (y + 0.5) / 2 - 0.5));
+                    const xa = Math.floor(ux), ya = Math.floor(uy), xb = Math.min(U.w - 1, xa + 1), yb = Math.min(U.h - 1, ya + 1);
+                    const fx = ux - xa, fy = uy - ya;
+                    const o00 = (ya * U.w + xa) * 4, o10 = (ya * U.w + xb) * 4, o01 = (yb * U.w + xa) * 4, o11 = (yb * U.w + xb) * 4;
+                    for (let k = 0; k < 3; k++) {
+                        const upv = (U.c[o00 + k] * (1 - fx) + U.c[o10 + k] * fx) * (1 - fy) + (U.c[o01 + k] * (1 - fx) + U.c[o11 + k] * fx) * fy;
+                        F.c[i + k] = F.c[i + k] * own * t + upv * (1 - t);
+                    }
+                    F.c[i + 3] = 1;
+                }
+            }
+            const Fc = lv[0].c;
+
+            // 4) 입술 결은 남긴다 — 부드러운 밝기(Dl) 대비 피부(Fc) 비율로 곱해 색 · 밝기만 피부로
+            const rb = Math.max(2, Math.round((y1 - y0) * 0.08));
+            const Dl = new Float32Array(N * 3), tmp = new Float32Array(N * 3);
+            for (let y = 0; y < bh; y++) for (let k = 0; k < 3; k++) {
+                let acc = 0;
+                for (let x = -rb; x <= rb; x++) acc += D[(y * bw + Math.max(0, Math.min(bw - 1, x))) * 4 + k];
+                for (let x = 0; x < bw; x++) { tmp[(y * bw + x) * 3 + k] = acc / (2 * rb + 1);
+                    acc += D[(y * bw + Math.min(bw - 1, x + rb + 1)) * 4 + k] - D[(y * bw + Math.max(0, x - rb)) * 4 + k]; }
+            }
+            for (let x = 0; x < bw; x++) for (let k = 0; k < 3; k++) {
+                let acc = 0;
+                for (let y = -rb; y <= rb; y++) acc += tmp[(Math.max(0, Math.min(bh - 1, y)) * bw + x) * 3 + k];
+                for (let y = 0; y < bh; y++) { Dl[(y * bw + x) * 3 + k] = acc / (2 * rb + 1);
+                    acc += tmp[(Math.min(bh - 1, y + rb + 1) * bw + x) * 3 + k] - tmp[(Math.max(0, y - rb) * bw + x) * 3 + k]; }
+            }
+            const out = px.createImageData(bw, bh), O = out.data;
+            for (let i = 0; i < N; i++) {
+                const a = A[i];
+                if (a <= 0.002) continue;
+                for (let k = 0; k < 3; k++) {
+                    const ratio = Math.max(0.6, Math.min(2.2, Fc[i * 4 + k] / Math.max(1, Dl[i * 3 + k])));
+                    O[i * 4 + k] = Math.max(0, Math.min(255, D[i * 4 + k] * ratio));
+                }
+                O[i * 4 + 3] = Math.round(Math.min(1, a) * 255);
+            }
+            px.putImageData(out, 0, 0);
+            natLipCache = { key: key, piece: { canvas: pc, x: x0, y: y0 } };
+            return natLipCache.piece;
+        }
+
         function renderCanvas() {
             const w = canvas.width || CFG.img_w;
             const h = canvas.height || CFG.img_h;
@@ -1138,7 +1277,7 @@
             const zoomF = curImgZoom / 100.0;
 
             /** @param useOrig 맨얼굴을 그린다 ('시술 전' 과 비교의 왼쪽) */
-            function drawPhoto(targetCtx, patch, useOrig) {
+            function drawPhoto(targetCtx, patch, useOrig, curvesForFade) {
                 try {
                     const src = useOrig
                         ? (origImg.complete && origImg.naturalWidth > 0 ? origImg : bgImg)
@@ -1149,6 +1288,17 @@
                     // 입 주변만 부풀린 조각을 덮는다. 나머지는 원본 그대로다.
                     if (patch && patch.canvas) {
                         targetCtx.drawImage(patch.canvas, patch.x, patch.y);
+                    }
+                    // 🔅 기존 입술 진하기 — 원래 입술 자리를 피부톤으로 덮는다 (틴트를 반투명으로 올려도 색이 고르게)
+                    if (!useOrig && curvesForFade && natLip < 100) {
+                        let piece = null;
+                        try { piece = natLipPiece(w, h, curvesForFade, patch, src); } catch (e) { piece = null; }
+                        if (piece) {
+                            targetCtx.save();
+                            targetCtx.globalAlpha = 1 - natLip / 100;
+                            targetCtx.drawImage(piece.canvas, piece.x, piece.y);
+                            targetCtx.restore();
+                        }
                     }
                 } catch(e) {
                     console.warn("drawPhoto error:", e);
@@ -1174,7 +1324,7 @@
 
             // 곡선을 먼저 구한다. 사진을 얼마나 부풀릴지가 곡선의 변위에서 나온다.
             const curves = getTransformedCurves();
-            drawPhoto(aCtx, getWarpPatch(w, h, curves));
+            drawPhoto(aCtx, getWarpPatch(w, h, curves), false, curves);
             const {
                 closedUpperLoop, closedLowerLoop
             } = curves;
@@ -2259,6 +2409,7 @@
 
         bind('rngDensity', 'valDensity', '%', v => density = v);
         bind('rngOpacity', 'valOpacity', '%', v => opacity = v);
+        bind('rngNatLip', 'valNatLip', '%', v => natLip = v);
         bind('rngBlur', 'valBlur', 'px', v => blurVal = v);
 
         // JSON 및 복원 액션
