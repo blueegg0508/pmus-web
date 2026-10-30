@@ -233,6 +233,9 @@
     layoutLand();
     window.addEventListener("resize", layoutLand);
 
+    /** 기법 A ↔ B 비교: 고정한 A ({canvas, tech}) · 지금 보기 · 보기 바꾸기 */
+    var abA = null, viewNow = "after", abSetView = null;
+
     // ── 2. 사진 무대 + 보기 전환 ────────────────────────────────────────
     var canvas = isBrow ? $("dragCanvas") : $("lipCanvas");
 
@@ -273,7 +276,8 @@
             bctx.translate(w / 2 + v.panX, h / 2 + v.panY);
             bctx.scale(z, z);
             bctx.translate(-w / 2, -h / 2);
-            bctx.drawImage(beforeImg, 0, 0, w, h);
+            // 기법 A ↔ B 비교면 왼쪽은 고정해 둔 A
+            bctx.drawImage(shot.classList.contains("is-ab") && abA && abA.canvas ? abA.canvas : beforeImg, 0, 0, w, h);
         }
         window.__blAfterDraw = drawBefore;
         if (beforeImg) beforeImg.addEventListener("load", drawBefore);
@@ -342,19 +346,26 @@
         var segBefore = el("button", null, "시술 전");
         var segAfter = el("button", "is-active", "예상 디자인");
         var segComp = el("button", null, "비교");
-        seg.appendChild(segBefore); seg.appendChild(segAfter); seg.appendChild(segComp);
+        var segAB = el("button", "mui-seg-ab", "A↔B");
+        seg.appendChild(segBefore); seg.appendChild(segAfter); seg.appendChild(segComp); seg.appendChild(segAB);
 
         var hintDefault = hint.textContent;
 
         function setView(which) {
-            [segBefore, segAfter, segComp].forEach(function (b) { b.classList.remove("is-active"); });
-            shot.classList.remove("is-before", "is-compare");
+            [segBefore, segAfter, segComp, segAB].forEach(function (b) { b.classList.remove("is-active"); });
+            shot.classList.remove("is-before", "is-compare", "is-ab");
             if (which === "before") { segBefore.classList.add("is-active"); shot.classList.add("is-before"); }
             else if (which === "compare") { segComp.classList.add("is-active"); shot.classList.add("is-compare"); }
+            else if (which === "ab") { segAB.classList.add("is-active"); shot.classList.add("is-compare", "is-ab"); }
             else segAfter.classList.add("is-active");
+            viewNow = which;
             drawBefore();
+            updateTags();
 
-            if (which === "compare") {
+            if (which === "ab") {
+                showAbHint();
+                requestAnimationFrame(layoutSplit);
+            } else if (which === "compare") {
                 hint.textContent = "가운데 선을 좌우로 끌어 비교하세요";
                 hint.style.display = "";
                 // 레이아웃이 잡힌 뒤에 재야 사진 크기가 제대로 나온다
@@ -367,6 +378,11 @@
         segBefore.addEventListener("click", function () { setView("before"); });
         segAfter.addEventListener("click", function () { setView("after"); });
         segComp.addEventListener("click", function () { setView("compare"); });
+        segAB.addEventListener("click", function () {
+            if (!abA) { fixA(); return; }          // 처음 누르면 지금 것을 A 로 고정
+            setView("ab");
+        });
+        abSetView = setView;
     } else {
         // 입술: 캔버스 하나가 before/after/split 을 직접 그린다.
         // 원본 뷰 버튼을 그대로 옮겨오므로 전환 로직은 건드릴 필요가 없다.
@@ -390,6 +406,140 @@
             if (b) b.addEventListener("click", syncHint);
         });
         syncHint();
+
+        var segABl = el("button", "mui-seg-ab", "A↔B");
+        segABl.type = "button";
+        seg.appendChild(segABl);
+        var lipHintDefault = hint.textContent;
+        // 입술 캔버스가 보기 모드를 바꿀 때마다 알려 준다 (단추 상태 · 이름표 · 안내)
+        window.__blViewChanged = function (mode) {
+            viewNow = mode === "split" ? "compare" : mode;
+            segABl.classList.toggle("active", mode === "ab");
+            if (mode === "ab") showAbHint();
+            else { hint.textContent = lipHintDefault; syncHint(); }
+            updateTags();
+        };
+        segABl.addEventListener("click", function () {
+            if (!abA) { fixA(); return; }
+            if (typeof window.__blSetView === "function") window.__blSetView("ab");
+        });
+        abSetView = function (m) { if (typeof window.__blSetView === "function") window.__blSetView(m === "compare" ? "split" : m); };
+    }
+
+    // ── 2-1. 기법 A ↔ B 비교 (2026-10-30 원장님) ─────────────────────────
+    // '시술 전 ↔ 후' 비교는 그대로 두고, 디자인 · 기법 둘을 한 얼굴에서 반반 비교한다.
+    //   [A↔B] 를 처음 누르면 지금 디자인을 A 로 고정 → 디자인 · 색을 바꾼 뒤 다시 누르면 왼쪽 A, 오른쪽 지금(B).
+    //   비교 화면 위에는 양쪽 기법 이름표가 붙는다 (시술 전 ↔ 후 비교에도).
+
+    function techNow() {
+        try { return typeof window.__blTech === "function" ? window.__blTech() : ""; } catch (e) { return ""; }
+    }
+    function fixA() {
+        var c = null;
+        try { c = typeof window.__blSnap === "function" ? window.__blSnap() : null; } catch (e) { c = null; }
+        if (!c) { alert("지금 화면을 A 로 고정하지 못했습니다."); return; }
+        abA = { canvas: c, tech: techNow() };
+        if (typeof window.__blSetA === "function") window.__blSetA(c);
+        flashHint("📌 지금 디자인(" + abA.tech + ")을 A 로 고정했습니다 — 디자인 · 색을 바꾼 뒤 [A↔B] 를 누르세요");
+        updateTags();
+    }
+    var hintTimer = null;
+    function flashHint(text) {
+        var prev = hint.innerHTML, prevDisp = hint.style.display;
+        hint.textContent = text;
+        hint.style.display = "";
+        hint.classList.add("is-flash");
+        clearTimeout(hintTimer);
+        hintTimer = setTimeout(function () {
+            hint.classList.remove("is-flash");
+            if (viewNow === "ab") showAbHint();
+            else { hint.innerHTML = prev; hint.style.display = prevDisp; }
+        }, 4200);
+    }
+    function showAbHint() {
+        hint.style.display = "";
+        hint.innerHTML = "";
+        hint.appendChild(document.createTextNode("A ↔ B — 가운데 선을 끌어 비교 "));
+        var re = el("button", "mui-abbtn", "📌 지금 것을 A로");
+        re.type = "button";
+        re.addEventListener("click", function (e) { e.stopPropagation(); fixA(); });
+        var sv = el("button", "mui-abbtn", "💾 A·B 저장");
+        sv.type = "button";
+        sv.addEventListener("click", function (e) { e.stopPropagation(); saveAB(); });
+        hint.appendChild(re); hint.appendChild(sv);
+    }
+
+    // 이름표 — 사진 위 왼쪽 · 오른쪽
+    var tagL = el("div", "mui-vtag mui-vtag-l"), tagR = el("div", "mui-vtag mui-vtag-r");
+    stage.appendChild(tagL); stage.appendChild(tagR);
+    function updateTags() {
+        var on = viewNow === "compare" || viewNow === "ab";
+        tagL.classList.toggle("is-on", on); tagR.classList.toggle("is-on", on);
+        if (!on || !canvas) return;
+        if (viewNow === "ab" && abA) {
+            tagL.textContent = "A · " + abA.tech;
+            tagR.textContent = "B · " + techNow();
+        } else {
+            tagL.textContent = "시술 전";
+            tagR.textContent = "예상 · " + techNow();
+        }
+        var cr = canvas.getBoundingClientRect(), sr = stage.getBoundingClientRect();
+        if (!cr.width) return;
+        var top = Math.max(cr.top, sr.top) - sr.top + 8;
+        tagL.style.top = tagR.style.top = top + "px";
+        tagL.style.left = (Math.max(cr.left, sr.left) - sr.left + 8) + "px";
+        tagR.style.left = "auto";
+        tagR.style.right = (sr.right - Math.min(cr.right, sr.right) + 8) + "px";
+        var half = Math.max(80, cr.width / 2 - 16);
+        tagL.style.maxWidth = tagR.style.maxWidth = half + "px";
+    }
+    window.addEventListener("resize", updateTags);
+    setInterval(function () { if (viewNow === "compare" || viewNow === "ab") updateTags(); }, 700);
+
+    /** A · B 를 나란히 한 장으로 저장 (위 이름표 · 사진 속 상호 · 아래 안내문) */
+    function saveAB() {
+        if (!abA) { alert("먼저 [A↔B] 를 눌러 지금 디자인을 A 로 고정한 뒤, 디자인을 바꿔 B 를 만들어 주세요."); return; }
+        var B = null;
+        try { B = window.__blSnap(); } catch (e) { B = null; }
+        if (!B) { alert("지금 화면을 저장하지 못했습니다."); return; }
+        var A = abA.canvas, w = A.width, h = A.height, gap = 24, head = 84;
+        var foot = Math.max(56, Math.round(h * 0.075));
+        var cv = document.createElement("canvas");
+        cv.width = w * 2 + gap; cv.height = head + h + foot;
+        var x = cv.getContext("2d");
+        x.fillStyle = "#181614"; x.fillRect(0, 0, cv.width, cv.height);
+        x.drawImage(A, 0, head, w, h);
+        x.drawImage(B, w + gap, head, w, h);
+        var fs = Math.max(18, Math.round(w * 0.036));
+        x.font = "800 " + fs + "px Pretendard, 'Malgun Gothic', sans-serif";
+        x.textBaseline = "middle"; x.textAlign = "center";
+        [["A · " + abA.tech, w / 2], ["B · " + techNow(), w + gap + w / 2]].forEach(function (t) {
+            x.fillStyle = "#F3D774";
+            x.fillText(t[0], t[1], head / 2, w - 24);
+        });
+        var shop = (window.CFG && window.CFG.owner_shop) || "";
+        if (shop) {
+            var sf = Math.max(13, Math.round(w * 0.026));
+            x.font = "700 " + sf + "px Pretendard, 'Malgun Gothic', sans-serif";
+            x.textAlign = "right"; x.textBaseline = "bottom";
+            x.shadowColor = "rgba(0,0,0,.55)"; x.shadowBlur = Math.max(2, sf * 0.25);
+            x.fillStyle = "rgba(255,255,255,.82)";
+            [w, w * 2 + gap].forEach(function (r) { x.fillText("© " + shop, r - sf * 0.8, head + h - sf * 0.6); });
+            x.shadowBlur = 0;
+        }
+        x.fillStyle = "#D4AF37"; x.fillRect(0, head + h, cv.width, 2);
+        var lf = Math.max(12, Math.min(22, Math.round(cv.width * 0.014)));
+        x.font = "600 " + lf + "px Pretendard, 'Malgun Gothic', sans-serif";
+        x.fillStyle = "#C8C4BE"; x.textAlign = "center"; x.textBaseline = "middle";
+        x.fillText("⚠️ [" + (shop ? shop + " · " : "") + "시술 상담 안내] 본 이미지는 디자인 상담을 위한 가상 시뮬레이션이며 실제 시술 후 모양, 색상 및 결과와 차이가 있을 수 있습니다.",
+                   cv.width / 2, head + h + foot / 2, cv.width - 24);
+        var url = null;
+        try { url = cv.toDataURL("image/jpeg", 0.92); } catch (e) { url = null; }
+        cv.width = 0; cv.height = 0;
+        if (!url) { alert("이 화면을 저장하지 못했습니다."); return; }
+        try {
+            window.parent.postMessage({ type: "mui:save", filename: (isBrow ? "brow" : "lip") + "_AB_" + stamp() + ".jpg", dataUrl: url }, "*");
+        } catch (e) {}
     }
 
     // ── 3. 상단 액션바 ──────────────────────────────────────────────────
@@ -492,7 +642,7 @@
         {
             key: "save", icon: "💾", label: "저장", title: "결과물 저장 & 기록",
             nodes: function () {
-                return [$("btnDownloadAfter"), $("btnDownloadComp"),
+                return [$("btnDownloadAfter"), $("btnDownloadComp"), abSaveBtn(),
                         document.querySelector(".history-section")];
             }
         }
@@ -536,11 +686,18 @@
         {
             key: "save", icon: "💾", label: "저장", title: "결과물 저장 & 기록",
             nodes: function () {
-                return [$("btnDownloadAfter"),
+                return [$("btnDownloadAfter"), abSaveBtn(),
                         document.querySelector(".history-section")];
             }
         }
     ];
+
+    function abSaveBtn() {
+        var b = el("button", "btn-col-download btn-download-secondary mui-absave", "🅰️🅱️ 기법 A · B 비교 저장");
+        b.type = "button";
+        b.addEventListener("click", function () { saveAB(); });
+        return b;
+    }
 
     TABS.forEach(function (t, i) {
         var btn = el("button", i === 0 ? "is-active" : null,

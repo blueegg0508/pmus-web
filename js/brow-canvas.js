@@ -181,6 +181,37 @@
                 draw();
             }
         };
+        /**
+         * 기법 A ↔ B 비교 (2026-10-30 원장님): 지금 디자인을 확대 · 이동 없이 그린 사본.
+         * 가이드선 · 드래그 상자 · 지우개 동그라미는 빼고, 지금 보이는 배경(흐리기 · 잔흔 지우기 포함) 그대로.
+         */
+        window.__blSnap = function () {
+            const pz = curImgZoom, px = curImgPanX, py = curImgPanY, pd = isDragging, pg = peakGuideUntil,
+                  pe = isErasing, s3 = show3Guides, sh = showHGuides;
+            try {
+                curImgZoom = 100; curImgPanX = 0; curImgPanY = 0;
+                isDragging = false; peakGuideUntil = 0; isErasing = false; show3Guides = false; showHGuides = false;
+                draw();
+                const c = document.createElement('canvas');
+                c.width = canvas.width; c.height = canvas.height;
+                c.getContext('2d').drawImage(canvas, 0, 0);
+                return c;
+            } catch (e) {
+                return null;
+            } finally {
+                curImgZoom = pz; curImgPanX = px; curImgPanY = py; isDragging = pd; peakGuideUntil = pg;
+                isErasing = pe; show3Guides = s3; showHGuides = sh;
+                draw();
+            }
+        };
+        /** 지금 기법 이름 — 디자인 · 색 (비교 화면 위 이름표) */
+        window.__blTech = function () {
+            const sel = document.getElementById('selectColorPreset');
+            let cn = '';
+            if (sel && sel.selectedIndex >= 0 && sel.value !== 'custom') cn = sel.options[sel.selectedIndex].text;
+            return (CFG.safe_design_name || '눈썹 디자인') + (cn ? ' · ' + cn : '');
+        };
+
         // new Image() 는 문서에 붙어 있지 않아 실패해도 창까지 안 올라온다.
         // 그대로 두면 눈썹만 안 보이고 아무 흔적이 없다. 직접 알린다.
         rawLImg.onerror = function () {
@@ -2474,6 +2505,23 @@
                 c2.restore();
             }
 
+            /** 사진 왼쪽 위 이름표 */
+            function drawTag(c2, text, x0, y0, w) {
+                const fs = Math.max(14, Math.round(w * 0.03));
+                c2.save();
+                c2.font = '800 ' + fs + 'px Pretendard, "Malgun Gothic", sans-serif';
+                const tw = Math.min(w - fs * 2, c2.measureText(text).width + fs * 1.4), th = fs * 1.9;
+                const x = x0 + fs * 0.7, y = y0 + fs * 0.7;
+                c2.fillStyle = 'rgba(20,16,26,.82)';
+                c2.beginPath();
+                if (c2.roundRect) c2.roundRect(x, y, tw, th, th / 2); else c2.rect(x, y, tw, th);
+                c2.fill();
+                c2.fillStyle = '#F3D774';
+                c2.textAlign = 'left'; c2.textBaseline = 'middle';
+                c2.fillText(text, x + fs * 0.7, y + th / 2, tw - fs * 1.4);
+                c2.restore();
+            }
+
             function renderWatermark(ctx, width, startY, height) {
                 const shopTag = (window.CFG && CFG.owner_shop) ? CFG.owner_shop + ' · ' : '';
                 const line1 = '⚠️ [' + shopTag + '시술 상담 안내] 본 이미지는 디자인 상담을 위한 가상 시뮬레이션이며';
@@ -2603,6 +2651,9 @@
                 // 우측: 실시간 변형된 캔버스
                 cCtx.drawImage(canvas, w + 24, 75, w, h);
                 cCtx.save(); cCtx.translate(w + 24, 75); stampShop(cCtx, w, h); cCtx.restore();
+                // 위에 기법 이름표 (2026-10-30)
+                drawTag(cCtx, '시술 전', 0, 75, w);
+                drawTag(cCtx, '예상 디자인 · ' + window.__blTech(), w + 24, 75, w);
 
                 // 하단 2줄 워터마크 안내 배너
                 renderWatermark(cCtx, compCanvas.width, h + 80, footerH);

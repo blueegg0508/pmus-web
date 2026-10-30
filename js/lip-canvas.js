@@ -68,8 +68,10 @@
         /** 그리는 동안 배경을 잠시 바꿔치기할 때 쓴다 (맨얼굴로 굽기) */
         let captureBg = null;
 
-        // 👁️ 뷰 모드 ('after', 'before', 'split')
+        // 👁️ 뷰 모드 ('after', 'before', 'split', 'ab' — 기법 A ↔ B 비교)
         let viewMode = 'after';
+        /** 기법 A ↔ B 비교에서 왼쪽(A)에 깔 사본 (확대 · 이동 없이 그린 것) */
+        let abSnapA = null;
         let splitRatio = 0.5;
         let isDraggingSplit = false;
 
@@ -1276,7 +1278,7 @@
             // 4. 뷰 모드 합성 (After vs Split)
             if (viewMode === 'after') {
                 ctx.drawImage(afterCanvas, 0, 0);
-            } else if (viewMode === 'split') {
+            } else if (viewMode === 'split' || viewMode === 'ab') {
                 const splitX = Math.round(w * splitRatio);
                 
                 // 좌측: Before
@@ -1288,7 +1290,8 @@
                 ctx.translate(w / 2.0 + curImgPanX, h / 2.0 + curImgPanY);
                 ctx.scale(zoomF, zoomF);
                 ctx.translate(-w / 2.0, -h / 2.0);
-                drawPhoto(ctx, null, true);       // 비교 왼쪽 = 맨얼굴
+                if (viewMode === 'ab' && abSnapA) ctx.drawImage(abSnapA, 0, 0, w, h);   // A ↔ B: 왼쪽 = 고정한 A
+                else drawPhoto(ctx, null, true);       // 비교 왼쪽 = 맨얼굴
                 ctx.restore();
                 ctx.restore();
 
@@ -1369,7 +1372,7 @@
         }
         // 시트를 여닫거나 화면을 돌리면 보이는 높이가 바뀐다 — 비교 중이면 손잡이를 다시 그린다
         (function () {
-            const again = () => { if (viewMode === 'split') requestRender(); };
+            const again = () => { if (viewMode === 'split' || viewMode === 'ab') requestRender(); };
             window.addEventListener('resize', again);
             if (typeof ResizeObserver === 'function') {
                 setTimeout(() => {
@@ -1458,7 +1461,7 @@
             const pos = getCanvasPos(clientX, clientY);
 
             // 1. 스플릿 바 드래그 (정확한 캔버스 화면 픽셀 기준)
-            if (viewMode === 'split') {
+            if ((viewMode === 'split' || viewMode === 'ab')) {
                 const splitX = canvas.width * splitRatio;
                 if (Math.abs(raw.x - splitX) <= 45) {
                     isDraggingSplit = true;
@@ -1498,7 +1501,7 @@
                 selectedLip = null;
                 hoveredLip = null;
                 activeDragMode = null;
-                canvas.style.cursor = (viewMode === 'split' && Math.abs(raw.x - canvas.width * splitRatio) <= 45) ? 'ew-resize' : 'default';
+                canvas.style.cursor = ((viewMode === 'split' || viewMode === 'ab') && Math.abs(raw.x - canvas.width * splitRatio) <= 45) ? 'ew-resize' : 'default';
                 requestRender();
                 return;
             }
@@ -1550,7 +1553,7 @@
                 canvas.style.cursor = 'move';
             } else {
                 hoveredLip = null;
-                if (viewMode === 'split' && Math.abs(raw.x - canvas.width * splitRatio) <= 45) {
+                if ((viewMode === 'split' || viewMode === 'ab') && Math.abs(raw.x - canvas.width * splitRatio) <= 45) {
                     canvas.style.cursor = 'ew-resize';
                 } else {
                     canvas.style.cursor = 'default';
@@ -1744,6 +1747,7 @@
         // 👁️ 뷰 모드 버튼
         function setViewMode(mode) {
             viewMode = mode;
+            if (window.__blViewChanged) { try { window.__blViewChanged(mode); } catch (e) {} }
             document.getElementById('btnViewBefore').classList.toggle('active', mode === 'before');
             document.getElementById('btnViewAfter').classList.toggle('active', mode === 'after');
             document.getElementById('btnViewSplit').classList.toggle('active', mode === 'split');
@@ -1752,6 +1756,34 @@
         document.getElementById('btnViewBefore').addEventListener('click', () => setViewMode('before'));
         document.getElementById('btnViewAfter').addEventListener('click', () => setViewMode('after'));
         document.getElementById('btnViewSplit').addEventListener('click', () => setViewMode('split'));
+        window.__blSetView = setViewMode;
+        window.__blSetA = function (c) { abSnapA = c; requestRender(); };
+        /** 기법 A ↔ B 비교용: 지금 입술을 확대 · 이동 · 선택 상자 없이 그린 사본 */
+        window.__blSnap = function () {
+            const pz = curImgZoom, px = curImgPanX, py = curImgPanY, pv = viewMode,
+                  ph = hoveredLip, ps = selectedLip, pk = warpCache.key;
+            try {
+                curImgZoom = 100; curImgPanX = 0; curImgPanY = 0; viewMode = 'after';
+                hoveredLip = null; selectedLip = null; warpCache.key = '';
+                renderCanvas();
+                const c = document.createElement('canvas');
+                c.width = canvas.width; c.height = canvas.height;
+                c.getContext('2d').drawImage(canvas, 0, 0);
+                return c;
+            } catch (e) {
+                return null;
+            } finally {
+                curImgZoom = pz; curImgPanX = px; curImgPanY = py; viewMode = pv;
+                hoveredLip = ph; selectedLip = ps; warpCache.key = '';
+                renderCanvas();
+            }
+        };
+        /** 지금 기법 이름 — 기법 · 색 */
+        window.__blTech = function () {
+            const t = document.querySelector('.tech-btn.active');
+            const c = document.querySelector('.color-chip.active[data-color]');
+            return [t ? t.textContent.trim() : '', c ? c.textContent.trim() : ''].filter(Boolean).join(' · ') || '입술 디자인';
+        };
 
         // ✨ 입술 가이드 재추출 & 원위치 리셋 버튼
         const btnExtract = document.getElementById('btnExtractLips');
