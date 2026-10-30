@@ -146,7 +146,8 @@
                 upperLeftVolume, upperRightVolume, lowerLeftVolume, lowerRightVolume,
                 cornerSharpL, cornerSharpR,
                 cornerOverU, cornerOverL,
-                blurVal, density, gloss
+                blurVal, density, gloss,
+                lipHealMarks: lipHealMarks.slice()
             };
         }
 
@@ -1138,74 +1139,46 @@
          * 덮는 자리 = 인식한 원래 입술 ∪ 지금 디자인 입술(볼륨으로 넓힌 자리) — 입 다문 선(안쪽 입술선)은 남긴다.
          * 피부색은 바깥 피부에서 끌어오고(밀고-당기기), 입술 주름 · 결은 비율로 남겨 매끈한 스티커처럼 보이지 않게 한다.
          */
-        let natLipCache = { key: '', piece: null };
-        function natLipPiece(w, h, curves, patch, src) {
-            const up = curves.closedUpperLoop || [], lo = curves.closedLowerLoop || [];
-            const outer = (upperRawPts || []).concat((lowerRawPts || []).slice().reverse());
-            const all = outer.concat(up, lo);
-            if (all.length < 6) return null;
-            let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-            all.forEach(function (q) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1]; });
-            const lw = Math.max(20, x1 - x0), pad = Math.round(lw * 0.18);
-            x0 = Math.max(0, Math.floor(x0 - pad)); y0 = Math.max(0, Math.floor(y0 - pad));
-            x1 = Math.min(w, Math.ceil(x1 + pad)); y1 = Math.min(h, Math.ceil(y1 + pad));
-            const bw = x1 - x0, bh = y1 - y0;
-            if (bw < 8 || bh < 8) return null;
-            const sig = (pts) => pts.length ? [pts[0], pts[pts.length >> 1], pts[pts.length - 1]].map(q => Math.round(q[0]) + ',' + Math.round(q[1])).join(';') : '';
-            const key = [x0, y0, bw, bh, sig(up), sig(lo), patch ? warpCache.key : '', src && (src.src || '').length].join('|');
-            if (natLipCache.key === key) return natLipCache.piece;
-
-            // 1) 바탕: 지금 그리는 사진(+부풀린 조각) 그대로
-            const pc = document.createElement('canvas'); pc.width = bw; pc.height = bh;
-            const px = pc.getContext('2d', { willReadFrequently: true });
-            px.translate(-x0, -y0);
-            if (src) px.drawImage(src, 0, 0, w, h);
-            if (patch && patch.canvas) px.drawImage(patch.canvas, patch.x, patch.y);
-            px.setTransform(1, 0, 0, 1, 0, 0);
-            const im = px.getImageData(0, 0, bw, bh), D = im.data, N = bw * bh;
-
-            // 2) 덮을 자리 (원래 입술 ∪ 디자인 입술, 테두리 조금 넓혀서) — 안쪽 입술선은 뺀다
-            const mc = document.createElement('canvas'); mc.width = bw; mc.height = bh;
-            const mx = mc.getContext('2d', { willReadFrequently: true });
-            mx.translate(-x0, -y0);
-            mx.fillStyle = '#fff'; mx.strokeStyle = '#fff'; mx.lineJoin = 'round';
-            mx.lineWidth = Math.max(2, lw * 0.035);
-            [outer, up, lo].forEach(function (poly) {
-                if (poly.length < 3) return;
-                mx.beginPath(); mx.moveTo(poly[0][0], poly[0][1]);
-                for (let i = 1; i < poly.length; i++) mx.lineTo(poly[i][0], poly[i][1]);
-                mx.closePath(); mx.fill(); mx.stroke();
-            });
-            const ui = upperInnerRawPts || [], li = lowerInnerRawPts || [];
-            if (ui.length > 2 && li.length > 2) {
-                mx.globalCompositeOperation = 'destination-out';
-                const inner = ui.concat(li.slice().reverse());
-                mx.beginPath(); mx.moveTo(inner[0][0], inner[0][1]);
-                for (let i = 1; i < inner.length; i++) mx.lineTo(inner[i][0], inner[i][1]);
-                mx.closePath(); mx.fill();
-                mx.globalCompositeOperation = 'source-over';
+        /** 한 장(0~1) 상자 평균 */
+        function boxBlur1(src2, bw, bh, r) {
+            const N = bw * bh, t = new Float32Array(N), o = new Float32Array(N);
+            for (let y = 0; y < bh; y++) { let a = 0; for (let x = -r; x <= r; x++) a += src2[y * bw + Math.max(0, Math.min(bw - 1, x))];
+                for (let x = 0; x < bw; x++) { t[y * bw + x] = a / (2 * r + 1); a += src2[y * bw + Math.min(bw - 1, x + r + 1)] - src2[y * bw + Math.max(0, x - r)]; } }
+            for (let x = 0; x < bw; x++) { let a = 0; for (let y = -r; y <= r; y++) a += t[Math.max(0, Math.min(bh - 1, y)) * bw + x];
+                for (let y = 0; y < bh; y++) { o[y * bw + x] = a / (2 * r + 1); a += t[Math.min(bh - 1, y + r + 1) * bw + x] - t[Math.max(0, y - r) * bw + x]; } }
+            return o;
+        }
+        /** RGBA 사진의 색 세 칸 상자 평균 → Float32 (N*3) */
+        function boxBlur3(D, bw, bh, r) {
+            const N = bw * bh, out = new Float32Array(N * 3), ch = new Float32Array(N);
+            for (let c = 0; c < 3; c++) {
+                for (let i = 0; i < N; i++) ch[i] = D[i * 4 + c];
+                const b2 = boxBlur1(ch, bw, bh, r);
+                for (let i = 0; i < N; i++) out[i * 3 + c] = b2[i];
             }
-            const md = mx.getImageData(0, 0, bw, bh).data;
-            // 가장자리를 부드럽게 (상자 평균 두 번)
-            let A = new Float32Array(N);
-            for (let i = 0; i < N; i++) A[i] = md[i * 4 + 3] / 255;
-            const fr = Math.max(1, Math.round(lw * 0.02));
-            const boxA = (src2) => {
-                const t = new Float32Array(N), o = new Float32Array(N);
-                for (let y = 0; y < bh; y++) { let a = 0; for (let x = -fr; x <= fr; x++) a += src2[y * bw + Math.max(0, Math.min(bw - 1, x))];
-                    for (let x = 0; x < bw; x++) { t[y * bw + x] = a / (2 * fr + 1); a += src2[y * bw + Math.min(bw - 1, x + fr + 1)] - src2[y * bw + Math.max(0, x - fr)]; } }
-                for (let x = 0; x < bw; x++) { let a = 0; for (let y = -fr; y <= fr; y++) a += t[Math.max(0, Math.min(bh - 1, y)) * bw + x];
-                    for (let y = 0; y < bh; y++) { o[y * bw + x] = a / (2 * fr + 1); a += t[Math.min(bh - 1, y + fr + 1) * bw + x] - t[Math.max(0, y - fr) * bw + x]; } }
-                return o;
-            };
-            A = boxA(boxA(A));
-
-            // 3) 바깥 피부에서 안쪽으로 채운다 (밀고-당기기)
-            const lv = [];
+            return out;
+        }
+        /** 덮지 않은 피부의 잔결 세기 (부드러운 밝기와의 차이 표준편차) — 메운 자리에 같은 세기의 결을 다시 얹는다 */
+        function skinGrain(D, Dl, A, N) {
+            let ss = 0, n = 0;
+            for (let i = 0; i < N; i += 2) {
+                if (A[i] > 0.001) continue;
+                const d = (0.299 * D[i * 4] + 0.587 * D[i * 4 + 1] + 0.114 * D[i * 4 + 2]) - (0.299 * Dl[i * 3] + 0.587 * Dl[i * 3 + 1] + 0.114 * Dl[i * 3 + 2]);
+                ss += d * d; n++;
+            }
+            return n ? Math.min(7, Math.sqrt(ss / n)) : 2;
+        }
+        function grainNoise(seed0) {
+            let seed = seed0 || 98765;
+            return function () { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff - 0.5; };
+        }
+        /** 밀고-당기기 채움: A 가 thr 보다 작은(덮지 않는) 픽셀만 재료로 안쪽을 채운 색 (N*4) */
+        function pushPullFill(D, A, bw, bh, thr) {
+            const N = bw * bh, lv = [];
             let cw = bw, ch = bh;
             const C0 = new Float32Array(N * 4);
             for (let i = 0; i < N; i++) {
-                const k = A[i] > 0.02 ? 0 : 1;
+                const k = A[i] > thr ? 0 : 1;
                 C0[i * 4] = D[i * 4] * k; C0[i * 4 + 1] = D[i * 4 + 1] * k; C0[i * 4 + 2] = D[i * 4 + 2] * k; C0[i * 4 + 3] = k;
             }
             lv.push({ c: C0, w: cw, h: ch });
@@ -1237,31 +1210,168 @@
                     F.c[i + 3] = 1;
                 }
             }
-            const Fc = lv[0].c;
+            return lv[0].c;
+        }
 
-            // 4) 입술 결은 남긴다 — 부드러운 밝기(Dl) 대비 피부(Fc) 비율로 곱해 색 · 밝기만 피부로
-            const rb = Math.max(2, Math.round((y1 - y0) * 0.08));
-            const Dl = new Float32Array(N * 3), tmp = new Float32Array(N * 3);
-            for (let y = 0; y < bh; y++) for (let k = 0; k < 3; k++) {
-                let acc = 0;
-                for (let x = -rb; x <= rb; x++) acc += D[(y * bw + Math.max(0, Math.min(bw - 1, x))) * 4 + k];
-                for (let x = 0; x < bw; x++) { tmp[(y * bw + x) * 3 + k] = acc / (2 * rb + 1);
-                    acc += D[(y * bw + Math.min(bw - 1, x + rb + 1)) * 4 + k] - D[(y * bw + Math.max(0, x - rb)) * 4 + k]; }
+        /* ── 🩹 입술 경계 지우기 붓 (2026-10-30 원장님) ──────────────────
+         * 기존 입술 진하기를 낮춰도 남는 입술선 · 그늘을 손가락으로 문질러 피부로 메운다.
+         * [x, y, r] 는 사진 픽셀 자리. 사진 층(photoLayer)에서만 고치고 '시술 전' 은 그대로. */
+        let lipHealMarks = [];
+        let lipHealMode = false, lipHealSize = 3, isLipHealing = false, lipHealCursor = null;
+        const LIP_HEAL_R = [0, 0.025, 0.04, 0.06, 0.09, 0.13];     // 원래 입술 폭 대비
+        function lipWidthPx() {
+            const pts = (upperRawPts || []).concat(lowerRawPts || []);
+            if (pts.length < 2) return canvas.width * 0.25;
+            let a = Infinity, b = -Infinity;
+            pts.forEach(function (q) { if (q[0] < a) a = q[0]; if (q[0] > b) b = q[0]; });
+            return Math.max(40, b - a);
+        }
+        function lipHealAt(pos) {
+            const r = (LIP_HEAL_R[lipHealSize] || 0.06) * lipWidthPx();
+            const last = lipHealMarks[lipHealMarks.length - 1];
+            if (!last || Math.hypot(last[0] - pos.x, last[1] - pos.y) > r / 3) {
+                lipHealMarks.push([Math.round(pos.x * 10) / 10, Math.round(pos.y * 10) / 10, Math.round(r * 10) / 10]);
             }
-            for (let x = 0; x < bw; x++) for (let k = 0; k < 3; k++) {
-                let acc = 0;
-                for (let y = -rb; y <= rb; y++) acc += tmp[(Math.max(0, Math.min(bh - 1, y)) * bw + x) * 3 + k];
-                for (let y = 0; y < bh; y++) { Dl[(y * bw + x) * 3 + k] = acc / (2 * rb + 1);
-                    acc += tmp[(Math.min(bh - 1, y + rb + 1) * bw + x) * 3 + k] - tmp[(Math.max(0, y - rb) * bw + x) * 3 + k]; }
+            lipHealCursor = { x: pos.x, y: pos.y, r: r };
+            requestRender();
+        }
+        /** 붓 자국을 사진 층 g(사진 좌표) 위에서 피부로 메운다 */
+        function applyLipHeal(g, W, H, marks) {
+            let x0 = W, y0 = H, x1 = 0, y1 = 0;
+            marks.forEach(function (m) { x0 = Math.min(x0, m[0] - m[2]); y0 = Math.min(y0, m[1] - m[2]); x1 = Math.max(x1, m[0] + m[2]); y1 = Math.max(y1, m[1] + m[2]); });
+            const mg = 14;
+            x0 = Math.max(0, Math.floor(x0 - mg)); y0 = Math.max(0, Math.floor(y0 - mg));
+            x1 = Math.min(W, Math.ceil(x1 + mg)); y1 = Math.min(H, Math.ceil(y1 + mg));
+            const bw = x1 - x0, bh = y1 - y0;
+            if (bw < 2 || bh < 2) return;
+            const im = g.getImageData(x0, y0, bw, bh), D = im.data, N = bw * bh;
+            const A = new Float32Array(N);
+            let rs = 0;
+            marks.forEach(function (m) {
+                rs += m[2];
+                const cx = m[0] - x0, cy = m[1] - y0, r = m[2];
+                for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(bh - 1, Math.ceil(cy + r)); y++)
+                    for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(bw - 1, Math.ceil(cx + r)); x++) {
+                        const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+                        if (d >= r) continue;
+                        const a = d < r * 0.6 ? 1 : (r - d) / (r * 0.4);
+                        if (a > A[y * bw + x]) A[y * bw + x] = a;
+                    }
+            });
+            const Fc = pushPullFill(D, A, bw, bh, 0.001);
+            const Dl = boxBlur3(D, bw, bh, Math.max(2, Math.round(rs / marks.length * 0.35)));
+            const gr = skinGrain(D, Dl, A, N), rnd = grainNoise(x0 * 7 + y0);
+            for (let i = 0; i < N; i++) {
+                const a = A[i];
+                if (a <= 0) continue;
+                const nz = gr * rnd() * 1.4;
+                const lD = 0.299 * D[i * 4] + 0.587 * D[i * 4 + 1] + 0.114 * D[i * 4 + 2];
+                const lL = 0.299 * Dl[i * 3] + 0.587 * Dl[i * 3 + 1] + 0.114 * Dl[i * 3 + 2];
+                const det = Math.max(0.85, Math.min(1.15, lD / Math.max(1, lL)));
+                for (let c = 0; c < 3; c++) {
+                    const v = Fc[i * 4 + c] * (1 + (det - 1) * 0.35) + nz;
+                    D[i * 4 + c] = Math.max(0, Math.min(255, D[i * 4 + c] * (1 - a) + v * a));
+                }
             }
+            g.putImageData(im, x0, y0);
+        }
+        /** 사진 층: 사진 + 부풀린 조각 + 기존 입술 진하기 + 경계 지우기 (사진 좌표, 값이 그대로면 다시 만들지 않는다) */
+        let photoLayerCache = { key: '', canvas: null };
+        function photoLayer(w, h, src, patch, curves) {
+            let piece = null;
+            if (natLip < 100) { try { piece = natLipPiece(w, h, curves, patch, src); } catch (e) { piece = null; } }
+            const lm = lipHealMarks[lipHealMarks.length - 1];
+            const key = [w, h, src && (src.src || '').length, patch ? warpCache.key : '', natLip, piece ? natLipCache.key : '',
+                         lipHealMarks.length, lm ? lm.join(',') : ''].join('|');
+            if (photoLayerCache.key === key && photoLayerCache.canvas) return photoLayerCache.canvas;
+            const c = photoLayerCache.canvas || document.createElement('canvas');
+            if (c.width !== w) c.width = w;
+            if (c.height !== h) c.height = h;
+            const g = c.getContext('2d', { willReadFrequently: true });
+            g.clearRect(0, 0, w, h);
+            if (src) g.drawImage(src, 0, 0, w, h);
+            if (patch && patch.canvas) g.drawImage(patch.canvas, patch.x, patch.y);
+            if (piece) { g.globalAlpha = 1 - natLip / 100; g.drawImage(piece.canvas, piece.x, piece.y); g.globalAlpha = 1; }
+            if (lipHealMarks.length) { try { applyLipHeal(g, w, h, lipHealMarks); } catch (e) { console.warn('입술 경계 지우기 실패', e); } }
+            photoLayerCache = { key: key, canvas: c };
+            return c;
+        }
+
+        let natLipCache = { key: '', piece: null };
+        function natLipPiece(w, h, curves, patch, src) {
+            const up = curves.closedUpperLoop || [], lo = curves.closedLowerLoop || [];
+            const outer = (upperRawPts || []).concat((lowerRawPts || []).slice().reverse());
+            const all = outer.concat(up, lo);
+            if (all.length < 6) return null;
+            let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+            all.forEach(function (q) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1]; });
+            const lw = Math.max(20, x1 - x0), pad = Math.round(lw * 0.18);
+            x0 = Math.max(0, Math.floor(x0 - pad)); y0 = Math.max(0, Math.floor(y0 - pad));
+            x1 = Math.min(w, Math.ceil(x1 + pad)); y1 = Math.min(h, Math.ceil(y1 + pad));
+            const bw = x1 - x0, bh = y1 - y0;
+            if (bw < 8 || bh < 8) return null;
+            const sig = (pts) => pts.length ? [pts[0], pts[pts.length >> 1], pts[pts.length - 1]].map(q => Math.round(q[0]) + ',' + Math.round(q[1])).join(';') : '';
+            const key = [x0, y0, bw, bh, sig(up), sig(lo), patch ? warpCache.key : '', src && (src.src || '').length].join('|');
+            if (natLipCache.key === key) return natLipCache.piece;
+
+            // 1) 바탕: 지금 그리는 사진(+부풀린 조각) 그대로
+            const pc = document.createElement('canvas'); pc.width = bw; pc.height = bh;
+            const px = pc.getContext('2d', { willReadFrequently: true });
+            px.translate(-x0, -y0);
+            if (src) px.drawImage(src, 0, 0, w, h);
+            if (patch && patch.canvas) px.drawImage(patch.canvas, patch.x, patch.y);
+            px.setTransform(1, 0, 0, 1, 0, 0);
+            const im = px.getImageData(0, 0, bw, bh), D = im.data, N = bw * bh;
+
+            // 2) 덮을 자리 (원래 입술 ∪ 디자인 입술, 테두리 조금 넓혀서) — 안쪽 입술선은 뺀다
+            const mc = document.createElement('canvas'); mc.width = bw; mc.height = bh;
+            const mx = mc.getContext('2d', { willReadFrequently: true });
+            mx.translate(-x0, -y0);
+            mx.fillStyle = '#fff'; mx.strokeStyle = '#fff'; mx.lineJoin = 'round';
+            mx.lineWidth = Math.max(3, lw * 0.07);
+            [outer, up, lo].forEach(function (poly) {
+                if (poly.length < 3) return;
+                mx.beginPath(); mx.moveTo(poly[0][0], poly[0][1]);
+                for (let i = 1; i < poly.length; i++) mx.lineTo(poly[i][0], poly[i][1]);
+                mx.closePath(); mx.fill(); mx.stroke();
+            });
+            const ui = upperInnerRawPts || [], li = lowerInnerRawPts || [];
+            if (ui.length > 2 && li.length > 2) {
+                mx.globalCompositeOperation = 'destination-out';
+                const inner = ui.concat(li.slice().reverse());
+                mx.beginPath(); mx.moveTo(inner[0][0], inner[0][1]);
+                for (let i = 1; i < inner.length; i++) mx.lineTo(inner[i][0], inner[i][1]);
+                mx.closePath(); mx.fill();
+                mx.globalCompositeOperation = 'source-over';
+            }
+            const md = mx.getImageData(0, 0, bw, bh).data;
+            // 가장자리를 부드럽게 (상자 평균 두 번)
+            let A = new Float32Array(N);
+            for (let i = 0; i < N; i++) A[i] = md[i * 4 + 3] / 255;
+            const fr = Math.max(1, Math.round(lw * 0.02));
+            A = boxBlur1(boxBlur1(A, bw, bh, fr), bw, bh, fr);
+
+            // 3) 바깥 피부에서 안쪽으로 채운다 (밀고-당기기)
+            const Fc = pushPullFill(D, A, bw, bh, 0.02);
+            // 4) 덮는 판 안쪽 깊이 (가장자리 0 → 안쪽 1). 경계 근처는 결을 남기지 않고 완전히 피부로 —
+            //    남겨 두면 원래 입술선 · 그늘이 '결' 로 남아 경계가 비쳤다 (2026-10-30 원장님 사진).
+            const er = Math.max(2, Math.round(lw * 0.045));
+            const deep = boxBlur1(boxBlur1(A, bw, bh, er), bw, bh, er);
+            const Dl = boxBlur3(D, bw, bh, Math.max(2, Math.round((y1 - y0) * 0.08)));
             const out = px.createImageData(bw, bh), O = out.data;
+            // 메운 자리가 매끈해 보이지 않게 둘레 피부와 같은 세기의 고운 결을 얹는다
+            const gr = skinGrain(D, Dl, A, N), rnd = grainNoise(x0 * 7 + y0);
             for (let i = 0; i < N; i++) {
                 const a = A[i];
                 if (a <= 0.002) continue;
-                for (let k = 0; k < 3; k++) {
-                    const ratio = Math.max(0.6, Math.min(2.2, Fc[i * 4 + k] / Math.max(1, Dl[i * 3 + k])));
-                    O[i * 4 + k] = Math.max(0, Math.min(255, D[i * 4 + k] * ratio));
-                }
+                const nz = gr * rnd() * 1.6;
+                // 입술 주름은 밝기 비율로만 조금 남긴다 (반짝이는 광택 · 진한 선은 눌러서)
+                const lD = 0.299 * D[i * 4] + 0.587 * D[i * 4 + 1] + 0.114 * D[i * 4 + 2];
+                const lL = 0.299 * Dl[i * 3] + 0.587 * Dl[i * 3 + 1] + 0.114 * Dl[i * 3 + 2];
+                const det = Math.max(0.9, Math.min(1.08, lD / Math.max(1, lL)));   // 광택(밝은 쪽)은 더 눌러 둔다
+                const inner = Math.max(0, Math.min(1, (deep[i] - 0.8) / 0.2));
+                const k = 0.35 * inner;
+                for (let c = 0; c < 3; c++) O[i * 4 + c] = Math.max(0, Math.min(255, Fc[i * 4 + c] * (1 + (det - 1) * k) + nz * (1 - k)));
                 O[i * 4 + 3] = Math.round(Math.min(1, a) * 255);
             }
             px.putImageData(out, 0, 0);
@@ -1282,23 +1392,17 @@
                     const src = useOrig
                         ? (origImg.complete && origImg.naturalWidth > 0 ? origImg : bgImg)
                         : (captureBg || bgImg);
+                    // 기존 입술 진하기 · 경계 지우기가 걸려 있으면 사진 층 한 장으로 (사진 좌표에서 미리 고쳐 둔 것)
+                    if (!useOrig && curvesForFade && (natLip < 100 || lipHealMarks.length) && src && (src.complete || src.naturalWidth > 0)) {
+                        targetCtx.drawImage(photoLayer(w, h, src, patch, curvesForFade), 0, 0, w, h);
+                        return;
+                    }
                     if (src && (src.complete || src.naturalWidth > 0)) {
                         targetCtx.drawImage(src, 0, 0, w, h);
                     }
                     // 입 주변만 부풀린 조각을 덮는다. 나머지는 원본 그대로다.
                     if (patch && patch.canvas) {
                         targetCtx.drawImage(patch.canvas, patch.x, patch.y);
-                    }
-                    // 🔅 기존 입술 진하기 — 원래 입술 자리를 피부톤으로 덮는다 (틴트를 반투명으로 올려도 색이 고르게)
-                    if (!useOrig && curvesForFade && natLip < 100) {
-                        let piece = null;
-                        try { piece = natLipPiece(w, h, curvesForFade, patch, src); } catch (e) { piece = null; }
-                        if (piece) {
-                            targetCtx.save();
-                            targetCtx.globalAlpha = 1 - natLip / 100;
-                            targetCtx.drawImage(piece.canvas, piece.x, piece.y);
-                            targetCtx.restore();
-                        }
                     }
                 } catch(e) {
                     console.warn("drawPhoto error:", e);
@@ -1428,6 +1532,7 @@
             // 4. 뷰 모드 합성 (After vs Split)
             if (viewMode === 'after') {
                 ctx.drawImage(afterCanvas, 0, 0);
+                drawLipHealCursor();
             } else if (viewMode === 'split' || viewMode === 'ab') {
                 const splitX = Math.round(w * splitRatio);
                 
@@ -1493,6 +1598,27 @@
                 ctx.stroke();
                 ctx.restore();
             }
+        }
+
+        /** 문지르는 동안 붓 크기 동그라미 (사진 좌표 → 화면) */
+        function drawLipHealCursor() {
+            if (!isLipHealing || !lipHealCursor) return;
+            const z = curImgZoom / 100, w = canvas.width, h = canvas.height;
+            const sx = (lipHealCursor.x - w / 2) * z + w / 2 + curImgPanX, sy = (lipHealCursor.y - h / 2) * z + h / 2 + curImgPanY;
+            const px = canvasPxPerCss();
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 1.5 * px; ctx.setLineDash([4 * px, 3 * px]);
+            ctx.beginPath(); ctx.arc(sx, sy, lipHealCursor.r * z, 0, Math.PI * 2); ctx.stroke();
+            ctx.restore();
+        }
+        function updateLipHealUi() {
+            document.querySelectorAll('.btn-lip-heal').forEach(function (b) {
+                b.classList.toggle('is-on', lipHealMode);
+                b.textContent = lipHealMode ? '🩹 경계 지우기 켜짐 (누르면 끄기)' : '🩹 입술 경계 지우기';
+            });
+            const c = document.getElementById('btnLipHealClear');
+            if (c) c.disabled = !lipHealMarks.length;
+            canvas.classList.toggle('erase-on', lipHealMode);
         }
 
         /** 화면 1px 이 캔버스 몇 px 인지 (캔버스는 사진 해상도, 화면엔 줄여 보인다) */
@@ -1619,6 +1745,13 @@
                 }
             }
 
+            if (lipHealMode) {
+                pushUndo();
+                isLipHealing = true;
+                lipHealAt(pos);
+                return;
+            }
+
             const { closedUpperLoop, closedLowerLoop } = getTransformedCurves();
 
             // 2. ✨ 화면에서 클릭한 입술 객체 감지
@@ -1661,6 +1794,7 @@
             const raw = getCanvasRawPos(clientX, clientY);
             const pos = getCanvasPos(clientX, clientY);
 
+            if (isLipHealing) { lipHealAt(pos); return; }
             // 1. 스플릿 바 드래그 (정확한 캔버스 화면 픽셀 기준)
             if (isDraggingSplit) {
                 splitRatio = Math.max(0.02, Math.min(0.98, raw.x / canvas.width));
@@ -1716,6 +1850,7 @@
         }
 
         function handleEnd() {
+            if (isLipHealing) { isLipHealing = false; lipHealCursor = null; updateLipHealUi(); }
             if (isDraggingLip) {
                 pushUndo();
             }
@@ -2410,6 +2545,32 @@
         bind('rngDensity', 'valDensity', '%', v => density = v);
         bind('rngOpacity', 'valOpacity', '%', v => opacity = v);
         bind('rngNatLip', 'valNatLip', '%', v => natLip = v);
+        (function () {
+            const hb = document.getElementById('btnLipHeal');
+            if (hb) hb.addEventListener('click', function () {
+                lipHealMode = !lipHealMode;
+                if (lipHealMode) { selectedLip = null; hoveredLip = null; }
+                updateLipHealUi();
+                showToast(lipHealMode ? '🩹 경계 지우기 켜짐 — 남은 입술선 · 그늘을 문지르면 피부로 메워집니다' : '✋ 경계 지우기 꺼짐 — 다시 입술을 끌어 옮길 수 있습니다');
+                requestRender();
+            });
+            const rs = document.getElementById('rngLipHeal');
+            if (rs) rs.addEventListener('input', function () {
+                lipHealSize = parseFloat(this.value);
+                const v = document.getElementById('valLipHeal');
+                if (v) v.textContent = ['', '아주 작게', '작게', '보통', '크게', '아주 크게'][lipHealSize] || lipHealSize;
+            });
+            const cb = document.getElementById('btnLipHealClear');
+            if (cb) cb.addEventListener('click', function () {
+                if (!lipHealMarks.length) return;
+                pushUndo();
+                lipHealMarks = [];
+                updateLipHealUi();
+                requestRender();
+                showToast('↺ 경계 지운 곳을 모두 원래대로 되돌렸습니다.');
+            });
+            updateLipHealUi();
+        })();
         bind('rngBlur', 'valBlur', 'px', v => blurVal = v);
 
         // JSON 및 복원 액션
@@ -2463,6 +2624,7 @@
             blurVal = prev.blurVal !== undefined ? prev.blurVal : 3.5;
             density = prev.density !== undefined ? prev.density : 100;
             gloss = prev.gloss !== undefined ? prev.gloss : 35;
+            if (prev.lipHealMarks) lipHealMarks = prev.lipHealMarks.slice();
 
             syncSliders();
             requestRender();

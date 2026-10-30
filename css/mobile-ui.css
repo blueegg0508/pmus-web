@@ -1277,3 +1277,4 @@ html.mui-on .mui-stage > .mui-vtag.is-on { display: block !important; }
 }
 .mui-hint.is-flash { color: var(--accent-2, #e8c65a); font-weight: 700; }
 .mui-absave { margin-top: 8px; }
+.lip-heal-block { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }

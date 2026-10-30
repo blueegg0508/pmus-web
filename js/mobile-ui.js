@@ -1687,6 +1687,13 @@
         borrow(rowOf("rngOpacity"), null);
         // 기존 입술 진하기 — 틴트를 낮출 때 원래 입술색이 비치는 것을 덮는다 (2026-10-30 현장 피드백)
         borrow(rowOf("rngNatLip"), "🔅 기존 입술 진하기 ");
+        // 🩹 입술 경계 지우기 — 진하기를 낮춰도 남는 입술선을 문질러 지운다 (2026-10-30 원장님)
+        if ($("btnLipHeal")) {
+            var qLipHeal = el("button", "mui-qsym btn-lip-heal", "🩹 입술 경계 지우기");
+            qLipHeal.type = "button";
+            qLipHeal.addEventListener("click", function () { $("btnLipHeal").click(); });
+            quick.insertBefore(qLipHeal, qSlot.nextSibling);   // 빌려 온 조절바들(맨 끝이 기존 입술 진하기) 바로 다음
+        }
     }
 
     var qSwitch = el("button", "mui-qswitch", "🎚️ 메뉴얼로 전환해서 세부 조정");
