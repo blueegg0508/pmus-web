@@ -13,13 +13,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
 <script>try { var sk = localStorage.getItem("pmus.skin"); if (sk) document.documentElement.setAttribute("data-skin", sk); } catch (e) {}</script>
-<link rel="stylesheet" href="css/skins.css?v=145">
-<link rel="stylesheet" href="css/app.css?v=145">
+<link rel="stylesheet" href="css/skins.css?v=147">
+<link rel="stylesheet" href="css/app.css?v=147">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=145" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=147" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="skin-btn" class="diag-btn skin-btn" type="button" title="화면 디자인" aria-label="화면 디자인 바꾸기">🎨</button>
@@ -31,7 +31,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=145" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=147" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -410,6 +410,7 @@
 <div id="cam" class="cam" hidden>
     <div class="cam-bar">
         <span class="cam-title">가이드에 맞춰 촬영</span>
+        <button type="button" id="cam-auto" class="cam-flip cam-auto" aria-pressed="true">자동 촬영 켜짐</button>
         <button type="button" id="cam-flip" class="cam-flip">앞/뒤 전환</button>
         <button type="button" id="cam-close" class="cam-close">닫기</button>
     </div>
@@ -422,11 +423,14 @@
                 <g id="g-grid" class="g-grid"></g>
                 <!-- 머리 윤곽 -->
                 <ellipse id="g-head"></ellipse>
+                <!-- 두 눈을 이은 선 — 수평이면 초록 (JS 가 그린다) -->
+                <line id="g-level" class="g-level" x1="0" y1="0" x2="0" y2="0"></line>
             </svg>
+            <div id="cam-status" class="cam-status" hidden></div>
         </div>
         <p class="cam-hint">
             코를 <strong>가운데 세로선</strong>에 맞추고, 얼굴은 <strong>타원 안에 꽉 차게</strong>.<br>
-            매번 같은 구도로 찍어야 편집 값이 모자라지 않습니다.
+            얼굴이 바르게 서면 위 띠가 <strong>초록</strong>으로 바뀌고 <strong>자동으로 찍힙니다</strong>.
         </p>
     </div>
 
@@ -494,7 +498,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=145"></script>
-<script type="module" src="js/app.js?v=145"></script>
+<script type="module" src="js/pwa.js?v=147"></script>
+<script type="module" src="js/app.js?v=147"></script>
 </body>
 </html>

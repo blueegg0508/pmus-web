@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, engineStatus } from "./face-detect.js?v=145";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=145";
-import * as License from "./license.js?v=145";
-import * as Custom from "./custom-designs.js?v=145";
-import * as Update from "./update.js?v=145";
-import * as Crm from "./crm-ui.js?v=145";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=147";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=147";
+import * as License from "./license.js?v=147";
+import * as Custom from "./custom-designs.js?v=147";
+import * as Update from "./update.js?v=147";
+import * as Crm from "./crm-ui.js?v=147";
 
-const BUILD = "145";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "147";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -1723,6 +1723,62 @@ async function handlePhoto(file) {
 }
 
 /**
+ * 얼굴 자세 기준 (2026-11-01 — 찍을 때 좌우 대칭 맞추기가 어렵다는 현장 의견).
+ *   level*   찍은 사진을 자동으로 수평 맞추는 범위 (도). 이보다 작으면 손대지 않고,
+ *            크면 너무 많이 잘려 나가므로 돌리지 않는다.
+ *   roll · yaw  촬영 화면에서 '바르다' 고 보는 한도. 기울기는 찍은 뒤 수평을
+ *            맞추므로 넉넉히, 옆으로 돌린 고개는 펼 수 없으니 엄하게 본다.
+ *   yawWarn  찍은 사진에서 다시 찍기를 권하는 한도.
+ */
+const POSE = {
+    levelMin: 0.8,
+    levelMax: 12,
+    roll: 4,
+    yaw: 0.10,
+    yawWarn: 0.16,
+    sizeMin: 0.42,     // 얼굴 폭 / 틀 폭 — 이보다 작으면 '가까이'
+    sizeMax: 0.85,     //                    이보다 크면 '뒤로'
+    center: 0.09,      // 얼굴 가운데가 틀 가운데에서 이만큼(틀 폭 비율) 넘게 벗어나면 안내
+    holdMs: 900,       // 바른 자세가 이만큼 이어지면 자동 촬영
+};
+
+/**
+ * 두 눈을 이은 선이 수평이 되도록 사진을 돌린다.
+ *
+ * 돌리면 모서리가 비므로 빈 곳이 안 생길 만큼만 살짝 키운다 (3° 에 약 6%).
+ * 사진 크기는 그대로라 저장 · 비교 화면이 달라지지 않고, '시술 전' 도
+ * 이 사진이라 비교가 어긋나지 않는다.
+ * @returns {Promise<{img, dataUrl, deg} | null>} 돌릴 필요가 없으면 null
+ */
+function levelPhoto(img, rollDeg) {
+    const a = Math.abs(rollDeg);
+    if (!(a >= POSE.levelMin && a <= POSE.levelMax)) return Promise.resolve(null);
+    const w = img.naturalWidth, h = img.naturalHeight;
+    const rad = (-rollDeg * Math.PI) / 180;
+    const s = Math.cos(Math.abs(rad)) + Math.max(w / h, h / w) * Math.sin(Math.abs(rad));
+    return new Promise((resolve) => {
+        try {
+            const c = document.createElement("canvas");
+            c.width = w; c.height = h;
+            const ctx = c.getContext("2d");
+            ctx.imageSmoothingQuality = "high";
+            ctx.translate(w / 2, h / 2);
+            ctx.rotate(rad);
+            ctx.scale(s, s);
+            ctx.drawImage(img, -w / 2, -h / 2, w, h);
+            const dataUrl = c.toDataURL("image/jpeg", 0.92);
+            c.width = 0; c.height = 0;
+            const out = new Image();
+            out.onload = () => resolve({ img: out, dataUrl, deg: rollDeg });
+            out.onerror = () => resolve(null);
+            out.src = dataUrl;
+        } catch (e) {
+            resolve(null);                // 메모리가 모자라면 원래 사진 그대로
+        }
+    });
+}
+
+/**
  * 준비된 사진 하나를 화면에 앉히고 얼굴을 찾는다.
  * 앨범에서 고른 것과 앱 안에서 찍은 것이 같은 길을 타도록 따로 뺐다.
  */
@@ -1751,12 +1807,43 @@ async function usePhoto(img, dataUrl) {
         badge.className = "badge";
         showLoading("얼굴을 인식하는 중...");
 
-        const geo = await detectFaceGeometry(img);
+        let geo = await detectFaceGeometry(img);
+
+        // 고개가 기울어 찍혔으면 사진을 돌려 두 눈을 수평으로 맞춘다.
+        // 디자인은 눈 선을 따라 얹히므로, 기운 채로 두면 한쪽 눈썹이 올라가 보인다.
+        let leveled = null;
+        if (geo && geo.eyes) {
+            // 디자인이 따라가는 것과 같은 선(두 눈 중심)으로 잰다 — 돌린 뒤 디자인 기울기가 0 이 되게
+            const e = geo.eyes;
+            leveled = await levelPhoto(img, (Math.atan2(e.right.y - e.left.y, e.right.x - e.left.x) * 180) / Math.PI);
+            if (leveled) {
+                const geo2 = await detectFaceGeometry(leveled.img);
+                if (geo2) {
+                    geo = geo2;
+                    img = leveled.img;
+                    dataUrl = leveled.dataUrl;
+                    state.photo = img;
+                    state.photoDataUrl = dataUrl;
+                    $("preview-img").src = dataUrl;
+                } else {
+                    leveled = null;      // 돌린 사진에서 못 찾으면 원래 사진 그대로
+                }
+            }
+        }
+
         state.eyes = geo ? geo.eyes : null;
         state.brows = geo ? geo.brows : null;
         if (state.eyes) {
-            badge.textContent = "얼굴 인식 완료";
+            badge.textContent = leveled
+                ? `얼굴 인식 완료 · 수평 ${Math.abs(leveled.deg).toFixed(1)}° 맞춤`
+                : "얼굴 인식 완료";
             badge.className = "badge badge-ok";
+            // 고개를 옆으로 돌린 사진은 돌려서 펼 수 없다 — 다시 찍기를 권한다.
+            if (geo.pose && Math.abs(geo.pose.yaw) > POSE.yawWarn) {
+                badge.textContent += " · 고개가 옆으로 돌아감";
+                badge.className = "badge badge-warn";
+                toast("고개가 옆으로 돌아간 사진이라 좌우가 달라 보일 수 있습니다. 정면으로 다시 찍으면 더 정확합니다.", 4200);
+            }
         } else {
             // 얼굴이 안 보이는 것과, 이 기기에서 인식 엔진이 아예 못 도는 것은
             // 다른 문제다. 문의가 왔을 때 구분할 수 있게 다르게 적는다.
@@ -2076,6 +2163,7 @@ async function startStream() {
         $("cam-frame").classList.toggle("is-mirrored", cam.facing === "user");
         $("cam-shoot").disabled = false;
         await video.play().catch(() => {});
+        startLive();
     } catch (err) {
         $("cam-shoot").disabled = true;
         $("cam-error").hidden = false;
@@ -2101,8 +2189,145 @@ function stopStream() {
 }
 
 function closeCamera() {
+    stopLive();
     stopStream();
     $("cam").hidden = true;
+}
+
+/** 영상에서 촬영 틀에 보이는 부분 (object-fit: cover 와 같은 계산) */
+function camCrop(video) {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const want = FRAME_GUIDE.aspect;
+    let sw = vw, sh = vh;
+    if (vw / vh > want) sw = Math.round(vh * want);   // 좌우가 남으면 잘라낸다
+    else sh = Math.round(vw / want);                  // 위아래가 남으면 잘라낸다
+    return { sx: Math.round((vw - sw) / 2), sy: Math.round((vh - sh) / 2), sw, sh };
+}
+
+// ── 촬영 중 자세 확인 · 자동 촬영 ────────────────────────────────────────
+//
+// 찍고 나서야 삐뚤어진 걸 알면 몇 번을 다시 찍게 된다 (2026-11-01 현장 의견:
+// "3번 찍었는데도 대칭을 못 맞췄어요"). 그래서 찍기 전에 영상에서 얼굴을
+// 계속 보고, 바르게 선 순간 저절로 찍는다. 인식은 작은 그림으로 한 번에
+// 하나씩만 돌려 저사양 기기에서도 화면이 버벅이지 않게 한다.
+
+const live = { on: false, timer: 0, okSince: 0, canvas: null, failed: 0 };
+const CAM_AUTO_KEY = "pmus.camAuto";
+
+function camAutoOn() {
+    try { return localStorage.getItem(CAM_AUTO_KEY) !== "0"; } catch (e) { return true; }
+}
+
+function syncCamAutoButton() {
+    const on = camAutoOn();
+    const b = $("cam-auto");
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+    b.textContent = on ? "자동 촬영 켜짐" : "자동 촬영 꺼짐";
+}
+
+function setCamStatus(text, kind) {
+    const el = $("cam-status");
+    el.hidden = !text;
+    el.textContent = text || "";
+    el.className = "cam-status" + (kind ? " is-" + kind : "");
+    $("cam-shoot").classList.toggle("is-ready", kind === "ok");
+}
+
+function startLive() {
+    stopLive();
+    live.on = true;
+    live.okSince = 0;
+    live.failed = 0;
+    setCamStatus("얼굴을 찾는 중...", "");
+    live.timer = setTimeout(liveTick, 300);
+}
+
+function stopLive() {
+    live.on = false;
+    clearTimeout(live.timer);
+    live.okSince = 0;
+    setCamStatus("", "");
+    $("g-level").classList.remove("is-on", "is-ok");
+    if (live.canvas) { live.canvas.width = 0; live.canvas.height = 0; live.canvas = null; }
+}
+
+async function liveTick() {
+    if (!live.on) return;
+    const video = $("cam-video");
+    if (video.videoWidth && video.videoHeight && !video.paused) {
+        const { sx, sy, sw, sh } = camCrop(video);
+        const W = 288, H = Math.round(W / FRAME_GUIDE.aspect);
+        if (!live.canvas) live.canvas = document.createElement("canvas");
+        const c = live.canvas;
+        if (c.width !== W) { c.width = W; c.height = H; }
+        c.getContext("2d").drawImage(video, sx, sy, sw, sh, 0, 0, W, H);
+        const pose = await detectPose(c);
+        if (!live.on) return;
+        if (!pose && !engineStatus().ready) {
+            // 이 기기에서 인식 엔진이 안 돌면 안내 없이 예전처럼 손으로 찍는다
+            if (++live.failed >= 3) { stopLive(); return; }
+        }
+        judgePose(pose);
+    }
+    live.timer = setTimeout(liveTick, 110);
+}
+
+/** 화면에 보이는 그대로의 자세로 바꾼다 (앞 카메라는 좌우가 뒤집혀 보인다) */
+function screenPose(p) {
+    if (!$("cam-frame").classList.contains("is-mirrored")) return p;
+    const flip = (e) => ({ x: 1 - e.x, y: e.y });
+    return { ...p, roll: -p.roll, yaw: -p.yaw, cx: 1 - p.cx, eyeL: flip(p.eyeR), eyeR: flip(p.eyeL) };
+}
+
+function drawLevelLine(p, ok) {
+    const line = $("g-level");
+    if (!p) { line.classList.remove("is-on", "is-ok"); return; }
+    const W = 100, H = W / FRAME_GUIDE.aspect;
+    // 두 눈꼬리를 이은 선을 양쪽으로 조금 늘려 그린다
+    const ax = p.eyeL.x * W, ay = p.eyeL.y * H, bx = p.eyeR.x * W, by = p.eyeR.y * H;
+    const k = 0.45;
+    line.setAttribute("x1", (ax - (bx - ax) * k).toFixed(2));
+    line.setAttribute("y1", (ay - (by - ay) * k).toFixed(2));
+    line.setAttribute("x2", (bx + (bx - ax) * k).toFixed(2));
+    line.setAttribute("y2", (by + (by - ay) * k).toFixed(2));
+    line.classList.add("is-on");
+    line.classList.toggle("is-ok", ok);
+}
+
+function judgePose(raw) {
+    const auto = camAutoOn();
+    if (!raw) {
+        live.okSince = 0;
+        drawLevelLine(null);
+        setCamStatus("얼굴을 점선 안에 맞춰 주세요", "");
+        return;
+    }
+    const p = screenPose(raw);
+    let msg = "";
+    if (p.size < POSE.sizeMin) msg = "조금 더 가까이 찍어 주세요";
+    else if (p.size > POSE.sizeMax) msg = "조금 뒤로 물러나 주세요";
+    else if (Math.abs(p.cx - 0.5) > POSE.center) msg = "코를 가운데 세로선에 맞춰 주세요";
+    else if (Math.abs(p.yaw) > POSE.yaw) {
+        // 코가 화면 오른쪽으로 쏠렸으면 얼굴을 화면 왼쪽으로 돌려야 정면이 된다
+        msg = p.yaw > 0 ? "◀ 얼굴을 화면 왼쪽으로 조금 돌려 주세요" : "얼굴을 화면 오른쪽으로 조금 돌려 주세요 ▶";
+    }
+    else if (Math.abs(p.roll) > POSE.roll) msg = `고개가 ${Math.abs(p.roll).toFixed(0)}° 기울었어요 — 똑바로`;
+
+    const ok = !msg;
+    drawLevelLine(p, Math.abs(p.roll) <= POSE.roll);
+    if (!ok) {
+        live.okSince = 0;
+        setCamStatus(msg, "warn");
+        return;
+    }
+    const now = performance.now();
+    if (!live.okSince) live.okSince = now;
+    if (!auto) { setCamStatus("좋아요 — 지금 찍으세요", "ok"); return; }
+    setCamStatus("좋아요! 그대로 계세요 — 자동으로 찍습니다", "ok");
+    if (now - live.okSince >= POSE.holdMs) {
+        stopLive();
+        shoot();
+    }
 }
 
 /** 미리보기에서 '틀 안에 보이던 그대로' 잘라 담는다 (object-fit: cover 와 같은 계산) */
@@ -2111,12 +2336,7 @@ function shoot() {
     const vw = video.videoWidth, vh = video.videoHeight;
     if (!vw || !vh) { toast("카메라가 아직 준비되지 않았습니다"); return; }
 
-    const want = FRAME_GUIDE.aspect;
-    let sw = vw, sh = vh;
-    if (vw / vh > want) sw = Math.round(vh * want);   // 좌우가 남으면 잘라낸다
-    else sh = Math.round(vw / want);                  // 위아래가 남으면 잘라낸다
-    const sx = Math.round((vw - sw) / 2);
-    const sy = Math.round((vh - sh) / 2);
+    const { sx, sy, sw, sh } = camCrop(video);
 
     const scale = Math.min(1, MAX_SIZE / Math.max(sw, sh));
     const w = Math.round(sw * scale), h = Math.round(sh * scale);
@@ -2144,6 +2364,12 @@ function shoot() {
 function bindCamera() {
     $("cam-close").addEventListener("click", closeCamera);
     $("cam-shoot").addEventListener("click", shoot);
+    syncCamAutoButton();
+    $("cam-auto").addEventListener("click", () => {
+        try { localStorage.setItem(CAM_AUTO_KEY, camAutoOn() ? "0" : "1"); } catch (e) {}
+        syncCamAutoButton();
+        live.okSince = 0;
+    });
     $("cam-flip").addEventListener("click", async () => {
         cam.facing = cam.facing === "user" ? "environment" : "user";
         await startStream();

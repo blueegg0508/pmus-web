@@ -516,8 +516,20 @@ export function buildEyebrowConfig(browImg, imgW, imgH, eyes, settings = {}) {
 
         // 앞머리를 앞눈꼬리에 맞췄으면 그 자리로. 조절바로 크기를 바꿨으면 그만큼
         // 가운데를 기준으로 늘거나 준다 (끌어 옮기면 되니 자리까지 다시 맞추지 않는다).
-        const PL = noseFit ? put(noseFit.uL) : put(uOf(brows.left));
-        const PR = noseFit ? put(noseFit.uR) : put(uOf(brows.right));
+        // 앞머리를 못 맞춘 경우에도 좌우는 얼굴 가운데(두 앞눈꼬리의 가운데)를 기준으로
+        // 거울처럼 놓는다. 원래 눈썹 자리를 그대로 따르면 원래 눈썹의 짝짝이를
+        // 디자인이 물려받는다 (2026-11-01 — 처음부터 대칭으로 시작하게).
+        let sym = null;
+        if (!noseFit) {
+            const half = (uOf(brows.right) - uOf(brows.left)) / 2.0;
+            const n = brows.left.nose && brows.right.nose
+                ? (uOf({ cx: brows.left.nose.x, cy: brows.left.nose.y })
+                 + uOf({ cx: brows.right.nose.x, cy: brows.right.nose.y })) / 2.0
+                : 0;
+            sym = half > 0 && Math.abs(n) < half ? { L: n - half, R: n + half } : { L: -half, R: half };
+        }
+        const PL = noseFit ? put(noseFit.uL) : put(sym.L);
+        const PR = noseFit ? put(noseFit.uR) : put(sym.R);
         leftX  = PL.x + horiz - spacing / 2.0;
         leftY  = PL.y + vert + g("left_y_offset", 0);
         rightX = PR.x + horiz + spacing / 2.0;

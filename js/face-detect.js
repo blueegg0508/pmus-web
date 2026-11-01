@@ -346,6 +346,55 @@ export async function detectEyeCenters(imgEl) {
 }
 
 /**
+ * 얼굴이 얼마나 삐뚤게 찍혔는지 (2026-11-01 — 찍을 때 좌우 대칭 맞추기가 어렵다는 현장 의견).
+ *
+ *   roll  = 바깥 눈꼬리 두 점(33 · 263)을 이은 선의 기울기(도). 0 이면 수평.
+ *   yaw   = 코끝(1)이 양 볼 끝(234 · 454) 사이 어디에 있나. 0 이 정면,
+ *           ±1 이 볼 끝. 고개를 돌리면 한쪽 눈썹이 짧아 보여 디자인이 짝짝이로 보인다.
+ *   cx · cy · size = 얼굴 가운데와 폭 (사진 폭에 대한 비율) — 거리 · 자리 안내에 쓴다.
+ *
+ * 위아래 숙임은 재지 않는다. 사람마다 코 길이가 달라 기준을 세울 수 없고,
+ * 좌우 대칭에는 거의 영향이 없다.
+ */
+function poseOf(marks, w, h) {
+    const P = (i) => ({ x: marks[i].x * w, y: marks[i].y * h });
+    const eL = P(33), eR = P(263), nose = P(1), cL = P(234), cR = P(454), top = P(10), chin = P(152);
+    // 좌우는 눈 선 방향으로 잰다. 그냥 가로(x)로 재면 고개만 기울여도
+    // 코끝이 옆으로 밀려 '돌아갔다' 로 잘못 본다.
+    const el = Math.hypot(eR.x - eL.x, eR.y - eL.y) || 1;
+    const ux = (eR.x - eL.x) / el, uy = (eR.y - eL.y) / el;
+    const along = (p) => (p.x - cL.x) * ux + (p.y - cL.y) * uy;
+    const span = along(cR);
+    return {
+        roll: (Math.atan2(eR.y - eL.y, eR.x - eL.x) * 180) / Math.PI,
+        yaw: span > 1 ? (along(nose) / span - 0.5) * 2 : 0,
+        cx: (cL.x + cR.x) / 2 / w,
+        cy: (top.y + chin.y) / 2 / h,
+        size: Math.hypot(cR.x - cL.x, cR.y - cL.y) / w,
+        eyeL: { x: eL.x / w, y: eL.y / h },
+        eyeR: { x: eR.x / w, y: eR.y / h },
+    };
+}
+
+/**
+ * 촬영 화면에서 쓰는 빠른 자세 확인. 작은 그림 한 장으로 한 번만 본다
+ * (다시 해 보기 · CPU 재시도 없음 — 다음 장면에서 또 보면 된다).
+ * 엔진이 없거나 얼굴이 없으면 null.
+ */
+export async function detectPose(src) {
+    try {
+        const lm = await initFaceLandmarker();
+        const res = lm.detect(src);
+        if (!res || !res.faceLandmarks || res.faceLandmarks.length === 0) return null;
+        const marks = res.faceLandmarks[0];
+        if (!_looksSane(marks)) return null;
+        return poseOf(marks, src.width || 1, src.height || 1);
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
  * 눈 중심과 **실제 눈썹의 자리·길이·기울기**를 한 번의 인식으로 같이 얻는다.
  *
  * 눈썹을 따로 재는 이유: 눈 위치만으로 잡으면 '눈에서 얼마쯤 위'라는 평균값에
@@ -419,6 +468,7 @@ export async function detectFaceGeometry(imgEl) {
     };
     geo.brows.left.peakRef  = { pupil: irisOuter(33, 133),  corner: at(33) };
     geo.brows.right.peakRef = { pupil: irisOuter(263, 362), corner: at(263) };
+    geo.pose = poseOf(marks, w, h);
 
     // 마지막으로 한 번 더 본다. 여기서 내보낸 값은 눈썹 자리·크기와
     // 입술선의 기준이 되므로, 사진 밖의 값이 새어 나가면 아무것도 안 보인다.

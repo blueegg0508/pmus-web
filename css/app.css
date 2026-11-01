@@ -697,6 +697,44 @@ body.sim-fullscreen.settings-open .settings-toggle { display: flex; }
 }
 
 
+/* 두 눈을 이은 선 — 기울면 주황, 수평이면 초록 */
+.cam-guide .g-level {
+    stroke: #f5a524;
+    stroke-width: 0.8;
+    stroke-linecap: round;
+    opacity: 0;
+    transition: opacity .2s;
+}
+.cam-guide .g-level.is-on { opacity: .95; }
+.cam-guide .g-level.is-ok { stroke: #34d399; }
+
+/* 자세 안내 띠 — 틀 위쪽. 바르면 초록, 아니면 어떻게 고칠지 */
+.cam-status {
+    position: absolute;
+    left: 50%;
+    top: 10px;
+    transform: translateX(-50%);
+    max-width: calc(100% - 20px);
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgba(20, 20, 24, .78);
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 800;
+    line-height: 1.35;
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+}
+.cam-status[hidden] { display: none !important; }
+.cam-status.is-ok { background: rgba(16, 150, 100, .9); }
+.cam-status.is-warn { background: rgba(190, 110, 10, .9); }
+.cam-auto[aria-pressed="true"] { border-color: #34d399; color: #34d399; }
+/* 자동 촬영 직전 — 셔터 둘레가 초록으로 */
+.cam-shoot.is-ready { border-color: #34d399; box-shadow: 0 0 0 4px rgba(52, 211, 153, .35); }
+
 .cam-hint {
     margin: 0;
     max-width: 420px;
