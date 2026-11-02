@@ -19,7 +19,7 @@
  * =========================================================================
  */
 
-import { resizeTo } from "./prepare-eyebrow.js?v=154";
+import { resizeTo } from "./prepare-eyebrow.js?v=155";
 
 const DB_NAME = "browlist";
 const DB_VERSION = 1;
@@ -236,13 +236,18 @@ function isFullyOpaque(canvas) {
  *   4. 색은 짙은 회갈색으로 통일 — 편집 화면에서 고른 색으로 다시 입힌다.
  */
 function photoToTransparent(src) {
-    const k = Math.min(1, 1600 / Math.max(src.width, src.height));
+    // 피부 사진은 작게 받은 캡처가 많다 (600px 안팎) — 털 한 올이 1~2px 이라 그대로 다루면
+    // 결이 뭉개진다. 긴 쪽 1200px 까지 키워 다룬다 (종이인지는 아래에서 다시 본다).
+    const skinGuess = looksLikeSkin(src);
+    const k = skinGuess
+        ? Math.min(2, 1200 / Math.max(src.width, src.height), 1600 / Math.max(src.width, src.height))
+        : Math.min(1, 1600 / Math.max(src.width, src.height));
     const W = Math.max(1, Math.round(src.width * k));
     const H = Math.max(1, Math.round(src.height * k));
     const c = document.createElement("canvas");
     c.width = W; c.height = H;
     const g = c.getContext("2d", { willReadFrequently: true });
-    g.imageSmoothingQuality = "medium";
+    g.imageSmoothingQuality = skinGuess ? "high" : "medium";
     g.drawImage(src, 0, 0, W, H);
     const img = g.getImageData(0, 0, W, H);
     const px = img.data;
@@ -280,15 +285,7 @@ function photoToTransparent(src) {
     // 0. 종이인가, 피부인가 (2026-11-02 — 시술을 마친 눈썹 사진으로도 등록하고 싶다는 원장님 요청)
     //    밝은 쪽 점들의 붉은기(R − B)로 본다. 흰 종이는 거의 0, 피부는 뚜렷하게 붉다.
     //    피부 사진은 눈썹이 사진 가장자리까지 차 있고, 바탕(피부)이 종이보다 어둡고 얼룩져 있다.
-    const skin = (() => {
-        const hist = new Uint32Array(256);
-        for (let i = 0; i < N; i++) hist[L0[i] | 0]++;
-        let cut = 255, acc = 0;
-        while (cut > 0 && acc < N * 0.4) acc += hist[cut--];
-        let rb = 0, n = 0;
-        for (let i = 0; i < N; i += 3) if (L0[i] >= cut) { rb += px[i * 4] - px[i * 4 + 2]; n++; }
-        return n > 0 && rb / n > 18;
-    })();
+    const skin = skinGuess;
 
     // 1. 종이(피부) 밝기 지도
     //    피부는 눈썹이 칸을 통째로 덮을 만큼 굵게 찍히므로 칸을 크게 잡고, 번들거리는
@@ -333,7 +330,7 @@ function photoToTransparent(src) {
     const A = new Uint8ClampedArray(N);
     // 종이: 옅은 연필 획도 놓치지 않게. 피부: 모공 · 잡티 · 얼룩은 빼고, 진한 곳이 뭉개진
     // 검은 덩어리가 되지 않게 진하기 폭을 넓힌다 (털 한 올의 농담이 남게).
-    const lo = skin ? 0.1 : 0.07, hi = skin ? 0.6 : 0.42;
+    const lo = skin ? 0.12 : 0.07, hi = skin ? 0.72 : 0.42;
     // 피부: 결 지도 — 털은 한 올 한 올 밝고 어두움이 번갈아 '결' 이 있고, 눈썹 아래 그늘 ·
     // 피부 얼룩은 매끈하다. 옅은 곳은 결이 있을 때만 남겨, 그늘이 회색 자국으로 묻어 나오지 않게 한다.
     let tex = null;
@@ -365,6 +362,10 @@ function photoToTransparent(src) {
         const d = new Float32Array(N);
         for (let i = 0; i < N; i++) d[i] = Math.abs(L0[i] - m1[i]);
         tex = box(d, r1 * 3);
+        // 털 한 올을 살린다 (2026-11-02 — 시술 사진이 뭉개진 덩어리로 나온다는 원장님 의견):
+        // 밝기에서 털과 털 사이 차이를 키워 쓴다.
+        // 털은 더 진하게, 털 사이 틈은 더 밝게 → 덩어리 대신 결이 남는다.
+        for (let i = 0; i < N; i++) L[i] = L[i] + 1.6 * (L[i] - m1[i]);   // 살짝 편 L 을 써서 사진 자글거림은 키우지 않는다
     }
     for (let y = 0; y < H; y++) {
         for (let x = 0; x < W; x++) {
@@ -477,6 +478,25 @@ function photoToTransparent(src) {
     g.putImageData(img, 0, 0);
     c.fromSkin = skin;
     return c;
+}
+
+/** 종이인가, 피부인가 — 밝은 쪽 40% 점들의 붉은기(R − B) 평균으로 본다. 흰 종이는 거의 0, 피부는 뚜렷하게 붉다. */
+function looksLikeSkin(src) {
+    const k = Math.min(1, 400 / Math.max(src.width, src.height));
+    const w = Math.max(1, Math.round(src.width * k)), h = Math.max(1, Math.round(src.height * k));
+    const c = document.createElement("canvas");
+    c.width = w; c.height = h;
+    const g = c.getContext("2d", { willReadFrequently: true });
+    g.drawImage(src, 0, 0, w, h);
+    const px = g.getImageData(0, 0, w, h).data;
+    c.width = 0; c.height = 0;
+    const n0 = w * h, Ls = new Uint8Array(n0), hist = new Uint32Array(256);
+    for (let i = 0; i < n0; i++) { Ls[i] = (0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2]) | 0; hist[Ls[i]]++; }
+    let cut = 255, acc = 0;
+    while (cut > 0 && acc < n0 * 0.4) acc += hist[cut--];
+    let rb = 0, n = 0;
+    for (let i = 0; i < n0; i++) if (Ls[i] >= cut) { rb += px[i * 4] - px[i * 4 + 2]; n++; }
+    return n > 0 && rb / n > 18;
 }
 
 /** 준비한 이미지를 이름과 함께 보관한다. */
