@@ -783,13 +783,14 @@
         if (row) row.classList.toggle("is-locked", on);
         const b = row && row.querySelector(".mui-lock");
         if (b) {
-            b.textContent = on ? "🔒" : "🔓";
+            b.textContent = on ? "🔒 잠김" : "🔓 잠금";
             b.setAttribute("aria-pressed", on ? "true" : "false");
             b.setAttribute("aria-label", on ? "조절바 잠금 풀기" : "조절바 잠그기");
         }
     }
 
-    /** 조절바 하나에 자물쇠 버튼을 붙인다 (± 버튼 바로 뒤, 없으면 라벨 끝). */
+    /** 조절바 하나에 자물쇠 버튼을 붙인다 — 이름 바로 오른쪽 (± 버튼 앞).
+     *  ± 뒤에 두었더니 폰에서는 화면 밖으로 밀려나 보이지 않았다 (2026-11-02). */
     function attachLock(input) {
         const row = input.closest(".ctrl-row");
         const label = row && row.querySelector("label");
@@ -801,7 +802,8 @@
             e.stopPropagation();      // 라벨 안이라 조절바로 번지지 않게
             setLocked(input, !isLocked(input));
         });
-        (label.querySelector(".mui-step") || label).appendChild(b);
+        const step = label.querySelector(".mui-step");
+        if (step) label.insertBefore(b, step); else label.appendChild(b);
         setLocked(input, isLocked(input));
     }
 

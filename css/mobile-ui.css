@@ -641,18 +641,22 @@ html.mui-on .mui-panes .mui-step .mui-step-btn:active {
    밀어도 시트가 그대로 스크롤된다. */
 html.mui-on .mui-panes .mui-lock {
     appearance: none;
-    width: 34px;
-    height: 34px;
-    min-height: 34px;
+    height: 30px;
+    min-height: 30px;
     flex: 0 0 auto;
-    padding: 0 !important;
+    /* 이름 바로 오른쪽에 붙이고, 남는 자리는 오른쪽(± 쪽)으로 */
+    margin: 0 auto 0 8px;
+    padding: 0 9px !important;
+    white-space: nowrap;
+    font-size: 12.5px !important;
+    font-weight: 700;
     border: 1px solid var(--line, #4A3F63);
     border-radius: 9px;
     background: var(--surface-2, #2C2540);
     font-family: inherit;
-    font-size: 15px !important;
     line-height: 1;
-    opacity: .6;
+    color: inherit;
+    opacity: .75;
     cursor: pointer;
     touch-action: pan-y;
 }
@@ -660,6 +664,7 @@ html.mui-on .mui-panes .ctrl-row.is-locked .mui-lock {
     opacity: 1;
     background: var(--accent);
     border-color: var(--accent);
+    color: #221C33;
 }
 html.mui-on .mui-panes .ctrl-row.is-locked input[type="range"] {
     pointer-events: none;
