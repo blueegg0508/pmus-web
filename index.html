@@ -13,13 +13,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
 <script>try { var sk = localStorage.getItem("pmus.skin"); if (sk) document.documentElement.setAttribute("data-skin", sk); } catch (e) {}</script>
-<link rel="stylesheet" href="css/skins.css?v=147">
-<link rel="stylesheet" href="css/app.css?v=147">
+<link rel="stylesheet" href="css/skins.css?v=148">
+<link rel="stylesheet" href="css/app.css?v=148">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=147" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=148" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="skin-btn" class="diag-btn skin-btn" type="button" title="화면 디자인" aria-label="화면 디자인 바꾸기">🎨</button>
@@ -31,7 +31,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=147" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=148" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -387,6 +387,8 @@
         <p class="design-dlg-guide">
             <strong>종이에 그린 디자인을 찍은 사진</strong>도 됩니다 — 종이 배경을 자동으로 지워 투명하게 만듭니다.
             흰 종이에 <strong>왼쪽 눈썹 한 쪽</strong>만 진하게 그리고, 밝은 곳에서 위에서 똑바로 찍어 주세요.
+            <strong>시술을 마친 눈썹 사진</strong>도 됩니다 — 피부를 지우고 눈썹 결만 남깁니다.
+            눈썹 한 쪽이 화면에 꽉 차게, 밝은 곳에서 정면으로 가까이 찍어 주세요 (머리카락 · 눈이 들어가지 않게).
             배경이 투명한 PNG 도 그대로 됩니다. 오른쪽은 자동으로 좌우 반전해서 만들고,
             색은 편집 화면에서 다시 입히므로 모양과 농담만 있으면 됩니다.
         </p>
@@ -498,7 +500,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=147"></script>
-<script type="module" src="js/app.js?v=147"></script>
+<script type="module" src="js/pwa.js?v=148"></script>
+<script type="module" src="js/app.js?v=148"></script>
 </body>
 </html>

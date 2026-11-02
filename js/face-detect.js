@@ -384,11 +384,25 @@ function poseOf(marks, w, h) {
 export async function detectPose(src) {
     try {
         const lm = await initFaceLandmarker();
-        const res = lm.detect(src);
-        if (!res || !res.faceLandmarks || res.faceLandmarks.length === 0) return null;
-        const marks = res.faceLandmarks[0];
-        if (!_looksSane(marks)) return null;
-        return poseOf(marks, src.width || 1, src.height || 1);
+        const W = src.width || 1, H = src.height || 1;
+        let res = lm.detect(src);
+        let marks = res && res.faceLandmarks && res.faceLandmarks[0];
+        if (marks && _looksSane(marks)) return poseOf(marks, W, H);
+        // 얼굴이 틀을 꽉 채우면 놓치는 기기가 있다 (_detect 와 같은 이유) — 둘레를 비워 한 번 더
+        const PAD = 0.8;
+        const padded = _redraw(src, W, H, (x, cw, ch) => {
+            x.fillStyle = "#7a7a7a";
+            x.fillRect(0, 0, cw, ch);
+            x.drawImage(src, cw * (1 - PAD) / 2, ch * (1 - PAD) / 2, cw * PAD, ch * PAD);
+        });
+        if (!padded) return null;
+        res = lm.detect(padded);
+        padded.width = 0; padded.height = 0;
+        marks = res && res.faceLandmarks && res.faceLandmarks[0];
+        if (!marks || !_looksSane(marks)) return null;
+        // 여백 좌표를 원래 틀 좌표로 되돌린다
+        const back = marks.map((m) => ({ x: (m.x - (1 - PAD) / 2) / PAD, y: (m.y - (1 - PAD) / 2) / PAD, z: m.z }));
+        return poseOf(back, W, H);
     } catch (e) {
         return null;
     }

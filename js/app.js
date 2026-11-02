@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=147";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=147";
-import * as License from "./license.js?v=147";
-import * as Custom from "./custom-designs.js?v=147";
-import * as Update from "./update.js?v=147";
-import * as Crm from "./crm-ui.js?v=147";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=148";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=148";
+import * as License from "./license.js?v=148";
+import * as Custom from "./custom-designs.js?v=148";
+import * as Update from "./update.js?v=148";
+import * as Crm from "./crm-ui.js?v=148";
 
-const BUILD = "147";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "148";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -1733,12 +1733,13 @@ async function handlePhoto(file) {
 const POSE = {
     levelMin: 0.8,
     levelMax: 12,
-    roll: 4,
-    yaw: 0.10,
+    roll: 4,           // 수평선을 초록으로 그리는 한도 (찍는 것은 막지 않는다 — 찍은 뒤 수평을 맞춘다)
+    yaw: 0.12,
     yawWarn: 0.16,
-    sizeMin: 0.42,     // 얼굴 폭 / 틀 폭 — 이보다 작으면 '가까이'
-    sizeMax: 0.85,     //                    이보다 크면 '뒤로'
-    center: 0.09,      // 얼굴 가운데가 틀 가운데에서 이만큼(틀 폭 비율) 넘게 벗어나면 안내
+    sizeMin: 0.36,     // 얼굴 폭 / 틀 폭 — 이보다 작으면 '가까이'
+    sizeMax: 0.9,      //                    이보다 크면 '뒤로'
+    center: 0.12,      // 얼굴 가운데가 틀 가운데에서 이만큼(틀 폭 비율) 넘게 벗어나면 안내
+    keep: 1.3,         // 바른 자세로 세는 동안은 한도를 이만큼 넓힌다 (경계에서 깜빡이지 않게)
     holdMs: 900,       // 바른 자세가 이만큼 이어지면 자동 촬영
 };
 
@@ -1986,7 +1987,8 @@ async function refreshPendingPreview() {
         pending.prepared = await Custom.prepare(pending.file, { flip: pending.flip });
         $("design-dlg-preview").src = pending.prepared.dataUrl;
         $("design-dlg-size").textContent = pending.prepared.fromPhoto
-            ? `사진에서 종이 배경을 지웠습니다 · ${pending.prepared.width} × ${pending.prepared.height}px`
+            ? (pending.prepared.fromSkin ? "사진에서 피부를 지우고 눈썹만 남겼습니다" : "사진에서 종이 배경을 지웠습니다")
+              + ` · ${pending.prepared.width} × ${pending.prepared.height}px`
             : `${pending.prepared.width} × ${pending.prepared.height}px (여백 잘라냄)`;
         $("design-dlg-save").disabled = false;
     } catch (e) {
@@ -2211,7 +2213,9 @@ function camCrop(video) {
 // 계속 보고, 바르게 선 순간 저절로 찍는다. 인식은 작은 그림으로 한 번에
 // 하나씩만 돌려 저사양 기기에서도 화면이 버벅이지 않게 한다.
 
-const live = { on: false, timer: 0, okSince: 0, canvas: null, failed: 0 };
+const live = { on: false, timer: 0, okSince: 0, canvas: null, failed: 0, miss: 0 };
+// 기기 진단에 보여 줄 촬영 안내 기록 (안 찍힌다는 문의가 오면 어디서 막혔는지 본다)
+const camStats = { tries: 0, found: 0, last: "", p: null };
 const CAM_AUTO_KEY = "pmus.camAuto";
 
 function camAutoOn() {
@@ -2238,6 +2242,8 @@ function startLive() {
     live.on = true;
     live.okSince = 0;
     live.failed = 0;
+    live.miss = 0;
+    camStats.tries = 0; camStats.found = 0; camStats.last = ""; camStats.p = null;
     setCamStatus("얼굴을 찾는 중...", "");
     live.timer = setTimeout(liveTick, 300);
 }
@@ -2254,7 +2260,7 @@ function stopLive() {
 async function liveTick() {
     if (!live.on) return;
     const video = $("cam-video");
-    if (video.videoWidth && video.videoHeight && !video.paused) {
+    if (video && video.videoWidth && video.videoHeight && !video.paused) {
         const { sx, sy, sw, sh } = camCrop(video);
         const W = 288, H = Math.round(W / FRAME_GUIDE.aspect);
         if (!live.canvas) live.canvas = document.createElement("canvas");
@@ -2296,22 +2302,34 @@ function drawLevelLine(p, ok) {
 
 function judgePose(raw) {
     const auto = camAutoOn();
+    camStats.tries++;
     if (!raw) {
+        // 한두 장면 놓친 것은 넘어간다 (손떨림 · 초점). 바로 처음부터 세면 끝내 안 찍힌다.
+        if (live.okSince && ++live.miss <= 2) return;
         live.okSince = 0;
         drawLevelLine(null);
         setCamStatus("얼굴을 점선 안에 맞춰 주세요", "");
+        camStats.last = "얼굴 못 찾음";
         return;
     }
+    live.miss = 0;
+    camStats.found++;
     const p = screenPose(raw);
+    camStats.p = p;
+    // 이미 바른 자세로 세고 있으면 한도를 넓힌다 — 한도 언저리에서 '바름 · 아님' 이 번갈아
+    // 나오며 처음부터 다시 세는 바람에 끝내 안 찍히는 일을 막는다 (2026-11-02 현장)
+    const k = live.okSince ? POSE.keep : 1;
     let msg = "";
-    if (p.size < POSE.sizeMin) msg = "조금 더 가까이 찍어 주세요";
-    else if (p.size > POSE.sizeMax) msg = "조금 뒤로 물러나 주세요";
-    else if (Math.abs(p.cx - 0.5) > POSE.center) msg = "코를 가운데 세로선에 맞춰 주세요";
-    else if (Math.abs(p.yaw) > POSE.yaw) {
+    if (p.size < POSE.sizeMin / k) msg = "조금 더 가까이 찍어 주세요";
+    else if (p.size > POSE.sizeMax * k) msg = "조금 뒤로 물러나 주세요";
+    else if (Math.abs(p.cx - 0.5) > POSE.center * k) msg = "코를 가운데 세로선에 맞춰 주세요";
+    else if (Math.abs(p.yaw) > POSE.yaw * k) {
         // 코가 화면 오른쪽으로 쏠렸으면 얼굴을 화면 왼쪽으로 돌려야 정면이 된다
         msg = p.yaw > 0 ? "◀ 얼굴을 화면 왼쪽으로 조금 돌려 주세요" : "얼굴을 화면 오른쪽으로 조금 돌려 주세요 ▶";
     }
-    else if (Math.abs(p.roll) > POSE.roll) msg = `고개가 ${Math.abs(p.roll).toFixed(0)}° 기울었어요 — 똑바로`;
+    // 기울기는 찍은 뒤 자동으로 수평을 맞추므로, 맞출 수 있는 한도를 넘을 때만 막는다
+    else if (Math.abs(p.roll) > POSE.levelMax) msg = `고개가 ${Math.abs(p.roll).toFixed(0)}° 기울었어요 — 똑바로`;
+    camStats.last = msg || "바름";
 
     const ok = !msg;
     drawLevelLine(p, Math.abs(p.roll) <= POSE.roll);
@@ -2601,6 +2619,12 @@ async function runSelfTest() {
         L.push("얼굴 엔진      : " + (es.ready ? "준비됨" : "안 됨")
                + " · " + (es.delegate || "미정")
                + (es.error ? " · " + es.error : ""));
+        const cs = camStats, cp = cs.p;
+        L.push("촬영 안내      : " + (cs.tries
+            ? "얼굴 찾음 " + cs.found + "/" + cs.tries + " · 마지막 '" + cs.last + "'"
+              + (cp ? " (크기 " + cp.size.toFixed(2) + " · 가운데 " + (cp.cx - 0.5).toFixed(2)
+                    + " · 돌림 " + cp.yaw.toFixed(2) + " · 기울기 " + cp.roll.toFixed(1) + "°)" : "")
+            : "아직 카메라를 열지 않음"));
     } catch (e) { /* 없으면 그만 */ }
     L.push("");
 
