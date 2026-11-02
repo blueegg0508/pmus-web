@@ -11,34 +11,6 @@
         /** 그리는 동안 배경을 잠시 바꿔치기할 때 쓴다 (맨얼굴로 굽기) */
         let captureBg = null;
 
-        // ── 황금비율 눈썹산 (2026-11-02) ──────────────────────────────
-        // 디자인마다 그림 속 산 자리가 다르므로, 그림이 들어올 때마다 산이
-        // 눈동자 바깥 끝 세로선에 오도록 '눈썹산 위치' 값을 맞춘다.
-        // 원장님이 조절바로 바꾼 뒤에는 건드리지 않는다 (autoPeak 와 달라지면 손댄 것).
-        let autoPeak = null;
-        function fitGoldenPeak() {
-            const R = CFG.peak_refs;
-            if (!R || !R.left || !R.right || !R.left.pupil || !R.right.pupil) return false;
-            if (autoPeak !== null && curPeak !== autoPeak) return false;
-            if (!rawLImg.naturalWidth || !rawRImg.naturalWidth) return false;
-            const k = R.w && canvas.width ? canvas.width / R.w : 1;
-            const one = (side, ref, rawImg, tailLeft) => {
-                const g = browGeom(side);
-                const info = peakInfo(rawImg);
-                const span = (info.x1 || 1) - (info.x0 || 0);
-                if (!(span > 0.1) || !(g.w > 1)) return null;
-                // 사진은 수평을 맞춘 뒤라 기울기는 따지지 않는다 (drawPeakGuides 와 같은 계산)
-                const px = 0.5 + (ref.pupil.x * k - g.x) / g.w;
-                return (px - info.x) / span * 100 * (tailLeft ? -1 : 1);
-            };
-            const pl = one('left', R.left, rawLImg, true), pr = one('right', R.right, rawRImg, false);
-            if (pl == null || pr == null) return false;
-            const val = clampN(Math.round((pl + pr) / 2), -30, 30);
-            curPeak = val;
-            autoPeak = val;
-            return true;
-        }
-
         function onAnyImageLoaded() {
             invalidateBgFilter();
             if (bgImg.naturalWidth && bgImg.naturalHeight) {
@@ -49,7 +21,6 @@
             }
             updateFilteredBg();
             updateGuideRatios();
-            if (fitGoldenPeak()) { try { syncAllControlsFromState(); } catch (e) { /* 조절판이 아직 없으면 그만 */ } }
             requestDraw();
         }
 
@@ -2279,7 +2250,6 @@
                 curRound = 0; curLRot = 0; curRRot = 0; curPeak = 0;
                 curHead = 100; curTail = 0; eraseMarks = { left: [], right: [] }; healMarks = [];
                 sideAdj = { left: zeroSide(), right: zeroSide() };
-                autoPeak = null; fitGoldenPeak();          // 초기화도 가이드 자리로
 
                 curBright = 100; curContrast = 100; curSaturate = 100;
                 curImgZoom = 100; curImgPanX = 0; curImgPanY = 0;
