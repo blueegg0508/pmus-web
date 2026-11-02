@@ -412,15 +412,21 @@ function fitGolden(browImg, brows, eyes, w0, gap) {
     // 그대로 쓰면 앞머리가 너무 바깥에서 시작해 눈썹이 짧고 뭉툭해졌다 (2026-11-02 원장님 사진).
     const hL = L.nose ? Math.max(u(L.alar), u(L.nose)) : u(L.alar);
     const hR = R.nose ? Math.min(u(R.alar), u(R.nose)) : u(R.alar);
-    const tL = tailU(L.alar, L.peakRef.corner), tR = tailU(R.alar, R.peakRef.corner);
+    let tL = tailU(L.alar, L.peakRef.corner), tR = tailU(R.alar, R.peakRef.corner);
     if (!(hR > hL) || tL == null || tR == null || !(tL < hL) || !(tR > hR)) return null;
     const m = (hL + hR) / 2.0;
     const headDist = (hR - hL) / 2.0 + (gap || 0);
-    const tailDist = ((m - tL) + (tR - m)) / 2.0;
+    const gTailDist = ((m - tL) + (tR - m)) / 2.0;
 
     const { f0, f1 } = visibleSpan(browImg);
     const vis = f1 - f0;
     if (!(vis > 0.2)) return null;
+    // 꼬리는 가이드 선과 원래 눈썹 꼬리(잰 길이로 얹었을 때) 중 더 바깥 쪽.
+    // 가까이서 · 아래에서 찍은 셀카는 코가 크고 가깝게 나와 가이드 선이 가파르게 서서,
+    // 꼬리가 원래 눈썹보다 짧게 끝났다 (2026-11-02 원장님 사진 — 원래 꼬리보다 45px 안쪽).
+    const oL = u({ x: L.cx, y: L.cy }) - (0.5 - f0) * w0;
+    const oR = u({ x: R.cx, y: R.cy }) + (0.5 - f0) * w0;
+    const tailDist = Math.max(gTailDist, ((m - oL) + (oR - m)) / 2.0);
     const len = tailDist - headDist;
     // 원래 눈썹 길이와 너무 다르면(인식이 어긋남) 쓰지 않는다
     if (!(len > w0 * vis * 0.6) || !(len < w0 * vis * 1.8)) return null;
