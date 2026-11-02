@@ -407,7 +407,11 @@ function fitGolden(browImg, brows, eyes, w0, gap) {
         if (!(t > 1)) return null;              // 눈꼬리보다 위에서 만나야 한다
         return u(A) + t * (u(C) - u(A));
     };
-    const hL = u(L.alar), hR = u(R.alar);
+    // 앞머리: 콧방울 수직선과 앞눈꼬리 수직선 중 얼굴 가운데에 가까운 쪽.
+    // 코가 넓거나 가까이서 찍은 셀카(광각이라 코가 크게 나온다)에서 콧방울 선을
+    // 그대로 쓰면 앞머리가 너무 바깥에서 시작해 눈썹이 짧고 뭉툭해졌다 (2026-11-02 원장님 사진).
+    const hL = L.nose ? Math.max(u(L.alar), u(L.nose)) : u(L.alar);
+    const hR = R.nose ? Math.min(u(R.alar), u(R.nose)) : u(R.alar);
     const tL = tailU(L.alar, L.peakRef.corner), tR = tailU(R.alar, R.peakRef.corner);
     if (!(hR > hL) || tL == null || tR == null || !(tL < hL) || !(tR > hR)) return null;
     const m = (hL + hR) / 2.0;
