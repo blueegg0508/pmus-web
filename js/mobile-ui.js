@@ -789,8 +789,9 @@
         }
     }
 
-    /** 조절바 하나에 자물쇠 버튼을 붙인다 — 이름 바로 오른쪽 (± 버튼 앞).
-     *  ± 뒤에 두었더니 폰에서는 화면 밖으로 밀려나 보이지 않았다 (2026-11-02). */
+    /** 조절바 하나에 자물쇠 버튼을 붙인다 — − 버튼 바로 왼쪽. 모든 줄이 오른쪽 끝에
+     *  맞춰 세로로 가지런히 선다 (이름 옆에 두면 이름 길이마다 들쭉날쭉했다, 2026-11-02).
+     *  ± 뒤에 두면 폰에서는 화면 밖으로 밀려나 보이지 않는다. */
     function attachLock(input) {
         const row = input.closest(".ctrl-row");
         const label = row && row.querySelector("label");
@@ -803,7 +804,7 @@
             setLocked(input, !isLocked(input));
         });
         const step = label.querySelector(".mui-step");
-        if (step) label.insertBefore(b, step); else label.appendChild(b);
+        if (step) step.insertBefore(b, step.firstChild); else label.appendChild(b);
         setLocked(input, isLocked(input));
     }
 
