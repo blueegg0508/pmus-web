@@ -379,6 +379,57 @@ function fitHeadToNose(browImg, brows, eyes, w0, gap) {
 }
 
 /**
+ * 눈썹 황금비율 가이드대로 앞머리 · 꼬리 자리를 잡는다 (2026-11-02 원장님 요청 —
+ * 상담 때마다 손으로 맞추지 않게 처음부터 가이드 위치에 얹는다).
+ *
+ *   앞머리 = 콧방울 바깥 끝에서 수직으로 올린 선
+ *   꼬리   = 콧방울에서 눈꼬리를 지나 이어 간 선이 눈썹 높이와 만나는 곳
+ *   (눈썹산 = 눈동자 바깥 끝 세로선 — 디자인마다 산 자리가 달라 brow-canvas 가 맞춘다)
+ *
+ * 좌우는 두 콧방울의 가운데를 기준으로 거울처럼 같게 놓는다 (양쪽 평균).
+ * 반환값은 fitHeadToNose 와 같은 꼴이다. 콧방울을 못 찾았거나 값이 말이 안 되면 null.
+ */
+function fitGolden(browImg, brows, eyes, w0, gap) {
+    const L = brows.left, R = brows.right;
+    if (!L.alar || !R.alar || !L.peakRef || !R.peakRef || !L.peakRef.corner || !R.peakRef.corner) return null;
+    const rad = Math.atan2(eyes.right.y - eyes.left.y, eyes.right.x - eyes.left.x);
+    const ux = Math.cos(rad), uy = Math.sin(rad);
+    const vx = -uy, vy = ux;
+    const mx = (L.cx + R.cx) / 2.0, my = (L.cy + R.cy) / 2.0;
+    const u = (p) => (p.x - mx) * ux + (p.y - my) * uy;
+    const v = (p) => (p.x - mx) * vx + (p.y - my) * vy;
+    // 눈썹 높이 = 두 눈썹 가운데 높이의 평균 (눈 선 기준)
+    const vb = (v({ x: L.cx, y: L.cy }) + v({ x: R.cx, y: R.cy })) / 2.0;
+    const tailU = (A, C) => {
+        const dv = v(C) - v(A);
+        if (Math.abs(dv) < 1e-6) return null;
+        const t = (vb - v(A)) / dv;
+        if (!(t > 1)) return null;              // 눈꼬리보다 위에서 만나야 한다
+        return u(A) + t * (u(C) - u(A));
+    };
+    const hL = u(L.alar), hR = u(R.alar);
+    const tL = tailU(L.alar, L.peakRef.corner), tR = tailU(R.alar, R.peakRef.corner);
+    if (!(hR > hL) || tL == null || tR == null || !(tL < hL) || !(tR > hR)) return null;
+    const m = (hL + hR) / 2.0;
+    const headDist = (hR - hL) / 2.0 + (gap || 0);
+    const tailDist = ((m - tL) + (tR - m)) / 2.0;
+
+    const { f0, f1 } = visibleSpan(browImg);
+    const vis = f1 - f0;
+    if (!(vis > 0.2)) return null;
+    const len = tailDist - headDist;
+    // 원래 눈썹 길이와 너무 다르면(인식이 어긋남) 쓰지 않는다
+    if (!(len > w0 * vis * 0.6) || !(len < w0 * vis * 1.8)) return null;
+    const w = len / vis;
+    return {
+        w,
+        uL: m - tailDist + (0.5 - f0) * w,
+        uR: m + tailDist - (0.5 - f0) * w,
+        ux, uy, mx, my,
+    };
+}
+
+/**
  * 데스크톱판 render_interactive_drag_canvas() 의 파이썬 전처리 전체를 재현해
  * brow-canvas.js 가 기대하는 CFG 값 묶음을 만들어 돌려줍니다.
  *
@@ -474,8 +525,10 @@ export function buildEyebrowConfig(browImg, imgW, imgH, eyes, settings = {}) {
     // 원래 눈썹 앞머리는 성기거나 멀리 떨어진 사람이 많아, 잰 눈썹 자리를 그대로
     // 따르면 미간이 너무 넓게 시작한다 (2026-09-25 원장님). 꼬리는 지금 자리를
     // 지키고, 앞머리만 앞눈꼬리 세로선에 맞춰 그 사이에 맞게 길이를 정한다.
+    // 황금비율 가이드(콧방울 기준)가 먼저, 못 잡으면 예전처럼 앞눈꼬리 기준
     const noseFit = brows && eyes && brows.left.nose && brows.right.nose
-        ? fitHeadToNose(browImg, brows, eyes, baseBrowW, g("head_gap", 0))
+        ? (fitGolden(browImg, brows, eyes, baseBrowW, g("head_gap", 0))
+           || fitHeadToNose(browImg, brows, eyes, baseBrowW, g("head_gap", 0)))
         : null;
     if (noseFit) baseBrowW = noseFit.w;
     // 위쪽에서 걸렀어도 조절바(전체 크기·기장)를 크게 올리면 또 커진다.

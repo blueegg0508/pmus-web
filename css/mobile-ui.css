@@ -636,6 +636,37 @@ html.mui-on .mui-panes .mui-step .mui-step-btn:active {
     border-color: var(--accent);
 }
 
+/* ── 조절바 잠금 ────────────────────────────────────────────────────────
+   잠그면 조절바가 손가락에 반응하지 않는다. pointer-events 를 끄므로 그 위에서
+   밀어도 시트가 그대로 스크롤된다. */
+html.mui-on .mui-panes .mui-lock {
+    appearance: none;
+    width: 34px;
+    height: 34px;
+    min-height: 34px;
+    flex: 0 0 auto;
+    padding: 0 !important;
+    border: 1px solid var(--line, #4A3F63);
+    border-radius: 9px;
+    background: var(--surface-2, #2C2540);
+    font-family: inherit;
+    font-size: 15px !important;
+    line-height: 1;
+    opacity: .6;
+    cursor: pointer;
+    touch-action: pan-y;
+}
+html.mui-on .mui-panes .ctrl-row.is-locked .mui-lock {
+    opacity: 1;
+    background: var(--accent);
+    border-color: var(--accent);
+}
+html.mui-on .mui-panes .ctrl-row.is-locked input[type="range"] {
+    pointer-events: none;
+    opacity: .4;
+}
+html.mui-on .mui-panes .ctrl-row.is-locked .mui-step-btn { opacity: .35; }
+
 /* ── 눈썹 무대: 시술 전 사진 + 결과 캔버스 겹치기 ───────────────────────
    둘을 같은 그리드 칸에 넣으면 크기 규칙(max-width/height)이 똑같이 걸려
    화면상 정확히 포개진다. 위치 계산을 손으로 하지 않아도 되고, 캔버스의

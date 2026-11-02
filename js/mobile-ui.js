@@ -739,6 +739,7 @@
      *  되돌리기 기록이 '잡았다 놓는' 순서에 걸려 있어서, 손으로 끈 것과
      *  똑같이 pointerdown → input → pointerup 을 차례로 흘려보낸다. */
     function nudge(input, dir) {
+        if (isLocked(input)) return;                 // 잠근 조절바는 ± 로도 안 바뀐다
         let step = parseFloat(input.step);
         if (!step || isNaN(step)) step = 1;          // range 기본 눈금이 1 이다
         const min = input.min === "" ? -Infinity : parseFloat(input.min);
@@ -769,6 +770,41 @@
         return b;
     }
 
+    // ── 조절바 잠금 (2026-11-02 원장님 요청) ────────────────────────────
+    // 맞춰 둔 값을 두고 다른 조절을 하려고 시트를 위아래로 밀다 보면 손가락이
+    // 조절바를 스쳐 값이 틀어진다. 자물쇠를 누르면 그 조절바는 손가락에 반응하지
+    // 않는다 (그 자리에서 밀어도 시트 스크롤은 그대로). ± 버튼도 막는다.
+    // 조절 초기화 · 되돌리기처럼 일부러 누르는 버튼은 그대로 값을 바꾼다.
+    function isLocked(input) { return !!input && input.dataset.locked === "1"; }
+
+    function setLocked(input, on) {
+        input.dataset.locked = on ? "1" : "";
+        const row = input.closest(".ctrl-row");
+        if (row) row.classList.toggle("is-locked", on);
+        const b = row && row.querySelector(".mui-lock");
+        if (b) {
+            b.textContent = on ? "🔒" : "🔓";
+            b.setAttribute("aria-pressed", on ? "true" : "false");
+            b.setAttribute("aria-label", on ? "조절바 잠금 풀기" : "조절바 잠그기");
+        }
+    }
+
+    /** 조절바 하나에 자물쇠 버튼을 붙인다 (± 버튼 바로 뒤, 없으면 라벨 끝). */
+    function attachLock(input) {
+        const row = input.closest(".ctrl-row");
+        const label = row && row.querySelector("label");
+        if (!label || label.querySelector(".mui-lock")) return;
+        const b = el("button", "mui-lock", "🔓");
+        b.type = "button";
+        b.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();      // 라벨 안이라 조절바로 번지지 않게
+            setLocked(input, !isLocked(input));
+        });
+        (label.querySelector(".mui-step") || label).appendChild(b);
+        setLocked(input, isLocked(input));
+    }
+
     /** 조절바 하나에 숫자 양옆 버튼을 붙인다. */
     function attachStepper(input) {
         const row = input.closest(".ctrl-row");
@@ -787,7 +823,10 @@
     }
 
     function attachSteppers() {
-        panes.querySelectorAll('input[type="range"]').forEach(attachStepper);
+        panes.querySelectorAll('input[type="range"]').forEach(function (input) {
+            attachStepper(input);
+            attachLock(input);
+        });
 
         // 입술의 이동 라벨 두 줄은 캔버스 JS 가 라벨 전체를 다시 쓴다.
         // 그때마다 버튼이 날아가므로 지켜보다 다시 붙인다.
@@ -796,6 +835,7 @@
             if (!label || !input) return;
             new MutationObserver(function () {
                 if (!label.querySelector(".mui-step")) attachStepper(input);
+                if (!label.querySelector(".mui-lock")) attachLock(input);
             }).observe(label, { childList: true });
         });
     }

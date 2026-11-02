@@ -482,6 +482,11 @@ export async function detectFaceGeometry(imgEl) {
     };
     geo.brows.left.peakRef  = { pupil: irisOuter(33, 133),  corner: at(33) };
     geo.brows.right.peakRef = { pupil: irisOuter(263, 362), corner: at(263) };
+    // 황금비율 배치의 기준점 — 콧방울 (2026-11-02 원장님 가이드 사진).
+    //   x = 콧방울 바깥 끝(129 / 358) — 여기서 수직으로 올린 선이 앞머리 시작
+    //   y = 콧방울 아래(64 / 294) — 여기서 눈꼬리를 지나는 선이 눈썹 꼬리 끝
+    geo.brows.left.alar  = { x: at(129).x, y: at(64).y };
+    geo.brows.right.alar = { x: at(358).x, y: at(294).y };
     geo.pose = poseOf(marks, w, h);
 
     // 마지막으로 한 번 더 본다. 여기서 내보낸 값은 눈썹 자리·크기와
