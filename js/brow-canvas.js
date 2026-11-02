@@ -285,6 +285,9 @@
         let curRound = 0;
         /** 🌱 앞머리 진하기 (2026-10-27 현장 피드백) — 100 = 디자인 그대로, 낮추면 앞머리가 그라데이션처럼 흐려진다 */
         let curHead = 100;
+        /** 🖌️ 산~꼬리 진하기 (2026-11-02 원장님) — 0 = 디자인 그대로, 올리면 눈썹산부터 꼬리 끝으로 갈수록
+         *  그라데이션으로 진해진다 (시술 때 산 뒤를 더 채워 넣는 느낌) */
+        let curDeep = 0;
         /** ↘️ 꼬리 내리기 — 앞머리·산은 그대로 두고 산~꼬리만 아래(+) / 위(-) 로 휜다. 눈썹 폭의 % */
         let curTail = 0;
         /** 🧽 디자인 지우개 — 눈썹마다 지운 자리 [u, v, r] (눈썹 상자 기준 비율, 가운데가 0) */
@@ -302,7 +305,7 @@
         // 왼쪽·오른쪽 눈썹 따로 맞추기 — 타고난 비대칭 얼굴은 같은 값이면 오히려 어색하다.
         // 아래는 '함께' 값에 더하는 차이다. [왼쪽]/[오른쪽] 을 고른 채 조절바를 움직이면
         // 그쪽 차이만 바뀌고, [함께] 로 움직이면 두 눈썹이 그 차이를 지닌 채 같이 바뀐다.
-        function zeroSide() { return { scale: 0, width: 0, height: 0, rot: 0, spacing: 0, vert: 0, opacity: 0, round: 0, peak: 0, head: 0, tail: 0 }; }
+        function zeroSide() { return { scale: 0, width: 0, height: 0, rot: 0, spacing: 0, vert: 0, opacity: 0, round: 0, peak: 0, head: 0, tail: 0, deep: 0 }; }
 
         // ⛰️ 눈썹산 위치 — 눈썹 폭의 % 만큼 산을 앞(-) / 뒤(+) 로 옮긴다. 앞머리·꼬리 끝은 그대로.
         let curPeak = 0;
@@ -352,8 +355,8 @@
          * 꼬리가 상자 밖으로 나가지 않게 위아래 여백(_pad)을 붙여 돌려준다.
          */
         function shapeExtra(src, rawImg, g, tailLeft, key) {
-            if (g.head >= 100 && !g.tail) return src;
-            const ck = key + '|' + g.peak + '|' + g.head + '|' + g.tail;
+            if (g.head >= 100 && !g.tail && !(g.deep > 0)) return src;
+            const ck = key + '|' + g.peak + '|' + g.head + '|' + g.tail + '|' + g.deep;
             if (shapeCache.has(ck)) return shapeCache.get(ck);
             const info = peakInfo(rawImg);
             const w = src.width, h = src.height;
@@ -389,6 +392,32 @@
                 o.fillStyle = gr;
                 o.fillRect(0, 0, w, h + pad * 2);
                 o.globalCompositeOperation = 'source-over';
+            }
+            if (g.deep > 0) {
+                // 눈썹산에서 꼬리 끝으로 갈수록 같은 그림을 '곱하기' 로 한 겹 더 얹는다 —
+                // 털이 있는 자리만 진해지고(빈 피부는 그대로), 결 · 모양은 바뀌지 않는다.
+                // 50 까지 한 겹, 그 위로는 두 겹째가 더해진다.
+                const ex = tailLeft ? x0 : x1, run = ex - p;
+                const layer = document.createElement('canvas'); layer.width = w; layer.height = h + pad * 2;
+                const lg = layer.getContext('2d');
+                const passes = [Math.min(1, g.deep / 50), Math.max(0, (g.deep - 50) / 50)];
+                passes.forEach(function (s) {
+                    if (s <= 0) return;
+                    lg.globalCompositeOperation = 'copy';
+                    lg.drawImage(out, 0, 0);
+                    lg.globalCompositeOperation = 'destination-in';
+                    const gr = lg.createLinearGradient(p, 0, p + run * 0.75, 0);   // 산에서 시작, 꼬리 쪽 3/4 지점부터 끝까지 가장 진하게
+                    for (let k = 0; k <= 6; k++) {
+                        const t = k / 6, sm = t * t * (3 - 2 * t);
+                        gr.addColorStop(t, 'rgba(0,0,0,' + (s * sm).toFixed(3) + ')');
+                    }
+                    lg.fillStyle = gr;
+                    lg.fillRect(0, 0, w, h + pad * 2);
+                    o.globalCompositeOperation = 'multiply';
+                    o.drawImage(layer, 0, 0);
+                    o.globalCompositeOperation = 'source-over';
+                });
+                layer.width = 0; layer.height = 0;
             }
             out._pad = pad;
             if (shapeCache.size > 16) shapeCache.clear();
@@ -579,6 +608,7 @@
                 round: clampN(curRound + a.round, 0, 100),
                 peak: clampN(curPeak + a.peak, -30, 30),
                 head: clampN(curHead + (a.head || 0), 0, 100),
+                deep: clampN(curDeep + (a.deep || 0), 0, 100),
                 tail: clampN(curTail + (a.tail || 0), -20, 40),
                 x: isL ? leftPos.x - ((curSpacing + a.spacing) / 2.0) : rightPos.x + ((curSpacing + a.spacing) / 2.0),
                 y: isL ? leftPos.y : rightPos.y,
@@ -864,6 +894,7 @@
                 curRRot: curRRot,
                 curPeak: curPeak,
                 curHead: curHead,
+                curDeep: curDeep,
                 curTail: curTail,
                 // 붓질은 같은 배열에 점을 더해 가므로 꼭 복사해 둔다 (아니면 '이전 상태' 도 같이 바뀌어 되돌리기가 안 된다)
                 eraseMarks: { left: eraseMarks.left.slice(), right: eraseMarks.right.slice() },
@@ -952,6 +983,7 @@
                 curRRot = st.curRRot;
                 curPeak = st.curPeak || 0;
                 curHead = (st.curHead !== undefined) ? st.curHead : 100;
+                curDeep = st.curDeep || 0;
                 curTail = st.curTail || 0;
                 eraseMarks = st.eraseMarks ? JSON.parse(JSON.stringify(st.eraseMarks)) : { left: [], right: [] };
                 healMarks = st.healMarks ? JSON.parse(JSON.stringify(st.healMarks)) : [];
@@ -1097,6 +1129,7 @@
             setVal('rngNatBrow', curNatBrow, '%');
             setVal('rngRound', sv(curRound, 'round'), '%');
             setVal('rngHead', sd ? curHead + (sideAdj[sd].head || 0) : curHead, '%');
+            setVal('rngDeep', sd ? curDeep + (sideAdj[sd].deep || 0) : curDeep, '%');
             setVal('rngTail', sd ? curTail + (sideAdj[sd].tail || 0) : curTail, '%');
             updateEraseUi();
             {
@@ -2121,7 +2154,7 @@
             };
 
             // 🌱 앞머리 진하기 · ↘️ 꼬리 내리기 — [왼쪽]/[오른쪽] 을 고르면 그쪽만
-            [['rngHead', 'head', '%'], ['rngTail', 'tail', '%']].forEach(function (d) {
+            [['rngHead', 'head', '%'], ['rngTail', 'tail', '%'], ['rngDeep', 'deep', '%']].forEach(function (d) {
                 const el = document.getElementById(d[0]);
                 if (!el) return;
                 bindSliderHistory(el);
@@ -2130,6 +2163,7 @@
                     const v = parseFloat(this.value);
                     const side = sliderSide();
                     if (d[1] === 'head') { if (side) sideAdj[side].head = v - curHead; else curHead = v; }
+                    else if (d[1] === 'deep') { if (side) sideAdj[side].deep = v - curDeep; else curDeep = v; }
                     else { if (side) sideAdj[side].tail = v - curTail; else curTail = v; }
                     document.getElementById('val' + d[0].replace('rng', '')).innerText = v + d[2];
                     requestDraw();
@@ -2248,7 +2282,7 @@
                 curScale = 100; curWidth = 100; curHeight = 100;
                 curRot = 0; curSpacing = 0; curVert = 0; curOpacity = 85; curNatBrow = 100;
                 curRound = 0; curLRot = 0; curRRot = 0; curPeak = 0;
-                curHead = 100; curTail = 0; eraseMarks = { left: [], right: [] }; healMarks = [];
+                curHead = 100; curDeep = 0; curTail = 0; eraseMarks = { left: [], right: [] }; healMarks = [];
                 sideAdj = { left: zeroSide(), right: zeroSide() };
 
                 curBright = 100; curContrast = 100; curSaturate = 100;

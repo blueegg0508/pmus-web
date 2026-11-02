@@ -606,6 +606,7 @@
                         "rngRot",       // 꼬리 높이
                         "rngTail",      // 꼬리 내리기 (앞머리·산은 그대로)
                         "rngHead",      // 앞머리 진하기
+                        "rngDeep",      // 산~꼬리 진하기 (산부터 꼬리 끝으로 갈수록 진하게)
                         "rngOpacity",   // 눈썹 투명도
                         "rngNatBrow"    // 고객의 원래 눈썹 진하기 (진한 눈썹 흐리게)
                        ].map(rowOf);
@@ -1715,6 +1716,7 @@
         borrow(rowOf("rngRot"), "↗️ 각도 ");
         borrow(rowOf("rngTail"), "↘️ 꼬리 내리기 ");
         borrow(rowOf("rngHead"), "🌱 앞머리 진하기 ");
+        borrow(rowOf("rngDeep"), "🖌️ 산~꼬리 진하기 ");
         borrow(rowOf("rngVert"), "↕️ 위아래 ");
         // 눈썹산 위치 — 골격에 따라 같은 디자인도 산이 달라 보인다. 눈동자 끝·눈꼬리 기준선을 보며 맞춘다.
         borrow(rowOf("rngPeak"), "⛰️ 눈썹산 위치 ");
