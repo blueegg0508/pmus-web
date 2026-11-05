@@ -1484,20 +1484,20 @@
             const targetLip = isDraggingLip ? activeDragMode : (hoveredLip || selectedLip);
             let curBox = null;
             let curLabel = "";
-            let curStroke = "rgba(255, 215, 0, 0.9)";
+            let curStroke = "rgba(201, 154, 114, 0.9)";
 
             if (targetLip === 'upper') {
                 curBox = upperBbox;
-                curLabel = "💋 윗입술 이동 (드래그)";
-                curStroke = "#FFD700";
+                curLabel = "윗입술 이동 (드래그)";
+                curStroke = "#C99A72";
             } else if (targetLip === 'lower') {
                 curBox = lowerBbox;
-                curLabel = "🌓 아랫입술 이동 (드래그)";
-                curStroke = "#FFD700";
+                curLabel = "아랫입술 이동 (드래그)";
+                curStroke = "#C99A72";
             } else if (targetLip === 'both') {
                 curBox = totalBbox;
-                curLabel = "🔗 전체 입술 함께 이동";
-                curStroke = "#D4AF37";
+                curLabel = "전체 입술 함께 이동";
+                curStroke = "#C99A72";
             }
 
             if (curBox && (hoveredLip || isDraggingLip || selectedLip)) {
@@ -2088,7 +2088,7 @@
                 applyPreset('default');
                 syncSliders();
                 renderCanvas();
-                showToast('🔄 입술 가이드가 고객 입술 본래 위치로 원위치되었습니다!');
+                showToast('🔄 입술 가이드가 고객 입술 본래 위치로 원위치되었습니다');
             });
         }
 
@@ -3011,7 +3011,7 @@
 
         function renderWatermark(ctx, width, startY, height) {
             const shopTag = (window.CFG && CFG.owner_shop) ? CFG.owner_shop + ' · ' : '';
-            const line1 = '⚠️ [' + shopTag + '시술 상담 안내] 본 이미지는 디자인 상담을 위한 가상 시뮬레이션이며';
+            const line1 = '[' + shopTag + '시술 상담 안내] 본 이미지는 디자인 상담을 위한 가상 시뮬레이션이며';
             const line2 = '실제 시술 후 모양, 색상 및 결과와 차이가 있을 수 있습니다.';
 
             ctx.fillStyle = '#181614';
@@ -3151,7 +3151,7 @@
                             URL.revokeObjectURL(blobUrl);
                         } catch(e) {}
                     }, 2500);
-                    showToast('✅ 이미지가 다운로드되었습니다!');
+                    showToast('✅ 이미지가 다운로드되었습니다');
                     return;
                 }
             } catch(e) {}
@@ -3166,7 +3166,7 @@
                 setTimeout(() => {
                     try { document.body.removeChild(link); } catch(e) {}
                 }, 1000);
-                showToast('✅ 이미지가 다운로드되었습니다!');
+                showToast('✅ 이미지가 다운로드되었습니다');
             } catch(err) {
                 window.open(src, '_blank');
             }

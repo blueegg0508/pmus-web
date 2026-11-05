@@ -7,8 +7,8 @@
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#14111c",
-  "theme_color": "#1a1625",
+  "background_color": "#131014",
+  "theme_color": "#131014",
   "prefer_related_applications": false,
   "related_applications": [
     { "platform": "webapp", "url": "https://blueegg0508.github.io/pmus/manifest.webmanifest" }

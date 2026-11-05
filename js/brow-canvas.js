@@ -1647,7 +1647,7 @@
                             // 3) 상단 비율 배지 (흰색 테두리 & 2배 텍스트)
                             ctx.save();
                             ctx.globalAlpha = Math.min(1.0, guideAlpha + 0.15);
-                            const summaryText = `📐 ${ratio1.toFixed(0)}% : ${ratio2.toFixed(0)}% (1:${ratioStr})`;
+                            const summaryText = `${ratio1.toFixed(0)}% : ${ratio2.toFixed(0)}% (1:${ratioStr})`;
                             ctx.font = 'bold ' + Math.max(20, Math.round(23 / zoomF)) + 'px Pretendard, sans-serif';
                             const textW = ctx.measureText(summaryText).width;
                             const badgeX = (minX + maxX) / 2.0;
@@ -1741,7 +1741,7 @@
                         // 우측 높이 비율 요약 배지 (2배 확대)
                         ctx.save();
                         ctx.globalAlpha = Math.min(1.0, guideAlpha + 0.15);
-                        const hSummaryText = `📐 높이 ${hRatio1.toFixed(0)}% : ${hRatio2.toFixed(0)}% (1:${hRatioStr})`;
+                        const hSummaryText = `높이 ${hRatio1.toFixed(0)}% : ${hRatio2.toFixed(0)}% (1:${hRatioStr})`;
                         ctx.font = 'bold ' + Math.max(20, Math.round(23 / zoomF)) + 'px Pretendard, sans-serif';
                         const textW = ctx.measureText(hSummaryText).width;
 
@@ -2558,7 +2558,7 @@
 
             function renderWatermark(ctx, width, startY, height) {
                 const shopTag = (window.CFG && CFG.owner_shop) ? CFG.owner_shop + ' · ' : '';
-                const line1 = '⚠️ [' + shopTag + '시술 상담 안내] 본 이미지는 디자인 상담을 위한 가상 시뮬레이션이며';
+                const line1 = '[' + shopTag + '시술 상담 안내] 본 이미지는 디자인 상담을 위한 가상 시뮬레이션이며';
                 const line2 = '실제 시술 후 모양, 색상 및 결과와 차이가 있을 수 있습니다.';
 
                 // 배너 배경 및 상단 골드 라인
@@ -2956,7 +2956,7 @@
                             URL.revokeObjectURL(blobUrl);
                         } catch(e) {}
                     }, 2500);
-                    showToast('✅ 이미지가 다운로드되었습니다!');
+                    showToast('✅ 이미지가 다운로드되었습니다');
                     return;
                 }
             } catch(e) {}
@@ -2971,7 +2971,7 @@
                 setTimeout(() => {
                     try { document.body.removeChild(link); } catch(e) {}
                 }, 1000);
-                showToast('✅ 이미지가 다운로드되었습니다!');
+                showToast('✅ 이미지가 다운로드되었습니다');
             } catch(err) {
                 window.open(src, '_blank');
             }

@@ -1997,7 +1997,7 @@
         for (var i = 0; i < bs.length; i++) {
             var b = bs[i];
             var want = b.getAttribute("data-l" + lv);
-            if (want !== null && b.textContent !== want) b.textContent = want;
+            if (want !== null && b.getAttribute("data-lv") !== String(lv)) { b.textContent = want; b.setAttribute("data-lv", String(lv)); }
         }
     }
 

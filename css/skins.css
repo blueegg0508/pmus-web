@@ -20,18 +20,19 @@
    --tint-rgb          옅은 덧칠(어두운 스킨은 흰색, 밝은 스킨은 검정)
    ========================================================================= */
 
-/* ── 미드나잇 골드 (기본) — 처음부터 쓰던 보랏빛 어둠 + 금색 ── */
+/* ── 미드나잇 로즈골드 (기본) — 로고 · 랜딩과 같은 로즈골드 하나 + 거의 무채색 어둠 (2026-11-06)
+ *    예전: 보랏빛 바탕 + 겨자 노랑 단추 + 보라 선택 테두리 → 색이 셋이라 같은 브랜드로 안 보였다 */
 :root, html[data-skin="midnight"] {
-    --tab-a: #2e2741; --tab-b: #241e33; --wipe-bg: #2e1b22; --danger: #fca5a5;
-    --bg: #14111c; --bg-deep: #0f0d16;
-    --surface: #1b1626; --surface-2: #272236; --surface-3: #3a3350; --surface-deep: #221c33;
-    --line: #372f4a; --line-2: #4a3f63;
-    --text: #f2eefb; --text-2: #d9d2ea; --muted: #a79dc0; --muted-2: #8c82a8; --link: #c9b8f0;
-    --accent: #c9a227; --accent-2: #e8c65a; --accent-line: #6a5a3a; --on-accent: #221c33;
-    --sel: #7b5cff; --sel-bg: #3d2f63;
-    --rose: #f0b7c2; --rose-2: #c97a8a; --rose-line: #7a3b4a; --on-rose: #2b1218;
-    --ok: #4ade80; --warn: #fbbf24;
-    --tint-rgb: 255, 255, 255; --accent-rgb: 201, 162, 39; --bg-rgb: 20, 17, 28;
+    --tab-a: #29232c; --tab-b: #1f1a21; --wipe-bg: #2e1b22; --danger: #f2a7a7;
+    --bg: #131014; --bg-deep: #0e0b0f;
+    --surface: #1b171d; --surface-2: #241f27; --surface-3: #322b35; --surface-deep: #1b171d;
+    --line: #2f2832; --line-2: #443b47;
+    --text: #f3ece6; --text-2: #ddd3cc; --muted: #a89a92; --muted-2: #8b7e77; --link: #ebcba9;
+    --accent: #c99a72; --accent-2: #ebcba9; --accent-line: #6e5440; --on-accent: #241812;
+    --sel: #c99a72; --sel-bg: #3a2d26;
+    --rose: #e8b4b8; --rose-2: #b98089; --rose-line: #6b3c44; --on-rose: #2a1418;
+    --ok: #6fcf97; --warn: #e8c07a;
+    --tint-rgb: 255, 255, 255; --accent-rgb: 201, 154, 114; --bg-rgb: 19, 16, 20;
     color-scheme: dark;
 }
 

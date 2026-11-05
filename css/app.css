@@ -1049,7 +1049,7 @@ body.sim-fullscreen.settings-open .settings-toggle { display: flex; }
 
 .lic-badge.is-free {
     color: #1F1A10;
-    background: linear-gradient(135deg, var(--accent-2), var(--accent));
+    background: var(--accent);
     border-color: var(--accent-2);
     font-weight: 800;
 }
@@ -1066,7 +1066,7 @@ body.is-free .lic-desc { margin-bottom: 4px; }
 
 /* 끝이 가까우면 남은 시간을 같이 보여 준다 */
 .lic-badge.is-free.is-soon {
-    background: linear-gradient(135deg, var(--rose), var(--rose-2));
+    background: var(--rose);
     border-color: var(--rose);
     color: var(--on-rose);
 }
@@ -1240,7 +1240,7 @@ body.is-free .lic-desc { margin-bottom: 4px; }
 /* 닷새 안에 챙길 것이 있으면 눈에 띄어야 한다 */
 .crm-plan-btn.is-soon {
     color: var(--on-rose);
-    background: linear-gradient(135deg, var(--rose), var(--rose-2));
+    background: var(--rose);
     border-color: var(--rose);
     font-weight: 800;
 }
@@ -1471,7 +1471,7 @@ body.is-free .lic-desc { margin-bottom: 4px; }
     appearance: none;
     font-family: inherit;
     color: var(--on-accent);
-    background: linear-gradient(135deg, var(--accent-2), var(--accent));
+    background: var(--accent);
     border: 1px solid var(--accent-2);
     border-radius: 8px;
     cursor: pointer;
@@ -1602,7 +1602,7 @@ body.is-free .lic-desc { margin-bottom: 4px; }
 .pwa-gate {
     position: fixed; inset: 0; z-index: 4000;
     display: flex; align-items: center; justify-content: center;
-    background: radial-gradient(120% 80% at 50% 0%, #2a2240 0%, var(--bg) 62%);
+    background: var(--bg);
     padding: calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
 }
 .pwa-gate[hidden] { display: none; }

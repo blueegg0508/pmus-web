@@ -83,9 +83,9 @@
             transition: all 0.2s;
         }
         .view-btn.active {
-            background: linear-gradient(135deg, #FFE066 0%, #D4AF37 100%);
+            background: var(--accent);
             color: #111;
-            border-color: #D4AF37;
+            border-color: var(--accent);
             font-weight: 800;
         }
 
@@ -100,7 +100,7 @@
             border-radius: 14px;
             overflow: hidden;
             box-shadow: 0 8px 28px rgba(0,0,0,0.45);
-            border: 2px solid #D4AF37;
+            border: 2px solid var(--accent);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -130,7 +130,7 @@
 
         .btn-action-primary {
             flex: 1;
-            background: linear-gradient(135deg, #FFD700 0%, #D4AF37 100%);
+            background: var(--accent);
             color: #111;
             font-weight: 800;
             font-size: 0.88rem;
@@ -138,7 +138,7 @@
             border-radius: 10px;
             border: 1px solid #B8972E;
             cursor: pointer;
-            box-shadow: 0 3px 10px rgba(212, 175, 55, 0.3);
+            box-shadow: none;
             transition: all 0.2s ease;
             text-align: center;
             display: flex;
@@ -147,13 +147,13 @@
             gap: 4px;
         }
         .btn-action-primary:hover {
-            background: linear-gradient(135deg, #FFE033 0%, #E6C200 100%);
-            transform: translateY(-2px);
+            background: var(--accent-2);
+            transform: none;
         }
 
         .btn-action-secondary {
             flex: 1;
-            background: linear-gradient(135deg, #4A3A2C 0%, #2A2018 100%);
+            background: #4A3A2C;
             color: #FFF;
             font-weight: 700;
             font-size: 0.86rem;
@@ -169,8 +169,8 @@
             gap: 4px;
         }
         .btn-action-secondary:hover {
-            border-color: #D4AF37;
-            transform: translateY(-2px);
+            border-color: var(--accent);
+            transform: none;
         }
 
         /* 🎛️ 컨트롤 패널 & 토글 아코디언 */
@@ -212,13 +212,13 @@
             white-space: nowrap;
         }
         .preset-chip:hover {
-            border-color: #D4AF37;
+            border-color: var(--accent);
             color: #FFF;
         }
         .preset-chip.active {
-            background: linear-gradient(135deg, #FFE066 0%, #D4AF37 100%);
+            background: var(--accent);
             color: #111;
-            border-color: #D4AF37;
+            border-color: var(--accent);
             font-weight: 800;
         }
 
@@ -255,7 +255,7 @@
         .acc-title {
             font-size: 0.86rem;
             font-weight: 800;
-            color: #FFE066;
+            color: var(--accent-2);
             display: flex;
             align-items: center;
             gap: 6px;
@@ -267,7 +267,7 @@
         }
         .acc-arrow {
             font-size: 0.72rem;
-            color: #D4AF37;
+            color: var(--accent);
             transition: transform 0.25s;
         }
         .acc-card.open .acc-arrow {
@@ -296,7 +296,7 @@
             margin-bottom: 3px;
             font-size: 0.80rem;
         }
-        .ctrl-row label span { color: #D4AF37; font-weight: 800; }
+        .ctrl-row label span { color: var(--accent); font-weight: 800; }
         
         .ctrl-row input[type="range"] {
             width: 100%;
@@ -304,7 +304,7 @@
             background: #382F26;
             border-radius: 3px;
             outline: none;
-            accent-color: #D4AF37;
+            accent-color: var(--accent);
             cursor: pointer;
             margin: 2px 0;
         }
@@ -369,7 +369,7 @@
             margin-bottom: 12px;
         }
         .history-title {
-            color: #D4AF37;
+            color: var(--accent);
             font-size: 1.1rem;
             font-weight: 800;
             display: flex;
@@ -409,7 +409,7 @@
         }
 
         .history-title {
-            color: #D4AF37;
+            color: var(--accent);
             font-size: 1.2rem;
             font-weight: 800;
             display: flex;
@@ -493,8 +493,8 @@
         }
         .history-card:hover {
             transform: translateY(-4px);
-            border-color: #D4AF37;
-            box-shadow: 0 10px 30px rgba(212, 175, 55, 0.28);
+            border-color: var(--accent);
+            box-shadow: none;
         }
 
         .history-card-thumb-wrap {
@@ -595,15 +595,15 @@
         .btn-card-view:hover {
             background: #3D352F;
             color: #FFF;
-            border-color: #D4AF37;
+            border-color: var(--accent);
         }
         .btn-card-download {
-            background: linear-gradient(135deg, #D4AF37 0%, #AA820A 100%);
+            background: var(--accent);
             color: #111;
         }
         .btn-card-download:hover {
-            background: linear-gradient(135deg, #FFE066 0%, #D4AF37 100%);
-            transform: translateY(-1px);
+            background: var(--accent);
+            transform: none;
         }
 
         /* ⚠️ 항상 최하단에 위치하는 시술 상담 및 개인정보 안내 배너 */
@@ -670,7 +670,7 @@
         .history-modal-content {
             position: relative;
             background: #1C1917;
-            border: 2.5px solid #D4AF37;
+            border: 2.5px solid var(--accent);
             border-radius: 16px;
             width: 95%;
             max-width: 980px;
@@ -699,7 +699,7 @@
         }
 
         .modal-title {
-            color: #D4AF37;
+            color: var(--accent);
             font-size: 1.15rem;
             font-weight: 800;
             display: flex;
@@ -748,7 +748,7 @@
         }
 
         .btn-modal-download {
-            background: linear-gradient(135deg, #D4AF37 0%, #AA820A 100%);
+            background: var(--accent);
             color: #111;
             font-weight: 800;
             font-size: 0.95rem;
@@ -759,8 +759,8 @@
             transition: all 0.2s ease;
         }
         .btn-modal-download:hover {
-            background: linear-gradient(135deg, #FFE066 0%, #D4AF37 100%);
-            transform: translateY(-1px);
+            background: var(--accent);
+            transform: none;
         }
 
         .btn-modal-close {
@@ -781,15 +781,15 @@
 
         /* ✨ AI 입술 경계 분석 버튼 & 툴바 */
         .btn-extract-main {
-            background: linear-gradient(135deg, #FFE066 0%, #D4AF37 50%, #B8972E 100%);
+            background: var(--accent);
             color: #111;
             font-size: 0.90rem;
             font-weight: 800;
             padding: 9px 12px;
             border-radius: 9px;
-            border: 1.5px solid #FFD700;
+            border: 1.5px solid var(--accent);
             cursor: pointer;
-            box-shadow: 0 3px 12px rgba(212, 175, 55, 0.35);
+            box-shadow: none;
             transition: all 0.25s ease;
             display: flex;
             align-items: center;
@@ -799,32 +799,32 @@
             margin-bottom: 8px;
         }
         .btn-extract-main:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 18px rgba(255, 215, 0, 0.5);
+            transform: none;
+            box-shadow: none;
         }
         .btn-extract-main.extracted {
-            background: linear-gradient(135deg, #2E2721 0%, #1F1A16 100%);
-            color: #FFE066;
-            border-color: #D4AF37;
+            background: #2E2721;
+            color: var(--accent-2);
+            border-color: var(--accent);
             box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         }
         .btn-extract-main.extracted:hover {
-            background: linear-gradient(135deg, #3D332A 0%, #29221D 100%);
-            border-color: #FFD700;
+            background: #3D332A;
+            border-color: var(--accent);
             color: #FFF;
-            transform: translateY(-1px);
+            transform: none;
         }
 
         /* 🔬 검출 상태 배지 */
         .detection-status-badge {
             background: rgba(30, 26, 22, 0.95);
-            border: 1px solid #D4AF37;
+            border: 1px solid var(--accent);
             border-radius: 8px;
             padding: 5px 9px;
             margin-bottom: 8px;
             font-size: 0.76rem;
             font-weight: 700;
-            color: #FFE066;
+            color: var(--accent-2);
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -868,22 +868,22 @@
             white-space: nowrap;
         }
         .contour-btn:hover {
-            border-color: #D4AF37;
+            border-color: var(--accent);
             color: #FFF;
         }
         .contour-btn.active {
-            background: linear-gradient(135deg, #FFE066 0%, #D4AF37 100%);
+            background: var(--accent);
             color: #111;
-            border-color: #D4AF37;
+            border-color: var(--accent);
             font-weight: 800;
-            box-shadow: 0 2px 8px rgba(212, 175, 55, 0.25);
+            box-shadow: none;
         }
         .contour-btn.tint-active {
-            background: linear-gradient(135deg, #FF6B8B 0%, #E25B6F 100%);
-            color: #FFF;
-            border-color: #FF6B8B;
+            background: var(--rose);
+            color: var(--on-rose);
+            border-color: var(--rose);
             font-weight: 800;
-            box-shadow: 0 2px 8px rgba(226, 91, 111, 0.35);
+            box-shadow: none;
         }
 
         /* ⚡ 보정 & JSON 액션 바 */
@@ -909,7 +909,7 @@
         }
         .btn-contour-action:hover {
             background: #3A3026;
-            border-color: #D4AF37;
+            border-color: var(--accent);
             color: #FFF;
         }
 
@@ -920,8 +920,8 @@
             left: 50%;
             transform: translateX(-50%);
             background: #25201B;
-            border: 1.5px solid #D4AF37;
-            color: #FFE066;
+            border: 1.5px solid var(--accent);
+            color: var(--accent-2);
             font-weight: 800;
             font-size: 0.86rem;
             padding: 8px 18px;
