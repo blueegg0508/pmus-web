@@ -74,6 +74,7 @@ export async function initFaceLandmarker(onProgress) {
     _loadingPromise = (async () => {
         if (onProgress) onProgress("얼굴 인식 엔진 로딩 중...");
         try {
+            if (_cpuRemembered()) throw new Error("이 기기는 GPU 로 얼굴을 못 찾았음 (지난번) — 처음부터 CPU");
             _landmarker = await createLandmarker("GPU");
             _delegate = "GPU";
         } catch (gpuErr) {
@@ -97,6 +98,43 @@ export async function initFaceLandmarker(onProgress) {
 }
 
 let _cpuRetried = false;
+
+// ── GPU 가 '오류 없이' 얼굴을 하나도 못 찾는 기기 (2026-11-06 현장, 안드로이드 10 · 8GB) ──
+// 엔진은 GPU 로 잘 섰다고 하고, 인식도 터지지 않는데 결과가 늘 '얼굴 없음' 이었다.
+// 촬영 안내 0/90, 사진 인식도 실패 → 눈썹 자리를 못 재 '기존 눈썹 진하기' 가 듣지 않았다.
+// 그래서 GPU 로 한 번도 얼굴을 못 찾은 채 계속 '없음' 이면 CPU 로 다시 세워 본다.
+// CPU 로 찾으면 이 기기는 다음부터 처음부터 CPU 로 세운다.
+const CPU_KEY = "pmus.faceDelegate";
+let _gpuEverFound = false;   // 이번에 GPU 로 얼굴을 한 번이라도 찾았나 (찾았으면 GPU 는 멀쩡하다)
+let _blindSwitched = false;  // '못 찾아서' CPU 로 바꿨나
+let _poseMiss = 0;           // 촬영 안내에서 연달아 못 찾은 수
+
+function _cpuRemembered() {
+    try { return localStorage.getItem(CPU_KEY) === "CPU"; } catch (e) { return false; }
+}
+/** 얼굴을 찾았을 때 부른다 — GPU 가 멀쩡한지, CPU 로 바꾼 게 맞았는지 기록 */
+function _noteFound() {
+    _poseMiss = 0;
+    if (_delegate === "GPU") _gpuEverFound = true;
+    else if (_blindSwitched) {
+        try { localStorage.setItem(CPU_KEY, "CPU"); } catch (e) { /* 저장 못 해도 이번엔 된다 */ }
+    }
+}
+/** GPU 로 한 번도 못 찾았으면 CPU 로 다시 세운다. 바꿨으면 true. */
+async function _switchToCpuIfBlind() {
+    if (_delegate !== "GPU" || _gpuEverFound || _cpuRetried) return false;
+    _cpuRetried = true;
+    try {
+        await _rebuildOnCpu();
+        _blindSwitched = true;
+        _engineError = "GPU 가 얼굴을 못 찾음 → CPU 로 다시 세움";
+        console.warn("얼굴 인식:", _engineError);
+        return true;
+    } catch (e) {
+        _engineError = "GPU 가 얼굴을 못 찾음, CPU 도 못 세움: " + ((e && e.message) ? e.message : String(e));
+        return false;
+    }
+}
 
 /**
  * 내부 공용: 이미지에서 478개 랜드마크를 뽑습니다.
@@ -163,7 +201,7 @@ async function _detectOnce(imgEl) {
         const res = lm.detect(imgEl);
         if (!res || !res.faceLandmarks || res.faceLandmarks.length === 0) return null;
         const marks = res.faceLandmarks[0];
-        if (_looksSane(marks)) return marks;
+        if (_looksSane(marks)) { _noteFound(); return marks; }
         trouble = "좌표가 이상함 — " + _describe(marks);
         console.warn("얼굴 인식", trouble);
     } catch (e) {
@@ -181,7 +219,7 @@ async function _detectOnce(imgEl) {
             const res = _landmarker.detect(imgEl);
             if (!res || !res.faceLandmarks || res.faceLandmarks.length === 0) return null;
             const marks = res.faceLandmarks[0];
-            if (_looksSane(marks)) return marks;
+            if (_looksSane(marks)) { _noteFound(); return marks; }
             _engineError = "GPU·CPU 모두 좌표가 이상함 — " + _describe(marks);
             console.warn("CPU 로도", _engineError);
         } catch (e2) {
@@ -223,6 +261,13 @@ function _redraw(imgEl, w, h, drawer) {
  * 한 번에 찾으면 2·3 은 아예 하지 않는다 (평소에는 느려지지 않는다).
  */
 async function _detect(imgEl) {
+    const got = await _detectTries(imgEl);
+    if (got) return got;
+    if (!(await _switchToCpuIfBlind())) return null;
+    return _detectTries(imgEl);
+}
+
+async function _detectTries(imgEl) {
     const first = await _detectOnce(imgEl);
     if (first) return first;
 
@@ -382,6 +427,13 @@ function poseOf(marks, w, h) {
  * 엔진이 없거나 얼굴이 없으면 null.
  */
 export async function detectPose(src) {
+    const p = await _poseOnce(src);
+    if (p) { _noteFound(); return p; }
+    if (++_poseMiss >= 30) await _switchToCpuIfBlind();
+    return null;
+}
+
+async function _poseOnce(src) {
     try {
         const lm = await initFaceLandmarker();
         const W = src.width || 1, H = src.height || 1;

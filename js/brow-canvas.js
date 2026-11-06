@@ -601,8 +601,15 @@
             const baseH = (rawLImg.naturalHeight || rawLImg.height || 140);
             const sc = (curScale + a.scale) / 100.0;
             const isL = side === 'left';
+            const w = baseW * sc * ((curWidth + a.width) / 100.0);
+            const rot = isL ? (curRot + a.rot + curLRot) : (-(curRot + a.rot) + curRRot);
+            // 기장은 꼬리 쪽으로만 늘고 준다 — 앞머리 자리(간격)는 그대로 (2026-11-06 현장).
+            // 예전에는 가운데를 두고 양쪽으로 늘어 기장만 바꿨는데 앞머리 사이 간격까지 바뀌었다.
+            // 왼쪽 그림은 꼬리가 왼쪽, 오른쪽 그림은 꼬리가 오른쪽 → 늘어난 만큼의 절반을 꼬리 쪽으로 민다.
+            const grow = (w - baseW * sc) / 2 * (isL ? -1 : 1);
+            const rr = rot * Math.PI / 180;
             return {
-                w: baseW * sc * ((curWidth + a.width) / 100.0),
+                w: w,
                 h: baseH * sc * ((curHeight + a.height) / 100.0),
                 alpha: clampN(curOpacity + a.opacity, 0, 100) / 100.0,
                 round: clampN(curRound + a.round, 0, 100),
@@ -610,9 +617,9 @@
                 head: clampN(curHead + (a.head || 0), 0, 100),
                 deep: clampN(curDeep + (a.deep || 0), 0, 100),
                 tail: clampN(curTail + (a.tail || 0), -20, 40),
-                x: isL ? leftPos.x - ((curSpacing + a.spacing) / 2.0) : rightPos.x + ((curSpacing + a.spacing) / 2.0),
-                y: isL ? leftPos.y : rightPos.y,
-                rot: isL ? (curRot + a.rot + curLRot) : (-(curRot + a.rot) + curRRot),
+                x: (isL ? leftPos.x - ((curSpacing + a.spacing) / 2.0) : rightPos.x + ((curSpacing + a.spacing) / 2.0)) + grow * Math.cos(rr),
+                y: (isL ? leftPos.y : rightPos.y) + grow * Math.sin(rr),
+                rot: rot,
             };
         }
 
