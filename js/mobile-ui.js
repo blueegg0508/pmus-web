@@ -178,6 +178,112 @@
     sheet.appendChild(handle); sheet.appendChild(modeBar); sheet.appendChild(sideNote);
     sheet.appendChild(tabs); sheet.appendChild(panes); sheet.appendChild(quick);
 
+    // ── 오른쪽 스크롤 막대 (2026-11-10) ─────────────────────────────────
+    // 점선 레일을 스크롤 자리로 알아보지 못하고 조절바 위를 밀어 내리다 값이 틀어졌다.
+    // 윈도우 스크롤 막대처럼 화살표 · 길 · 손잡이를 보여 주고 셋 다 쓸 수 있게 한다.
+    var sbar = el("div", "mui-sbar");
+    var sbUp = el("button", "mui-sbar-btn", '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 9l4-4 4 4"/></svg>');
+    var sbDown = el("button", "mui-sbar-btn", '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4"/></svg>');
+    var sbTrack = el("div", "mui-sbar-track");
+    var sbThumb = el("div", "mui-sbar-thumb");
+    sbUp.type = sbDown.type = "button";
+    sbUp.setAttribute("aria-label", "위로"); sbDown.setAttribute("aria-label", "아래로");
+    sbTrack.appendChild(sbThumb);
+    sbar.appendChild(sbUp); sbar.appendChild(sbTrack); sbar.appendChild(sbDown);
+    sbar.hidden = true;
+    sheet.appendChild(sbar);
+    (function () {
+        var raf = 0, thumbH = 0;
+        function pane() { return sheet.classList.contains("is-quick") ? quick : panes; }
+        var seen = {};
+        function put(node, prop, v) {
+            var k = (node === sbar ? "b" : "t") + prop;
+            if (seen[k] !== v) { seen[k] = v; node.style[prop] = v; }
+        }
+        function sync() {
+            raf = 0;
+            var p = pane();
+            var over = p.scrollHeight - p.clientHeight;
+            // 접어 둔 시트 · 넘치지 않는 내용 · 조절바가 없는 저장 탭에서는 감춘다
+            var show = p.offsetParent !== null && !p.classList.contains("no-gutter") && over > 4 && p.clientHeight > 130;
+            if (sbar.hidden === show) sbar.hidden = !show;
+            if (!show) return;
+            // 같은 값은 다시 쓰지 않는다 — 쓰면 아래 MutationObserver 가 또 불러 끝없이 돈다
+            put(sbar, "top", p.offsetTop + "px");
+            put(sbar, "height", p.clientHeight + "px");
+            var th = sbTrack.clientHeight;
+            thumbH = Math.min(th, Math.max(44, Math.round(th * p.clientHeight / p.scrollHeight)));
+            put(sbThumb, "height", thumbH + "px");
+            put(sbThumb, "transform", "translateY(" + Math.round((th - thumbH) * (p.scrollTop / over)) + "px)");
+            var up = p.scrollTop <= 0, dn = p.scrollTop >= over - 1;
+            if (sbUp.disabled !== up) sbUp.disabled = up;
+            if (sbDown.disabled !== dn) sbDown.disabled = dn;
+        }
+        function later() { if (!raf) raf = requestAnimationFrame(sync); }
+        panes.addEventListener("scroll", later, { passive: true });
+        quick.addEventListener("scroll", later, { passive: true });
+        window.addEventListener("resize", later);
+        sheet.addEventListener("transitionend", later);
+        // 탭을 바꾸거나 접힌 칸을 펴면 내용 길이가 달라진다
+        new MutationObserver(later).observe(sheet, {
+            subtree: true, childList: true, attributes: true,
+            attributeFilter: ["class", "style", "hidden", "data-snap", "open"],
+        });
+        if (window.ResizeObserver) new ResizeObserver(later).observe(sheet);
+
+        // 손잡이 끌기
+        var drag = null;
+        sbThumb.addEventListener("pointerdown", function (e) {
+            e.preventDefault(); e.stopPropagation();
+            var p = pane();
+            drag = { id: e.pointerId, y: e.clientY, top: p.scrollTop, p: p };
+            try { sbThumb.setPointerCapture(e.pointerId); } catch (x) {}
+            sbThumb.classList.add("is-drag");
+        });
+        sbThumb.addEventListener("pointermove", function (e) {
+            if (!drag || e.pointerId !== drag.id) return;
+            var room = sbTrack.clientHeight - thumbH;
+            if (room <= 0) return;
+            var over = drag.p.scrollHeight - drag.p.clientHeight;
+            drag.p.scrollTop = drag.top + (e.clientY - drag.y) * over / room;
+        });
+        function endDrag(e) {
+            if (!drag || (e && e.pointerId !== drag.id)) return;
+            drag = null;
+            sbThumb.classList.remove("is-drag");
+        }
+        sbThumb.addEventListener("pointerup", endDrag);
+        sbThumb.addEventListener("pointercancel", endDrag);
+
+        // 길을 누르면 그쪽으로 한 쪽씩
+        sbTrack.addEventListener("pointerdown", function (e) {
+            if (e.target === sbThumb) return;
+            e.preventDefault(); e.stopPropagation();
+            var p = pane();
+            var r = sbThumb.getBoundingClientRect();
+            p.scrollBy({ top: (e.clientY < r.top ? -1 : 1) * p.clientHeight * 0.85, behavior: "smooth" });
+        });
+
+        // 화살표 — 누르면 조금, 누르고 있으면 계속
+        function hold(btn, dir) {
+            var t1 = 0, t2 = 0;
+            function stop() { clearTimeout(t1); clearInterval(t2); t1 = t2 = 0; }
+            btn.addEventListener("pointerdown", function (e) {
+                e.preventDefault(); e.stopPropagation();
+                stop();
+                var p = pane();
+                p.scrollBy({ top: dir * 72, behavior: "smooth" });
+                t1 = setTimeout(function () {
+                    t2 = setInterval(function () { p.scrollTop += dir * 14; }, 16);
+                }, 350);
+            });
+            ["pointerup", "pointercancel", "pointerleave"].forEach(function (n) { btn.addEventListener(n, stop); });
+        }
+        hold(sbUp, -1); hold(sbDown, 1);
+        sbar.addEventListener("pointerdown", function (e) { e.stopPropagation(); });
+        later();
+    })();
+
     shell.appendChild(btnSettings);
     shell.appendChild(topbar);
     shell.appendChild(chips);

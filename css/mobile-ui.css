@@ -261,14 +261,70 @@ html.mui-on .mui-stage .customer-photo { touch-action: auto; }
        이 자리는 시트의 스크롤 영역이므로 손가락을 대고 밀면 스크롤만 되고,
        실수로 슬라이더 값이 바뀌지 않는다. (안드로이드 최소 터치 크기 48dp) */
     padding: 10px calc(48px + var(--sa-right)) calc(36px + var(--sa-bottom)) calc(12px + var(--sa-left));
-    /* 스크롤 여백이 어디인지 알려주는 점선 레일 (내용과 함께 흐르지 않게 고정) */
-    background-image: repeating-linear-gradient(
-        to bottom, var(--surface-3) 0 5px, transparent 5px 12px);
-    background-repeat: repeat-y;
-    background-size: 3px 12px;
-    background-position: right calc(21px + var(--sa-right)) top;
-    background-attachment: scroll;
 }
+
+/* ── 오른쪽 스크롤 막대 (2026-11-10 원장님 요청) ───────────────────────────
+   예전 점선 레일은 '여기를 밀면 스크롤' 이라는 뜻이 전해지지 않아, 조절바 위를 밀어 내리다
+   애써 맞춘 값이 틀어졌다. 윈도우 스크롤 막대처럼 화살표 · 길 · 손잡이를 그대로 보여 준다.
+   손잡이를 끌거나, 길을 눌러 한 쪽씩 넘기거나, 화살표를 눌러 조금씩 움직인다. */
+.mui-sbar {
+    position: absolute;
+    right: calc(8px + var(--sa-right));
+    width: 32px;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    padding: 6px 0 calc(8px + var(--sa-bottom));
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+}
+.mui-sbar[hidden] { display: none; }
+.mui-sbar-btn {
+    flex: 0 0 auto;
+    width: 32px; height: 32px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    background: var(--surface-3, #322b35);
+    border: 1px solid var(--line-2, #443b47);
+    color: var(--text-2, #ddd3cc);
+    cursor: pointer;
+    touch-action: none;
+}
+.mui-sbar-btn:first-child { border-radius: 8px 8px 0 0; }
+.mui-sbar-btn:last-child { border-radius: 0 0 8px 8px; }
+.mui-sbar-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mui-sbar-btn:active { background: var(--line-2, #443b47); }
+.mui-sbar-btn:disabled { color: var(--muted-2, #8b7e77); opacity: .55; }
+.mui-sbar-track {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    background: var(--bg-deep, #0e0b0f);
+    border-left: 1px solid var(--line-2, #443b47);
+    border-right: 1px solid var(--line-2, #443b47);
+}
+.mui-sbar-thumb {
+    position: absolute;
+    left: 3px; right: 3px; top: 0;
+    border-radius: 6px;
+    background: var(--muted, #a89a92);
+    touch-action: none;
+    cursor: grab;
+}
+/* 손잡이 가운데 세 줄 — '잡고 끄는 것' 이라는 표시 */
+.mui-sbar-thumb::after {
+    content: "";
+    position: absolute;
+    left: 6px; right: 6px; top: 50%;
+    height: 8px;
+    margin-top: -4px;
+    background: repeating-linear-gradient(to bottom, rgba(0,0,0,.45) 0 2px, transparent 2px 3px);
+}
+.mui-sbar-thumb.is-drag { background: var(--accent, #c99a72); cursor: grabbing; }
+
 .mui-pane { display: none; }
 .mui-pane.is-active { display: block; }
 
