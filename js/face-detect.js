@@ -73,15 +73,20 @@ export async function initFaceLandmarker(onProgress) {
 
     _loadingPromise = (async () => {
         if (onProgress) onProgress("얼굴 인식 엔진 로딩 중...");
-        try {
-            if (_cpuRemembered()) throw new Error("이 기기는 GPU 로 얼굴을 못 찾았음 (지난번) — 처음부터 CPU");
-            _landmarker = await createLandmarker("GPU");
-            _delegate = "GPU";
-        } catch (gpuErr) {
-            console.warn("GPU 가속 실패 — CPU 로 다시 시도합니다.", gpuErr);
-            if (onProgress) onProgress("얼굴 인식 엔진 준비 중 (CPU)...");
+        if (_cpuRemembered()) {
+            // 지난번에 'GPU 는 못 찾고 CPU 는 찾은' 기기 — 처음부터 CPU
             _landmarker = await createLandmarker("CPU");
             _delegate = "CPU";
+        } else {
+            try {
+                _landmarker = await createLandmarker("GPU");
+                _delegate = "GPU";
+            } catch (gpuErr) {
+                console.warn("GPU 가속 실패 — CPU 로 다시 시도합니다.", gpuErr);
+                if (onProgress) onProgress("얼굴 인식 엔진 준비 중 (CPU)...");
+                _landmarker = await createLandmarker("CPU");
+                _delegate = "CPU";
+            }
         }
         _engineError = null;
         if (onProgress) onProgress("준비 완료");
@@ -102,38 +107,66 @@ let _cpuRetried = false;
 // ── GPU 가 '오류 없이' 얼굴을 하나도 못 찾는 기기 (2026-11-06 현장, 안드로이드 10 · 8GB) ──
 // 엔진은 GPU 로 잘 섰다고 하고, 인식도 터지지 않는데 결과가 늘 '얼굴 없음' 이었다.
 // 촬영 안내 0/90, 사진 인식도 실패 → 눈썹 자리를 못 재 '기존 눈썹 진하기' 가 듣지 않았다.
-// 그래서 GPU 로 한 번도 얼굴을 못 찾은 채 계속 '없음' 이면 CPU 로 다시 세워 본다.
-// CPU 로 찾으면 이 기기는 다음부터 처음부터 CPU 로 세운다.
-const CPU_KEY = "pmus.faceDelegate";
+// 그래서 GPU 로 한 번도 얼굴을 못 찾은 채 '없음' 이 나오면, **같은 그림**을 CPU 로 한 번 더 본다.
+//
+// Build 158 은 못 찾으면 바로 CPU 로 갈아타고, 그 뒤 얼굴을 찾으면 기기를 'CPU' 로 기억했다.
+// 그러면 멀쩡한 폰도 카메라를 켜고 3초쯤 얼굴을 안 비추거나 얼굴 없는 사진을 한 장 넣은 것만으로
+// 영영 느린 CPU 로 굳는다 (2026-11-10 다시 살펴보다 찾음). 얼굴이 없어서 못 찾은 것과 GPU 가
+// 고장이라 못 찾은 것을 가르려면 같은 그림으로 견줘야 한다:
+//   · CPU 는 찾았다 → GPU 가 못 보는 기기. CPU 로 바꾸고 기억한다.
+//   · CPU 도 못 찾았다 → 그냥 얼굴이 없는 그림. GPU 를 그대로 둔다.
+// CPU 엔진을 세우는 데 1초쯤 걸리므로 한 번 켠 동안 몇 번만 해 본다.
+const CPU_KEY = "pmus.faceEngine";
+// 158 이 잘못 굳혀 놓았을 수 있는 옛 기억은 지운다 — 정말 GPU 가 안 되는 기기는 첫 사진에서 다시 기억된다
+try { localStorage.removeItem("pmus.faceDelegate"); } catch (e) { /* 저장소를 못 쓰는 창 */ }
 let _gpuEverFound = false;   // 이번에 GPU 로 얼굴을 한 번이라도 찾았나 (찾았으면 GPU 는 멀쩡하다)
-let _blindSwitched = false;  // '못 찾아서' CPU 로 바꿨나
+let _probesLeft = 4;         // CPU 로 견줘 볼 수 있는 남은 횟수
+let _probing = false;
 let _poseMiss = 0;           // 촬영 안내에서 연달아 못 찾은 수
+let _nextPoseProbe = 30;     // 이만큼 연달아 못 찾으면 견줘 본다 (약 3초 · 그다음은 점점 드물게)
 
 function _cpuRemembered() {
     try { return localStorage.getItem(CPU_KEY) === "CPU"; } catch (e) { return false; }
 }
-/** 얼굴을 찾았을 때 부른다 — GPU 가 멀쩡한지, CPU 로 바꾼 게 맞았는지 기록 */
+function _rememberCpu() {
+    try { localStorage.setItem(CPU_KEY, "CPU"); } catch (e) { /* 저장 못 해도 이번엔 된다 */ }
+}
+/** 얼굴을 찾았을 때 부른다 */
 function _noteFound() {
     _poseMiss = 0;
+    _nextPoseProbe = 30;
     if (_delegate === "GPU") _gpuEverFound = true;
-    else if (_blindSwitched) {
-        try { localStorage.setItem(CPU_KEY, "CPU"); } catch (e) { /* 저장 못 해도 이번엔 된다 */ }
-    }
 }
-/** GPU 로 한 번도 못 찾았으면 CPU 로 다시 세운다. 바꿨으면 true. */
-async function _switchToCpuIfBlind() {
-    if (_delegate !== "GPU" || _gpuEverFound || _cpuRetried) return false;
-    _cpuRetried = true;
+/**
+ * GPU 가 방금 못 찾은 그림을 CPU 로 다시 본다. run 은 '지금 엔진으로 그 그림을 보는' 함수.
+ * CPU 가 찾으면 그 결과를 돌려주고 엔진을 CPU 로 굳힌다. 못 찾으면 GPU 로 되돌리고 null.
+ */
+async function _probeOnCpu(run) {
+    if (_delegate !== "GPU" || _gpuEverFound || _probing || _probesLeft <= 0) return null;
+    _probesLeft--;
+    _probing = true;
+    const gpu = _landmarker;
+    let cpu = null, got = null;
     try {
-        await _rebuildOnCpu();
-        _blindSwitched = true;
-        _engineError = "GPU 가 얼굴을 못 찾음 → CPU 로 다시 세움";
-        console.warn("얼굴 인식:", _engineError);
-        return true;
+        cpu = await createLandmarker("CPU");
+        _landmarker = cpu;
+        _delegate = "CPU";
+        got = await run();
     } catch (e) {
-        _engineError = "GPU 가 얼굴을 못 찾음, CPU 도 못 세움: " + ((e && e.message) ? e.message : String(e));
-        return false;
+        console.warn("얼굴 인식: CPU 로 견줘 보지 못함", e);
     }
+    _probing = false;
+    if (got) {
+        try { if (gpu && gpu.close) gpu.close(); } catch (x) {}
+        _rememberCpu();
+        _engineError = "GPU 가 못 찾은 얼굴을 CPU 가 찾음 → CPU 로 바꿈 (이 기기는 기억함)";
+        console.warn("얼굴 인식:", _engineError);
+        return got;
+    }
+    try { if (cpu && cpu.close) cpu.close(); } catch (x) {}
+    _landmarker = gpu;
+    _delegate = "GPU";
+    return null;
 }
 
 /**
@@ -219,7 +252,7 @@ async function _detectOnce(imgEl) {
             const res = _landmarker.detect(imgEl);
             if (!res || !res.faceLandmarks || res.faceLandmarks.length === 0) return null;
             const marks = res.faceLandmarks[0];
-            if (_looksSane(marks)) { _noteFound(); return marks; }
+            if (_looksSane(marks)) { _rememberCpu(); _noteFound(); return marks; }
             _engineError = "GPU·CPU 모두 좌표가 이상함 — " + _describe(marks);
             console.warn("CPU 로도", _engineError);
         } catch (e2) {
@@ -263,8 +296,7 @@ function _redraw(imgEl, w, h, drawer) {
 async function _detect(imgEl) {
     const got = await _detectTries(imgEl);
     if (got) return got;
-    if (!(await _switchToCpuIfBlind())) return null;
-    return _detectTries(imgEl);
+    return _probeOnCpu(() => _detectTries(imgEl));
 }
 
 async function _detectTries(imgEl) {
@@ -429,7 +461,10 @@ function poseOf(marks, w, h) {
 export async function detectPose(src) {
     const p = await _poseOnce(src);
     if (p) { _noteFound(); return p; }
-    if (++_poseMiss >= 30) await _switchToCpuIfBlind();
+    if (++_poseMiss >= _nextPoseProbe) {
+        _nextPoseProbe = _nextPoseProbe * 2 + 30;      // 30 → 90 → 210 → 450 장면째
+        return _probeOnCpu(() => _poseOnce(src));
+    }
     return null;
 }
 

@@ -1558,10 +1558,10 @@
                     const rx = browGeom('right').x;
 
                     if (activeBrowDrag === 'left' || activeBrowDrag === 'both') {
-                        ctx.strokeRect(lx - gL.w/2 - 4, leftPos.y - gL.h/2 - 4, gL.w + 8, gL.h + 8);
+                        ctx.strokeRect(lx - gL.w/2 - 4, gL.y - gL.h/2 - 4, gL.w + 8, gL.h + 8);
                     }
                     if (activeBrowDrag === 'right' || activeBrowDrag === 'both') {
-                        ctx.strokeRect(rx - gR.w/2 - 4, rightPos.y - gR.h/2 - 4, gR.w + 8, gR.h + 8);
+                        ctx.strokeRect(rx - gR.w/2 - 4, gR.y - gR.h/2 - 4, gR.w + 8, gR.h + 8);
                     }
                     
                     if (activeBrowDrag === 'both') {
