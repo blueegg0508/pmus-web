@@ -205,14 +205,18 @@
             var p = pane();
             var over = p.scrollHeight - p.clientHeight;
             // 접어 둔 시트 · 넘치지 않는 내용 · 조절바가 없는 저장 탭에서는 감춘다
-            var show = p.offsetParent !== null && !p.classList.contains("no-gutter") && over > 4 && p.clientHeight > 130;
+            // 메뉴얼은 탭 줄이 자리를 차지해 조절 칸이 낮다 (실제 폰에서 120px 남짓) — 160 은 130px 밑이면
+            // 막대를 감춰서 메뉴얼에서 아예 안 보였다 (2026-11-11 현장). 낮은 칸에서는 화살표를 빼고 길 · 손잡이만.
+            var show = p.offsetParent !== null && !p.classList.contains("no-gutter") && over > 4 && p.clientHeight > 56;
             if (sbar.hidden === show) sbar.hidden = !show;
             if (!show) return;
+            var compact = p.clientHeight < 170;
+            if (sbar.classList.contains("is-compact") !== compact) sbar.classList.toggle("is-compact", compact);
             // 같은 값은 다시 쓰지 않는다 — 쓰면 아래 MutationObserver 가 또 불러 끝없이 돈다
             put(sbar, "top", p.offsetTop + "px");
             put(sbar, "height", p.clientHeight + "px");
             var th = sbTrack.clientHeight;
-            thumbH = Math.min(th, Math.max(44, Math.round(th * p.clientHeight / p.scrollHeight)));
+            thumbH = Math.min(th, Math.max(Math.min(44, Math.round(th * 0.45)), Math.round(th * p.clientHeight / p.scrollHeight)));
             put(sbThumb, "height", thumbH + "px");
             put(sbThumb, "transform", "translateY(" + Math.round((th - thumbH) * (p.scrollTop / over)) + "px)");
             var up = p.scrollTop <= 0, dn = p.scrollTop >= over - 1;

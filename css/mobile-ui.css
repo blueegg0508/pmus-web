@@ -306,6 +306,13 @@ html.mui-on .mui-stage .customer-photo { touch-action: auto; }
     border-left: 1px solid var(--line-2, #443b47);
     border-right: 1px solid var(--line-2, #443b47);
 }
+/* 낮은 칸(메뉴얼 반쯤 펼침): 화살표를 빼고 길 · 손잡이만 */
+.mui-sbar.is-compact .mui-sbar-btn { display: none; }
+.mui-sbar.is-compact .mui-sbar-track {
+    border-top: 1px solid var(--line-2, #443b47);
+    border-bottom: 1px solid var(--line-2, #443b47);
+    border-radius: 8px;
+}
 .mui-sbar-thumb {
     position: absolute;
     left: 3px; right: 3px; top: 0;
