@@ -306,13 +306,14 @@ html.mui-on .mui-stage .customer-photo { touch-action: auto; }
     border-left: 1px solid var(--line-2, #443b47);
     border-right: 1px solid var(--line-2, #443b47);
 }
-/* 낮은 칸(메뉴얼 반쯤 펼침): 화살표를 빼고 길 · 손잡이만 */
-.mui-sbar.is-compact .mui-sbar-btn { display: none; }
-.mui-sbar.is-compact .mui-sbar-track {
-    border-top: 1px solid var(--line-2, #443b47);
-    border-bottom: 1px solid var(--line-2, #443b47);
-    border-radius: 8px;
-}
+/* 낮은 칸(메뉴얼 반쯤 펼침): 화살표 칸을 낮춰 화살표 · 길 · 손잡이를 다 넣는다 */
+.mui-sbar.is-compact { padding: 2px 0 calc(4px + var(--sa-bottom)); }
+.mui-sbar.is-compact .mui-sbar-btn { height: 24px; }
+.mui-sbar.is-compact .mui-sbar-btn svg { width: 12px; height: 12px; }
+.mui-sbar.is-compact .mui-sbar-thumb::after { height: 5px; margin-top: -2px; }
+/* 우리 막대가 있으니 브라우저 기본 막대는 감춘다 (둘이 겹쳐 보이지 않게) */
+.mui-panes { scrollbar-width: none; }
+.mui-panes::-webkit-scrollbar { display: none; }
 .mui-sbar-thumb {
     position: absolute;
     left: 3px; right: 3px; top: 0;
@@ -492,10 +493,7 @@ html.mui-on .mui-panes .acc-body > div:last-child { margin-bottom: 0; }
    ========================================================================= */
 
 /* 저장 탭에는 조절바가 없으니 오른쪽 스크롤 여백과 점선 레일을 걷는다 */
-.mui-panes.no-gutter {
-    padding-right: calc(12px + var(--sa-right));
-    background-image: none;
-}
+/* (Build 162: 저장 탭에도 스크롤 막대를 두면서 오른쪽 여백을 다른 탭과 같게 둔다) */
 
 .mui-histtools {
     display: grid;
