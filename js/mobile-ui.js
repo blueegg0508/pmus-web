@@ -796,6 +796,11 @@
             nodes: function () { return [openCard("cardColor")]; }
         },
         {
+            // 퍼마블랜드 색소를 최대 3가지 겹쳐 본다 (2026-11-12 원장님 요청)
+            key: "mix", icon: "💧", label: "조색", title: "색소 조색 — 퍼마블랜드 · 최대 3색 겹치기",
+            nodes: function () { return $("cardPigment") ? [openCard("cardPigment")] : []; }
+        },
+        {
             key: "save", icon: "💾", label: "저장", title: "결과물 저장 & 기록",
             nodes: function () {
                 return [$("btnDownloadAfter"), abSaveBtn(),
@@ -1850,6 +1855,20 @@
             qLipHeal.addEventListener("click", function () { $("btnLipHeal").click(); });
             quick.insertBefore(qLipHeal, qSlot.nextSibling);   // 빌려 온 조절바들(맨 끝이 기존 입술 진하기) 바로 다음
         }
+        // 💧 색소 조색 — 퀵에서는 메뉴얼의 [조색] 탭으로 바로 보낸다
+        if ($("cardPigment")) {
+            var qPig = el("button", "mui-qsym mui-qpig", "💧 색소 조색 (퍼마블랜드 · 최대 3색)");
+            qPig.type = "button";
+            qPig.addEventListener("click", function () {
+                setUiMode("manual");
+                var t = tabs.querySelector('[data-tab="mix"]');
+                if (t) t.click();
+            });
+            quick.insertBefore(qPig, qSlot.nextSibling);
+            window.addEventListener("bl:pig", function (e) {
+                qPig.textContent = e.detail ? ("💧 조색 중 · " + e.detail) : "💧 색소 조색 (퍼마블랜드 · 최대 3색)";
+            });
+        }
     }
 
     var qSwitch = el("button", "mui-qswitch", "🎚️ 메뉴얼로 전환해서 세부 조정");
@@ -1914,7 +1933,8 @@
                     label = (window.CFG && window.CFG.safe_design_name) || "";
                 } else {
                     var on = document.querySelector(".color-chip.active[data-color]");
-                    label = on ? on.textContent.trim() : "";
+                    var pig = typeof window.__blPigLabel === "function" ? window.__blPigLabel() : "";
+                    label = pig || (on ? on.textContent.trim() : "");
                 }
             } catch (err) {}
             try {

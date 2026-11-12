@@ -955,3 +955,26 @@
 /* 입꼬리 오버립(아래)은 퀵 화면이 빌려다 쓴다. 빌려 간 자리에서는 보인다 —
  * 내려둔 것은 메뉴얼 화면이지 퀵 화면이 아니다. */
 .mui-qslot .lip-shelved { display: block !important; }
+
+/* ── 💧 색소 조색 — 퍼마블랜드 (2026-11-12) ── */
+.pig-help { font-size: 12.5px; line-height: 1.55; color: var(--text-2, #ddd3cc); margin: 0 0 10px; }
+.pig-help b { color: var(--accent-2, #ebcba9); }
+.pig-mix { border: 1px solid var(--line-2, #443b47); border-radius: 10px; padding: 10px; margin-bottom: 12px; background: var(--surface-2, #241f27); }
+.pig-mix-head { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; font-weight: 700; color: var(--text-2, #ddd3cc); margin-bottom: 8px; }
+.pig-result { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
+.pig-result i { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line-2, #443b47); display: inline-block; }
+.pig-result em { font-style: normal; color: var(--muted, #a89a92); }
+.pig-empty { font-size: 12.5px; color: var(--muted, #a89a92); padding: 6px 0 10px; }
+.pig-layer label { display: flex !important; align-items: center; gap: 8px; }
+.pig-layer label b { flex: 1 1 auto; min-width: 0; font-weight: 700; color: var(--text, #f3ece6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pig-layer label span { color: var(--accent, #c99a72); font-variant-numeric: tabular-nums; }
+.pig-dot { width: 18px; height: 18px; border-radius: 50%; flex: none; border: 1px solid rgba(255,255,255,.25); }
+.pig-del { flex: none; min-height: 32px !important; padding: 0 10px; border-radius: 8px; background: transparent; border: 1px solid var(--line-2, #443b47); color: var(--text-2, #ddd3cc); font-size: 12px !important; cursor: pointer; }
+.pig-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 10px; }
+.pig-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
+.pig-chip { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 8px 4px; min-height: 68px !important; border-radius: 10px; background: var(--surface-2, #241f27); border: 1px solid var(--line, #2f2832); color: var(--text-2, #ddd3cc); cursor: pointer; }
+.pig-chip i { width: 30px; height: 30px; border-radius: 50%; border: 1px solid rgba(255,255,255,.22); display: grid; place-items: center; font-style: normal; font-size: 13px; font-weight: 700; color: #fff; text-shadow: 0 0 3px rgba(0,0,0,.9), 0 0 2px rgba(0,0,0,.9); }
+.pig-chip em { font-style: normal; font-size: 11.5px; line-height: 1.25; text-align: center; word-break: keep-all; }
+.pig-chip.is-on { border-color: var(--accent, #c99a72); background: var(--sel-bg, #3a2d26); color: var(--text, #f3ece6); }
+.pig-note { font-size: 11.5px; line-height: 1.5; color: var(--muted, #a89a92); margin: 0; }
+.pig-note.is-warn { color: var(--rose, #e8b4b8); }

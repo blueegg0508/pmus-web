@@ -407,6 +407,35 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- 🔘 [토글 카드 5] 💧 색소 조색 — 퍼마블랜드 (2026-11-12 원장님 요청) -->
+                    <div class="acc-card" id="cardPigment">
+                        <div class="acc-header" onclick="toggleAcc('cardPigment')">
+                            <div class="acc-title">
+                                <span class="acc-arrow">▶</span>
+                                <span>💧 색소 조색 — 퍼마블랜드</span>
+                            </div>
+                            <span class="acc-badge">최대 3색 겹치기</span>
+                        </div>
+                        <div class="acc-body">
+                            <p class="pig-help">색소를 누르면 입술에 올라갑니다. <b>최대 3가지</b>까지 겹칠 수 있고, <b>먼저 고른 색이 아래</b>에 깔립니다 (예: 중화색 → 원하는 색).</p>
+                            <div class="pig-mix">
+                                <div class="pig-mix-head">
+                                    <span>겹친 색소</span>
+                                    <span class="pig-result"><i id="pigResultDot"></i><em id="pigResultTxt">고른 색소 없음</em></span>
+                                </div>
+                                <div id="pigLayerList"></div>
+                                <button type="button" class="btn-erase-clear" id="btnPigClear" disabled>↺ 겹친 색소 모두 비우기</button>
+                            </div>
+                            <div class="pig-tabs" id="pigTabs">
+                                <button type="button" class="preset-chip active" data-pig="pb">퍼마블랜드</button>
+                                <button type="button" class="preset-chip" data-pig="luxe">럭스 입술</button>
+                                <button type="button" class="preset-chip" data-pig="mod">럭스 조색 · 중화</button>
+                            </div>
+                            <div class="pig-grid" id="pigGrid"></div>
+                            <p class="pig-note" id="pigNote">화면 색은 제품 사진을 바탕으로 맞춘 참고용입니다. 실제 발색은 피부 바탕색과 기법에 따라 달라집니다.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

@@ -262,6 +262,8 @@
         // 🎨 컬러 & 기법 상태
         let currentColor = CFG.default_color;
         let currentTech = CFG.default_tech;
+        /** 💧 색소 조색 — 겹쳐 올린 색소 (최대 3). 비어 있으면 currentColor 한 가지를 쓴다. [{name, hex, a(10~100)}] */
+        let pigLayers = [];
         let density = 100;
         let opacity = 85;
         /** 🔅 기존 입술 진하기 (2026-10-30 현장 피드백) — 100 = 사진 그대로, 낮추면 원래 입술 자리를 피부톤으로 덮는다.
@@ -893,9 +895,13 @@
 
             const { canvas: offCanvas, ctx: offCtx } = getBufferCanvas('tint', w, h);
 
-            const rgb = hexToRgb(currentColor);
             const alpha = (opacity / 100.0) * (density / 100.0);
-            offCtx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+            // 색소 조색: 고른 차례대로(아래 → 위) 같은 자리에 겹쳐 칠한다. 색소가 없으면 기본 색 한 가지.
+            const tintLayers = pigLayers.length
+                ? pigLayers.map(function (l) { return { rgb: hexToRgb(l.hex), a: l.a / 100 }; })
+                : [{ rgb: hexToRgb(currentColor), a: 1 }];
+            tintLayers.forEach(function (L) {
+            offCtx.fillStyle = `rgba(${L.rgb.r}, ${L.rgb.g}, ${L.rgb.b}, ${Math.min(1, alpha * L.a)})`;
 
             // 1. 윗입술 채움
             if (closedUpper && closedUpper.length > 2) {
@@ -918,6 +924,7 @@
                 offCtx.closePath();
                 offCtx.fill();
             }
+            });
 
             // 주름 질감 보존 블렌딩
             targetCtx.save();
@@ -926,8 +933,21 @@
             } else {
                 targetCtx.filter = 'none';
             }
-            targetCtx.globalCompositeOperation = (currentTech === 'water_color' || currentTech === 'natural') ? "multiply" : "source-over";
-            targetCtx.drawImage(offCanvas, 0, 0);
+            if (pigLayers.length) {
+                // 색소 조색: 그냥 덮어 칠하면 입술 결 · 음영이 사라져 스티커처럼 보인다.
+                // 색(색상 · 채도)은 색소 것으로 바꾸되 밝기는 입술 것을 살리고('color'),
+                // 그 위에 색소를 옅게 한 번 더 얹어 밝기도 색소 쪽으로 조금 끌어온다 —
+                // 어두운 입술에 밝은 중화색을 올리면 실제로도 밝아지기 때문이다.
+                targetCtx.globalCompositeOperation = "color";
+                targetCtx.drawImage(offCanvas, 0, 0);
+                targetCtx.globalCompositeOperation = "source-over";
+                targetCtx.globalAlpha = 0.4;
+                targetCtx.drawImage(offCanvas, 0, 0);
+                targetCtx.globalAlpha = 1;
+            } else {
+                targetCtx.globalCompositeOperation = (currentTech === 'water_color' || currentTech === 'natural') ? "multiply" : "source-over";
+                targetCtx.drawImage(offCanvas, 0, 0);
+            }
             targetCtx.restore();
 
             // 3. 탕후루 광택
@@ -2067,6 +2087,7 @@
         window.__blTech = function () {
             const t = document.querySelector('.tech-btn.active');
             const c = document.querySelector('.color-chip.active[data-color]');
+            if (pigLayers.length) return pigLabel();
             return [t ? t.textContent.trim() : '', c ? c.textContent.trim() : ''].filter(Boolean).join(' · ') || '입술 디자인';
         };
 
@@ -2534,13 +2555,143 @@
                 this.classList.add('active');
                 currentColor = this.getAttribute('data-color');
                 document.getElementById('customColorPicker').value = currentColor;
+                pigClear();
                 requestRender();
             });
         });
         document.getElementById('customColorPicker').addEventListener('input', function() {
             currentColor = this.value;
+            pigClear();
             requestRender();
         });
+
+        // ── 💧 색소 조색 — 퍼마블랜드 (2026-11-12 원장님 요청) ─────────────────────
+        // 어두운 입술을 원하는 색으로 만들려면 중화색 · 목표색을 겹쳐 올린다 (병치혼합).
+        // 색소를 최대 3가지까지 차례로 겹쳐 그 결과를 미리 본다. 먼저 고른 색이 아래에 깔린다.
+        // 색값은 판매처 제품 사진의 색을 눈으로 맞춘 것 — 참고용이다 (화면에도 그렇게 적는다).
+        const PIGMENTS = {
+            pb: [["필로우톡", "#B01840"], ["더스키 크림슨", "#9E1E28"], ["라즈베리", "#D21E5A"], ["러쉬핑크", "#E8287A"],
+                 ["레이디버그", "#EE1C1C"], ["바주카", "#F0508C"], ["배드걸", "#E0607A"], ["블러쉬드", "#D85040"],
+                 ["오렌지크러쉬", "#F0301A"], ["크림드핑크", "#F6C0B4"], ["파이어리 푸크시아", "#C81E96"], ["패션레드", "#E01818"],
+                 ["할리우드 펀치", "#8E1030"], ["헨파티", "#F04860"], ["애플리콧", "#F08A2A"]],
+            luxe: [["레드애플", "#D80F0F"], ["체리레드", "#D00A14"], ["로즈로얄", "#C8505A"], ["로즈우드", "#C03C50"],
+                   ["빈티지 마룬", "#701824"], ["부두아", "#8E1030"], ["크렌베리", "#8A0A0A"], ["빅토리안 로즈", "#B04A5E"],
+                   ["카디날", "#E8102A"], ["블로썸", "#C83C3C"], ["코튼 캔디", "#F8C0C0"], ["비비드코랄", "#F02E48"],
+                   ["오렌지 필", "#EE3A0A"], ["베리", "#7E1E48"], ["아멜리아 로즈", "#B84A5A"], ["헨나", "#B86450"],
+                   ["파머그래닛", "#A8083C"], ["헤이즈", "#4A2E1E"], ["라라", "#C8143A"], ["말로", "#D04E60"],
+                   ["포피", "#C80808"], ["조이", "#C40A0E"], ["글램", "#D43A82"], ["진", "#E84848"]],
+            mod: [["코튼 캔디", "#F8C0C0"], ["모드1", "#FCF650"], ["모드2", "#F49478"], ["모드3", "#F2A0B4"],
+                  ["베이스1", "#FFE000"], ["베이스2", "#FF8200"], ["베이스3", "#EE3A1E"], ["베이스4", "#C81432"]],
+        };
+        const PIG_MAX = 3;
+        let pigGroup = 'pb';
+        function pigLabel() { return pigLayers.map(function (l) { return l.name; }).join(' + '); }
+        window.__blPigLabel = pigLabel;
+        /** 겹친 결과색 (바탕 없이 색소끼리만 겹쳤을 때) */
+        function pigMixCss() {
+            let r = 0, g = 0, b = 0, a = 0;
+            pigLayers.forEach(function (l) {
+                const c = hexToRgb(l.hex), la = l.a / 100;
+                r = c.r * la + r * (1 - la); g = c.g * la + g * (1 - la); b = c.b * la + b * (1 - la);
+                a = la + a * (1 - la);
+            });
+            if (a <= 0) return '';
+            return 'rgb(' + Math.round(r / a) + ',' + Math.round(g / a) + ',' + Math.round(b / a) + ')';
+        }
+        function pigRender() {
+            const list = document.getElementById('pigLayerList');
+            const grid = document.getElementById('pigGrid');
+            if (!list || !grid) return;
+            list.textContent = '';
+            pigLayers.forEach(function (l, i) {
+                const row = document.createElement('div');
+                row.className = 'ctrl-row pig-layer';
+                const lab = document.createElement('label');
+                const dot = document.createElement('i'); dot.className = 'pig-dot'; dot.style.background = l.hex;
+                const nm = document.createElement('b'); nm.textContent = (i + 1) + '. ' + l.name;
+                const val = document.createElement('span'); val.textContent = l.a + '%';
+                const del = document.createElement('button'); del.type = 'button'; del.className = 'pig-del';
+                del.setAttribute('aria-label', l.name + ' 빼기'); del.textContent = '빼기';
+                del.addEventListener('click', function () { pigLayers.splice(i, 1); pigChanged(); });
+                lab.appendChild(dot); lab.appendChild(nm); lab.appendChild(val); lab.appendChild(del);
+                const rng = document.createElement('input');
+                rng.type = 'range'; rng.min = '10'; rng.max = '100'; rng.step = '5'; rng.value = String(l.a);
+                rng.setAttribute('aria-label', l.name + ' 진하기');
+                rng.addEventListener('input', function () {
+                    l.a = parseFloat(this.value); val.textContent = l.a + '%';
+                    pigResult(); requestRender();
+                });
+                row.appendChild(lab); row.appendChild(rng);
+                list.appendChild(row);
+            });
+            if (!pigLayers.length) {
+                const empty = document.createElement('div');
+                empty.className = 'pig-empty';
+                empty.textContent = '아래에서 색소를 눌러 주세요';
+                list.appendChild(empty);
+            }
+            grid.textContent = '';
+            (PIGMENTS[pigGroup] || []).forEach(function (p) {
+                const at = pigLayers.findIndex(function (l) { return l.name === p[0] && l.hex === p[1]; });
+                const b = document.createElement('button');
+                b.type = 'button'; b.className = 'pig-chip' + (at >= 0 ? ' is-on' : '');
+                const dot = document.createElement('i'); dot.style.background = p[1];
+                if (at >= 0) dot.textContent = String(at + 1);
+                const nm = document.createElement('em'); nm.textContent = p[0];
+                b.appendChild(dot); b.appendChild(nm);
+                b.addEventListener('click', function () {
+                    const note = document.getElementById('pigNote');
+                    if (at >= 0) pigLayers.splice(at, 1);
+                    else if (pigLayers.length >= PIG_MAX) {
+                        if (note) { note.textContent = '최대 3가지까지 겹칠 수 있습니다. 하나를 빼고 다시 골라 주세요.'; note.classList.add('is-warn'); }
+                        return;
+                    } else pigLayers.push({ name: p[0], hex: p[1], a: pigLayers.length ? 60 : 100 });
+                    if (note) { note.textContent = '화면 색은 제품 사진을 바탕으로 맞춘 참고용입니다. 실제 발색은 피부 바탕색과 기법에 따라 달라집니다.'; note.classList.remove('is-warn'); }
+                    pigChanged();
+                });
+                grid.appendChild(b);
+            });
+            pigResult();
+        }
+        function pigResult() {
+            const dot = document.getElementById('pigResultDot'), txt = document.getElementById('pigResultTxt');
+            const clr = document.getElementById('btnPigClear');
+            if (dot) dot.style.background = pigMixCss() || 'transparent';
+            if (txt) txt.textContent = pigLayers.length ? ('겹친 결과 · ' + pigLayers.length + '가지') : '고른 색소 없음';
+            if (clr) clr.disabled = !pigLayers.length;
+        }
+        function pigChanged() {
+            if (pigLayers.length) {
+                // 색소를 쓰는 동안에는 기본 색상표의 선택 표시를 지운다 (둘 중 하나만 적용되므로)
+                document.querySelectorAll('.color-chip').forEach(function (c) { c.classList.remove('active'); });
+                // 색이 보이도록 틴트 채움을 켠다
+                if (!fillTint) { const t = document.getElementById('btnToggleFillTint'); if (t) t.click(); }
+            }
+            pigRender();
+            requestRender();
+            try { window.dispatchEvent(new CustomEvent('bl:pig', { detail: pigLabel() })); } catch (e) {}
+        }
+        /** 기본 색상표 · 직접 고른 색으로 돌아갈 때 겹친 색소를 비운다 */
+        function pigClear() {
+            if (!pigLayers.length) return;
+            pigLayers.length = 0;
+            pigRender();
+            try { window.dispatchEvent(new CustomEvent('bl:pig', { detail: '' })); } catch (e) {}
+        }
+        (function () {
+            const tabs = document.getElementById('pigTabs');
+            if (tabs) tabs.querySelectorAll('button[data-pig]').forEach(function (b) {
+                b.addEventListener('click', function () {
+                    tabs.querySelectorAll('button').forEach(function (x) { x.classList.remove('active'); });
+                    b.classList.add('active');
+                    pigGroup = b.getAttribute('data-pig');
+                    pigRender();
+                });
+            });
+            const clr = document.getElementById('btnPigClear');
+            if (clr) clr.addEventListener('click', function () { pigLayers.length = 0; pigChanged(); });
+            pigRender();
+        })();
 
         bind('rngDensity', 'valDensity', '%', v => density = v);
         bind('rngOpacity', 'valOpacity', '%', v => opacity = v);
@@ -3069,8 +3220,8 @@
             // 비교 화면의 이름표는 '고른 색 이름' 으로 단다. 상담할 때 원장님과
             // 고객이 서로 가리키는 말이 색 이름이기 때문이다.
             // 색상표에 없는 직접 고른 색이면 색값을 그대로 쓴다.
-            let colorLabel = currentColor;
-            try {
+            let colorLabel = pigLabel() || currentColor;
+            if (!pigLayers.length) try {
                 const chips = document.querySelectorAll('.color-chip[data-color]');
                 for (let i = 0; i < chips.length; i++) {
                     const c = chips[i].getAttribute('data-color') || '';
