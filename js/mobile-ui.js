@@ -181,6 +181,10 @@
     // ── 오른쪽 스크롤 막대 (2026-11-10) ─────────────────────────────────
     // 점선 레일을 스크롤 자리로 알아보지 못하고 조절바 위를 밀어 내리다 값이 틀어졌다.
     // 윈도우 스크롤 막대처럼 화살표 · 길 · 손잡이를 보여 주고 셋 다 쓸 수 있게 한다.
+    // 2026-11-14 원장님: 예전 점선 레일로 되돌린다. 막대는 나중에 다시 쓸 수 있게 그대로 둔다 —
+    // 아래 값을 "bar" 로 바꾸면 Build 160~163 의 스크롤 막대(화살표 · 길 · 손잡이)가 돌아온다.
+    var SCROLL_STYLE = "rail";      // "rail" = 점선 레일 (예전) · "bar" = 스크롤 막대
+    document.documentElement.classList.toggle("mui-rail", SCROLL_STYLE === "rail");
     var sbar = el("div", "mui-sbar");
     var sbUp = el("button", "mui-sbar-btn", '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 9l4-4 4 4"/></svg>');
     var sbDown = el("button", "mui-sbar-btn", '<svg viewBox="0 0 14 14" aria-hidden="true"><path d="M3 5l4 4 4-4"/></svg>');
@@ -208,7 +212,7 @@
             // 메뉴얼은 탭 줄이 자리를 차지해 조절 칸이 낮다 (실제 폰에서 120px 남짓) — 160 은 130px 밑이면
             // 막대를 감춰서 메뉴얼에서 아예 안 보였다 (2026-11-11 현장). 낮은 칸에서는 화살표를 빼고 길 · 손잡이만.
             // 저장 탭에도 같은 막대를 둔다 — 161 까지는 거기만 브라우저 기본 막대가 보였다 (2026-11-11 현장)
-            var show = p.offsetParent !== null && over > 4 && p.clientHeight > 84;
+            var show = SCROLL_STYLE === "bar" && p.offsetParent !== null && over > 4 && p.clientHeight > 84;
             if (sbar.hidden === show) sbar.hidden = !show;
             if (!show) return;
             var compact = p.clientHeight < 170;

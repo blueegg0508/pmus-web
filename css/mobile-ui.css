@@ -312,8 +312,27 @@ html.mui-on .mui-stage .customer-photo { touch-action: auto; }
 .mui-sbar.is-compact .mui-sbar-btn svg { width: 12px; height: 12px; }
 .mui-sbar.is-compact .mui-sbar-thumb::after { height: 5px; margin-top: -2px; }
 /* 우리 막대가 있으니 브라우저 기본 막대는 감춘다 (둘이 겹쳐 보이지 않게) */
-.mui-panes { scrollbar-width: none; }
-.mui-panes::-webkit-scrollbar { display: none; }
+html:not(.mui-rail) .mui-panes { scrollbar-width: none; }
+html:not(.mui-rail) .mui-panes::-webkit-scrollbar { display: none; }
+
+/* ── 점선 레일 (예전 모습, 2026-11-14 원장님 요청으로 되돌림) ─────────────
+   mobile-ui.js 의 SCROLL_STYLE 이 "rail" 이면 html 에 mui-rail 이 붙는다.
+   "bar" 로 바꾸면 이 묶음은 꺼지고 위의 스크롤 막대가 다시 나온다. */
+html.mui-rail .mui-sbar { display: none; }
+html.mui-rail .mui-panes {
+    /* 스크롤 여백이 어디인지 알려주는 점선 레일 (내용과 함께 흐르지 않게 고정) */
+    background-image: repeating-linear-gradient(
+        to bottom, var(--surface-3, #322b35) 0 5px, transparent 5px 12px);
+    background-repeat: repeat-y;
+    background-size: 3px 12px;
+    background-position: right calc(21px + var(--sa-right)) top;
+    background-attachment: scroll;
+}
+/* 저장 탭에는 조절바가 없으니 오른쪽 스크롤 여백과 점선 레일을 걷는다 */
+html.mui-rail .mui-panes.no-gutter {
+    padding-right: calc(12px + var(--sa-right));
+    background-image: none;
+}
 .mui-sbar-thumb {
     position: absolute;
     left: 3px; right: 3px; top: 0;

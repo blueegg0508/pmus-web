@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=163";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=163";
-import * as License from "./license.js?v=163";
-import * as Custom from "./custom-designs.js?v=163";
-import * as Update from "./update.js?v=163";
-import * as Crm from "./crm-ui.js?v=163";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=164";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=164";
+import * as License from "./license.js?v=164";
+import * as Custom from "./custom-designs.js?v=164";
+import * as Update from "./update.js?v=164";
+import * as Crm from "./crm-ui.js?v=164";
 
-const BUILD = "163";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "164";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -1816,10 +1816,14 @@ async function usePhoto(img, dataUrl) {
         // 고개가 기울어 찍혔으면 사진을 돌려 두 눈을 수평으로 맞춘다.
         // 디자인은 눈 선을 따라 얹히므로, 기운 채로 두면 한쪽 눈썹이 올라가 보인다.
         let leveled = null;
+        let tiltTooMuch = 0;
         if (geo && geo.eyes) {
             // 디자인이 따라가는 것과 같은 선(두 눈 중심)으로 잰다 — 돌린 뒤 디자인 기울기가 0 이 되게
             const e = geo.eyes;
-            leveled = await levelPhoto(img, (Math.atan2(e.right.y - e.left.y, e.right.x - e.left.x) * 180) / Math.PI);
+            const tiltDeg = (Math.atan2(e.right.y - e.left.y, e.right.x - e.left.x) * 180) / Math.PI;
+            leveled = await levelPhoto(img, tiltDeg);
+            // 너무 기울면 돌릴 때 얼굴이 많이 잘려 손대지 않는다 — 말없이 넘어가지 않고 알려 준다
+            if (!leveled && Math.abs(tiltDeg) > POSE.levelMax) tiltTooMuch = Math.abs(tiltDeg);
             if (leveled) {
                 const geo2 = await detectFaceGeometry(leveled.img);
                 if (geo2) {
@@ -1842,6 +1846,11 @@ async function usePhoto(img, dataUrl) {
                 ? `얼굴 인식 완료 · 수평 ${Math.abs(leveled.deg).toFixed(1)}° 맞춤`
                 : "얼굴 인식 완료";
             badge.className = "badge badge-ok";
+            if (tiltTooMuch) {
+                badge.textContent += ` · 고개가 ${tiltTooMuch.toFixed(0)}° 기울어짐`;
+                badge.className = "badge badge-warn";
+                toast("고개가 많이 기울어 수평을 자동으로 맞추지 못했습니다. 조금 더 바르게 다시 찍어 주세요.", 4200);
+            }
             // 고개를 옆으로 돌린 사진은 돌려서 펼 수 없다 — 다시 찍기를 권한다.
             if (geo.pose && Math.abs(geo.pose.yaw) > POSE.yawWarn) {
                 badge.textContent += " · 고개가 옆으로 돌아감";
@@ -2168,7 +2177,8 @@ async function startStream() {
         $("cam-frame").classList.toggle("is-mirrored", cam.facing === "user");
         $("cam-shoot").disabled = false;
         await video.play().catch(() => {});
-        startLive();
+        // 촬영 중 자세 안내 · 자동 촬영은 뺐다 (2026-11-14 원장님 — 손으로 찍고, 찍은 사진의 수평만 자동으로).
+        // 손으로 셔터를 누르면 usePhoto 가 두 눈을 수평으로 돌려 맞춘다. startLive() 는 부르지 않는다.
     } catch (err) {
         $("cam-shoot").disabled = true;
         $("cam-error").hidden = false;
