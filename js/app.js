@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=171";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=171";
-import * as License from "./license.js?v=171";
-import * as Custom from "./custom-designs.js?v=171";
-import * as Update from "./update.js?v=171";
-import * as Crm from "./crm-ui.js?v=171";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=172";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=172";
+import * as License from "./license.js?v=172";
+import * as Custom from "./custom-designs.js?v=172";
+import * as Update from "./update.js?v=172";
+import * as Crm from "./crm-ui.js?v=172";
 
-const BUILD = "171";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "172";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -414,12 +414,51 @@ function pmusFileName(orig) {
     return ["PMUS", who, when, part].filter(Boolean).join("_") + extra + ext;
 }
 
+let stampChain = Promise.resolve();
+let stampPending = 0;
 function saveToGallery(dataUrl, filename) {
     filename = pmusFileName(filename);
     // '전체 저장' 은 여러 장이 한꺼번에 몰려온다. 동시에 쓰면 사진첩에
     // 뒤엉키므로 줄을 세워 한 장씩 처리하고, 끝나면 몇 장인지 알린다.
-    saveQueue.push({ dataUrl, filename });
-    if (!saveRunning) runSaveQueue();
+    // 매장 로고를 찍는 동안(그림을 다시 굽는다)에도 들어온 차례가 바뀌지 않게 한 줄로 잇고,
+    // 몰려온 것을 다 찍은 뒤에 한꺼번에 넘긴다 — 아이폰은 여러 장을 '저장' 창 하나로 넘겨야 한다.
+    stampPending++;
+    stampChain = stampChain
+        .then(() => shopStamp(dataUrl))
+        .then((stamped) => {
+            saveQueue.push({ dataUrl: stamped, filename });
+            if (--stampPending === 0 && !saveRunning) runSaveQueue();
+        });
+}
+
+/**
+ * 저장하는 사진에 매장 로고를 찍는다 (2026-11-18 원장님 요청).
+ * 로고가 없거나 '넣지 않기' 면 그대로 돌려준다. 실패해도 저장은 되어야 하므로 원래 사진을 돌려준다.
+ * 크기는 사진 짧은 변의 15%, 아래쪽 자리는 안내 띠 · 상호 글자를 피해 조금 올려 찍는다.
+ */
+function shopStamp(dataUrl) {
+    if (typeof shopSet === "undefined" || !shopSet.logo || shopSet.stamp === "off") return Promise.resolve(dataUrl);
+    return Promise.all([loadImage(dataUrl), loadImage(shopSet.logo)]).then(([im, lg]) => {
+        const w = im.naturalWidth, h = im.naturalHeight;
+        if (!w || !h || !lg.naturalWidth) return dataUrl;
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        const x = c.getContext("2d");
+        x.drawImage(im, 0, 0);
+        const box = Math.min(w, h) * 0.15, m = Math.min(w, h) * 0.03;
+        const k = Math.min(box / lg.naturalWidth, box / lg.naturalHeight);
+        const lw = lg.naturalWidth * k, lh = lg.naturalHeight * k;
+        const right = shopSet.stamp === "tr" || shopSet.stamp === "br";
+        const bottom = shopSet.stamp === "bl" || shopSet.stamp === "br";
+        const px = right ? w - m - lw : m;
+        const py = bottom ? h - Math.max(m, h * 0.11) - lh : m + Math.min(w, h) * 0.05;
+        x.imageSmoothingQuality = "high";
+        x.globalAlpha = 0.92;
+        x.drawImage(lg, px, py, lw, lh);
+        const out = /^data:image\/png/i.test(dataUrl) ? c.toDataURL("image/png") : c.toDataURL("image/jpeg", 0.92);
+        c.width = 0; c.height = 0;
+        return out;
+    }).catch(() => dataUrl);
 }
 
 async function runSaveQueue() {
@@ -3162,7 +3201,7 @@ const SHOP_FONTS = [
     { key: "jua", name: "주아 (둥근)", family: "'Jua'", g: "Jua" },
 ];
 const SHOP_SIZES = [["0.92", "작게"], ["1", "보통"], ["1.1", "크게"], ["1.2", "아주 크게"]];
-let shopSet = { logo: null, theme: null, start: "quick", resume: 2, font: "default", size: 1 };
+let shopSet = { logo: null, theme: null, start: "quick", resume: 2, font: "default", size: 1, stamp: "tl" };
 try {
     const raw = JSON.parse(localStorage.getItem(SHOP_KEY) || "{}");
     if (raw && typeof raw === "object") {
@@ -3173,6 +3212,7 @@ try {
         if (raw.start === "manual") shopSet.start = "manual";
         if ([0, 2, 12].includes(raw.resume)) shopSet.resume = raw.resume;
         if (SHOP_FONTS.some((f) => f.key === raw.font)) shopSet.font = raw.font;
+        if (["tl", "tr", "bl", "br", "off"].includes(raw.stamp)) shopSet.stamp = raw.stamp;
         if (SHOP_SIZES.some((z) => parseFloat(z[0]) === raw.size)) shopSet.size = raw.size;
     }
 } catch (e) { /* 저장소를 못 쓰는 창 — 기본값으로 */ }
@@ -3392,6 +3432,7 @@ function bindShopSettings() {
         // 아직 편집에 들어가지 않았으면 바로 따라간다
         if (!state.mountedKind) { state.editMode = shopSet.start; updateStepVisibility(); }
     });
+    seg("shop-stamp", shopSet.stamp, (v) => { shopSet.stamp = v; shopSave(); });
     seg("shop-size", shopSet.size, async (v) => { shopSet.size = parseFloat(v) || 1; shopSave(); paintPreview(); await applyShopTheme(); });
     const fonts = $("shop-fonts");
     const BASE_FAMILY = '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif';
@@ -3434,10 +3475,10 @@ function bindShopSettings() {
         let ok = false;
         try { ok = window.confirm("로고 · 화면 색 · 글꼴 · 글자 크기 · 시작 방식을 모두 처음 상태로 되돌릴까요?"); } catch (e) { ok = false; }
         if (!ok) return;
-        shopSet = { logo: null, theme: null, start: "quick", resume: 2, font: "default", size: 1 };
+        shopSet = { logo: null, theme: null, start: "quick", resume: 2, font: "default", size: 1, stamp: "tl" };
         try { localStorage.removeItem(SHOP_KEY); } catch (e) { /* 못 지워도 화면은 되돌린다 */ }
         if (!state.mountedKind) { state.editMode = "quick"; updateStepVisibility(); }
-        paintColors(); paintFonts(); paintSeg("shop-size", 1); paintSeg("shop-start", "quick");
+        paintColors(); paintFonts(); paintSeg("shop-size", 1); paintSeg("shop-start", "quick"); paintSeg("shop-stamp", "tl");
         applyShopLogo();
         await applyShopTheme();
         toast("모든 설정을 기본값으로 되돌렸습니다");

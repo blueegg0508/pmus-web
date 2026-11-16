@@ -1895,6 +1895,8 @@ label.design-card { cursor: pointer; }
 .shop-fonts button.is-on { border-color: var(--accent); background: var(--sel-bg, var(--surface-2)); }
 .shop-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
 .shop-seg button { min-height: 44px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text); font-size: 13px; cursor: pointer; }
+.shop-seg3 { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.shop-stamp-help { margin: 12px 0 8px; }
 .shop-seg button.is-on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #241812); font-weight: 700; }
 /* 매장 로고는 가로로 긴 것이 많다 — 높이를 기준으로 맞춘다 */
 .app-logo.is-shop { width: 44px; height: 44px; max-height: 44px; object-fit: contain; border-radius: 6px; }

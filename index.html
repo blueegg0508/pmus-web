@@ -13,14 +13,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
 <script>try { var sk = localStorage.getItem("pmus.skin"); if (sk) document.documentElement.setAttribute("data-skin", sk); } catch (e) {}</script>
-<link rel="stylesheet" href="css/skins.css?v=171">
-<script src="js/line-icons.js?v=171" defer></script>
-<link rel="stylesheet" href="css/app.css?v=171">
+<link rel="stylesheet" href="css/skins.css?v=172">
+<script src="js/line-icons.js?v=172" defer></script>
+<link rel="stylesheet" href="css/app.css?v=172">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=171" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=172" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="skin-btn" class="diag-btn skin-btn" type="button" title="화면 디자인" aria-label="화면 디자인 바꾸기">🎨</button>
@@ -33,7 +33,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=171" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=172" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -227,6 +227,15 @@
                     <button type="button" class="btn btn-ghost btn-sm" id="shop-logo-reset">기본 로고로</button>
                 </div>
                 <input type="file" id="shop-logo-file" accept="image/*" hidden>
+            </div>
+            <!-- 저장하는 사진에도 매장 로고 (2026-11-18 원장님 요청) -->
+            <p class="shop-help shop-stamp-help">저장하는 사진에 로고 넣기 — 로고를 넣은 뒤 자리를 고릅니다.</p>
+            <div class="shop-seg shop-seg3" id="shop-stamp">
+                <button type="button" data-v="tl">왼쪽 위</button>
+                <button type="button" data-v="tr">오른쪽 위</button>
+                <button type="button" data-v="off">넣지 않기</button>
+                <button type="button" data-v="bl">왼쪽 아래</button>
+                <button type="button" data-v="br">오른쪽 아래</button>
             </div>
         </section>
 
@@ -586,7 +595,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=171"></script>
-<script type="module" src="js/app.js?v=171"></script>
+<script type="module" src="js/pwa.js?v=172"></script>
+<script type="module" src="js/app.js?v=172"></script>
 </body>
 </html>
