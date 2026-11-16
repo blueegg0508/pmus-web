@@ -811,8 +811,34 @@ export async function activate(token) {
     return { ok: true, payload: res.payload };
 }
 
+// 등록 키 변경을 실수로 눌러도 다시 붙여 넣지 않게, 지우기 전 키를 따로 기억해 둔다 (2026-11-17)
+const KEY_PREV_TOKEN = "blic.prevToken";
+
 export async function deactivate() {
+    const cur = (await Preferences.get({ key: KEY_TOKEN })).value;
+    if (cur) await Preferences.set({ key: KEY_PREV_TOKEN, value: cur });
     await Preferences.remove({ key: KEY_TOKEN });
+}
+
+/** 바로 전에 쓰던 등록 키가 이 기기에서 아직 유효하면 { shop, exp } — 없거나 못 쓰면 null */
+export async function previousKey() {
+    const prev = (await Preferences.get({ key: KEY_PREV_TOKEN })).value;
+    if (!prev) return null;
+    const res = await verifyToken(prev, await getDeviceCode());
+    if (!res.ok) return null;
+    const p = res.payload;
+    if (p.exp && Math.floor(Date.now() / 1000) > p.exp) return null;
+    if (await revokedInfo(p.lic)) return null;
+    return { shop: p.shop || "", exp: p.exp || 0 };
+}
+
+/** 바로 전 등록 키로 다시 등록한다 (키를 다시 붙여 넣지 않아도 된다) */
+export async function restorePrevious() {
+    const prev = (await Preferences.get({ key: KEY_PREV_TOKEN })).value;
+    if (!prev) return { ok: false, reason: "이전 등록 키가 없습니다" };
+    const res = await activate(prev);
+    if (res.ok) await Preferences.remove({ key: KEY_PREV_TOKEN });
+    return res;
 }
 
 // ── 표시용 헬퍼 ──────────────────────────────────────────────────────────

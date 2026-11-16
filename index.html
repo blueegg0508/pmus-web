@@ -13,14 +13,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
 <script>try { var sk = localStorage.getItem("pmus.skin"); if (sk) document.documentElement.setAttribute("data-skin", sk); } catch (e) {}</script>
-<link rel="stylesheet" href="css/skins.css?v=170">
-<script src="js/line-icons.js?v=170" defer></script>
-<link rel="stylesheet" href="css/app.css?v=170">
+<link rel="stylesheet" href="css/skins.css?v=171">
+<script src="js/line-icons.js?v=171" defer></script>
+<link rel="stylesheet" href="css/app.css?v=171">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=170" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=171" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="skin-btn" class="diag-btn skin-btn" type="button" title="화면 디자인" aria-label="화면 디자인 바꾸기">🎨</button>
@@ -33,7 +33,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=170" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=171" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -52,6 +52,11 @@
                   autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
 
         <div id="lic-error" class="lic-error" hidden></div>
+
+        <div id="lic-prev" class="lic-prev" hidden>
+            <p class="lic-prev-text">방금 전까지 쓰던 등록 키가 남아 있습니다<br><small id="lic-prev-info"></small></p>
+            <button type="button" class="btn btn-primary" id="lic-restore-prev">이전 등록 키로 계속 쓰기</button>
+        </div>
 
         <button class="btn btn-primary" id="lic-activate">등록하기</button>
         <button type="button" class="btn btn-ghost btn-sm lic-policy-link" data-open-policy>📄 결제 · 환불 규정</button>
@@ -271,6 +276,12 @@
                 <button type="button" data-v="quick">퀵</button>
                 <button type="button" data-v="manual">메뉴얼</button>
             </div>
+        </section>
+
+        <section class="shop-sec">
+            <h4>처음 상태로</h4>
+            <p class="shop-help">로고 · 화면 색 · 글꼴 · 글자 크기 · 시작 방식을 모두 처음 상태로 되돌립니다. 등록 키와 작업 내용, 내 디자인은 그대로입니다.</p>
+            <button type="button" class="btn btn-ghost btn-sm shop-wide" id="shop-reset-all">모든 설정 기본값으로</button>
         </section>
 
         <p class="shop-help shop-foot">설정은 이 기기에만 저장됩니다. 편집 화면의 색은 편집 화면을 다시 열 때 바뀝니다.</p>
@@ -575,7 +586,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=170"></script>
-<script type="module" src="js/app.js?v=170"></script>
+<script type="module" src="js/pwa.js?v=171"></script>
+<script type="module" src="js/app.js?v=171"></script>
 </body>
 </html>

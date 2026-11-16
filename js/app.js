@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=170";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=170";
-import * as License from "./license.js?v=170";
-import * as Custom from "./custom-designs.js?v=170";
-import * as Update from "./update.js?v=170";
-import * as Crm from "./crm-ui.js?v=170";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=171";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=171";
+import * as License from "./license.js?v=171";
+import * as Custom from "./custom-designs.js?v=171";
+import * as Update from "./update.js?v=171";
+import * as Crm from "./crm-ui.js?v=171";
 
-const BUILD = "170";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "171";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -842,12 +842,14 @@ async function refreshLicense() {
                 "계속 쓰시려면 라이선스를 구매하신 뒤, 아래 <strong>기기 코드</strong>를 보내 주시고 받은 등록 키를 넣어 주세요.";
         }
         $("lic-back-trial").hidden = true;
+        showPrevKey();
         if (lic.reason && lic.reason !== "미등록" && !lic.trialEnded && !lic.revoked && !lic.needsOnline) {
             showLicError(lic.reason, lic.detail);
         }
         return;
     }
     $("lic-back-trial").hidden = true;
+    $("lic-prev").hidden = true;
     document.body.classList.toggle("is-free", !!lic.free || !!lic.staff);
     document.body.classList.toggle("is-trial", !!lic.trial);
     if (lic.trialFresh) $("trial-sheet").hidden = false;
@@ -947,6 +949,17 @@ function openRegisterFromTrial() {
     window.scrollTo({ top: 0 });
 }
 
+/** 등록 키 변경을 실수로 눌렀을 때 — 바로 전 키가 아직 쓸 수 있으면 "이전 등록 키로 계속 쓰기"를 보여 준다 */
+async function showPrevKey() {
+    const box = $("lic-prev");
+    box.hidden = true;
+    let prev = null;
+    try { prev = await License.previousKey(); } catch (e) { prev = null; }
+    if (!prev || $("license-gate").hidden) return;
+    $("lic-prev-info").textContent = (prev.shop ? prev.shop + " · " : "") + "이용 기한 " + License.fmtDate(prev.exp);
+    box.hidden = false;
+}
+
 /** 결제 · 환불 규정 — policy.html 의 #policy 를 가져와 보여 준다 */
 let policyLoaded = false;
 async function openPolicy() {
@@ -1007,6 +1020,19 @@ function bindLicenseUI() {
         } catch {
             toast("복사에 실패했습니다. 화면의 코드를 직접 적어 보내주세요.");
         }
+    });
+
+    $("lic-restore-prev").addEventListener("click", async () => {
+        const res = await License.restorePrevious();
+        if (!res.ok) {
+            $("lic-prev").hidden = true;
+            return showLicError(res.reason, res.detail);
+        }
+        $("lic-error").hidden = true;
+        $("lic-prev").hidden = true;
+        $("lic-token").value = "";
+        await refreshLicense();
+        toast(`이전 등록 키로 돌아왔습니다 — ${res.payload.shop}`);
     });
 
     $("lic-activate").addEventListener("click", async () => {
@@ -3240,7 +3266,7 @@ function shopFontHead() {
 let shopCssText = null;        // css/app.css 원문 (한 번만 받는다)
 async function applyShopTheme() {
     document.querySelectorAll("[data-shop-font]").forEach((n) => n.remove());
-    const pal = shopNowPalette();
+    let pal = shopNowPalette();
     let tag = document.getElementById("shop-theme");
     const meta = document.querySelector('meta[name="theme-color"]');
     // 글꼴 · 글자 크기
@@ -3251,7 +3277,7 @@ async function applyShopTheme() {
         Array.from(box.content.children).forEach((n) => { n.setAttribute("data-shop-font", "1"); document.head.appendChild(n); });
     }
     if (!pal && shopSet.size === 1) {
-        if (tag) tag.remove();
+        document.querySelectorAll("#shop-theme").forEach((n) => n.remove());
         if (meta) meta.setAttribute("content", SHOP_BASE.bg);
         return;
     }
@@ -3259,7 +3285,15 @@ async function applyShopTheme() {
         const link = document.querySelector('link[rel="stylesheet"][href*="css/app.css"]');
         try { shopCssText = await (await fetch(link ? link.getAttribute("href") : "css/app.css")).text(); } catch (e) { shopCssText = ""; }
     }
+    // 위에서 기다리는 사이 다른 호출이 먼저 만들었을 수 있다 — 다시 찾아 하나만 둔다
+    const tags = document.querySelectorAll("#shop-theme");
+    tags.forEach((n, i) => { if (i > 0) n.remove(); });
+    tag = tags[0] || null;
     if (!tag) { tag = document.createElement("style"); tag.id = "shop-theme"; document.head.appendChild(tag); }
+    // 기다리는 사이 설정이 또 바뀌었을 수 있으니 지금 값으로 다시 본다
+    const palNow = shopNowPalette();
+    pal = palNow;
+    if (!palNow && shopSet.size === 1) { tag.remove(); if (meta) meta.setAttribute("content", SHOP_BASE.bg); return; }
     // 박혀 있는 색을 바꾼 사본을 뒤에 한 번 더 싣고, 이름 붙은 색에는 새 값을 넣는다
     tag.textContent = shopRecolor(shopCssText)
         + (pal ? `\nhtml:root:root{${shopVars(pal)}}` + (pal.dark ? "" : SHOP_LIGHT_CSS) : "");
@@ -3305,6 +3339,7 @@ function bindShopSettings() {
     if (!sheet) return;
     const seg = (id, cur, onPick) => {
         const box = $(id);
+        if (!box) return;        // 화면(index.html)과 코드의 판이 잠깐 어긋나도 여기서 멈추지 않게
         const paint = (v) => box.querySelectorAll("button").forEach((b) => b.classList.toggle("is-on", b.dataset.v === String(v)));
         box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { paint(b.dataset.v); onPick(b.dataset.v); }));
         paint(cur);
@@ -3392,6 +3427,22 @@ function bindShopSettings() {
     });
     paintFonts();
 
+    // 모든 설정 기본값으로 (2026-11-17 원장님 요청)
+    const paintSeg = (id, v) => { const box = $(id); if (box) box.querySelectorAll("button").forEach((b) => b.classList.toggle("is-on", b.dataset.v === String(v))); };
+    const resetAll = $("shop-reset-all");
+    if (resetAll) resetAll.addEventListener("click", async () => {
+        let ok = false;
+        try { ok = window.confirm("로고 · 화면 색 · 글꼴 · 글자 크기 · 시작 방식을 모두 처음 상태로 되돌릴까요?"); } catch (e) { ok = false; }
+        if (!ok) return;
+        shopSet = { logo: null, theme: null, start: "quick", resume: 2, font: "default", size: 1 };
+        try { localStorage.removeItem(SHOP_KEY); } catch (e) { /* 못 지워도 화면은 되돌린다 */ }
+        if (!state.mountedKind) { state.editMode = "quick"; updateStepVisibility(); }
+        paintColors(); paintFonts(); paintSeg("shop-size", 1); paintSeg("shop-start", "quick");
+        applyShopLogo();
+        await applyShopTheme();
+        toast("모든 설정을 기본값으로 되돌렸습니다");
+    });
+
     $("shop-btn").addEventListener("click", () => { loadAllFonts(); paintColors(); paintFonts(); applyShopLogo(); sheet.hidden = false; });
     $("shop-close").addEventListener("click", () => { sheet.hidden = true; });
     sheet.addEventListener("click", (e) => { if (e.target === sheet) sheet.hidden = true; });
@@ -3399,9 +3450,12 @@ function bindShopSettings() {
 
 (async function init() {
     // 프로그램 설정 — 화면이 보이기 전에 매장 로고 · 색부터 입힌다
-    applyShopLogo();
-    await applyShopTheme();
-    bindShopSettings();
+    // 여기서 오류가 나면 아래 초기화(단추 묶기 · 등록 확인)가 통째로 안 돌아 화면의 어떤 단추도
+    // 먹지 않게 된다 (2026-11-17 현장: "설정을 바꾸고 다시 켰더니 설정 · 버전 단추가 안 눌린다").
+    // 새 판을 받는 사이 화면(index.html)과 코드(app.js)의 판이 어긋나면 그럴 수 있어, 하나씩 감싼다.
+    try { applyShopLogo(); } catch (e) { console.warn("설정: 로고", e); }
+    try { await applyShopTheme(); } catch (e) { console.warn("설정: 색 · 글꼴", e); }
+    try { bindShopSettings(); } catch (e) { console.warn("설정: 화면 묶기", e); }
     await buildDesignGrid();
     bindEvents();
     bindLicenseUI();

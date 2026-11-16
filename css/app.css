@@ -434,6 +434,19 @@ body.sim-fullscreen.settings-open .settings-toggle { display: flex; }
 
 #lic-activate { width: 100%; }
 
+/* 등록 키 변경을 실수로 눌렀을 때 — 이전 키로 바로 돌아가기 */
+.lic-prev {
+    border: 1px solid var(--accent);
+    background: rgba(201,154,114,.10);
+    border-radius: 12px;
+    padding: 12px 13px;
+    margin-bottom: 14px;
+    text-align: center;
+}
+.lic-prev-text { margin: 0 0 10px; font-size: 13px; line-height: 1.55; }
+.lic-prev-text small { color: var(--muted); font-size: 11.5px; }
+#lic-restore-prev { width: 100%; }
+
 .mode-tab.is-locked { opacity: .45; }
 
 .lic-sheet {
