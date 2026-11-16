@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=169";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=169";
-import * as License from "./license.js?v=169";
-import * as Custom from "./custom-designs.js?v=169";
-import * as Update from "./update.js?v=169";
-import * as Crm from "./crm-ui.js?v=169";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=170";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=170";
+import * as License from "./license.js?v=170";
+import * as Custom from "./custom-designs.js?v=170";
+import * as Update from "./update.js?v=170";
+import * as Crm from "./crm-ui.js?v=170";
 
-const BUILD = "169";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "170";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -2911,7 +2911,7 @@ function bindDiag() {
  *   meta   부위 · 디자인 · 퀵/메뉴얼 · 잰 얼굴 자리 · 편집 화면의 조절값
  *
  * 편집 화면(iframe)은 조절값이 바뀔 때마다 mui:state 로 알려 주고, 여기서 2초마다 · 앱이 뒤로 갈 때 적는다.
- * 사진을 바꾸거나 [전체 초기화] 를 누르면 지운다. 마지막으로 손댄 지 2시간이 지난 것은 되살리지 않는다 (다음 손님일 수 있다).
+ * 사진을 바꾸거나 [전체 초기화] 를 누르면 지운다. 시간 제한은 없다 — 언제 돌아와도 이어 간다 (2026-11-17 원장님).
  * 고객 사진은 이 기기 밖으로 나가지 않는다.
  * ------------------------------------------------------------------- */
 const SESS = { db: null, ready: false, hadData: false, photoRef: null, basesSig: "", metaJson: "", sim: null };
@@ -2997,7 +2997,9 @@ async function restoreSession() {
         return false;
     }
     const meta = await sessGet("meta");
-    if (!meta || meta.v !== 1 || !(Date.now() - meta.at < shopResumeMs())) {
+    // 시간 제한은 두지 않는다 — 언제 돌아와도 하던 작업을 이어 간다 (2026-11-17 원장님: "항시").
+    // 다음 손님은 사진을 새로 넣거나 [전체 초기화] 를 누르면 앞 작업이 지워진다.
+    if (!meta || meta.v !== 1) {
         if (meta) await sessClear();
         return false;
     }
@@ -3355,19 +3357,42 @@ function bindShopSettings() {
         // 아직 편집에 들어가지 않았으면 바로 따라간다
         if (!state.mountedKind) { state.editMode = shopSet.start; updateStepVisibility(); }
     });
-    seg("shop-resume", shopSet.resume, (v) => { shopSet.resume = parseInt(v, 10) || 0; shopSave(); });
-    seg("shop-size", shopSet.size, async (v) => { shopSet.size = parseFloat(v) || 1; shopSave(); await applyShopTheme(); });
+    seg("shop-size", shopSet.size, async (v) => { shopSet.size = parseFloat(v) || 1; shopSave(); paintPreview(); await applyShopTheme(); });
     const fonts = $("shop-fonts");
-    const paintFonts = () => fonts.querySelectorAll("button").forEach((b) => b.classList.toggle("is-on", b.dataset.v === shopSet.font));
+    const BASE_FAMILY = '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif';
+    const familyOf = (f) => (f.family ? f.family + ", " : "") + BASE_FAMILY;
+    /** 미리 보기 상자를 지금 고른 글꼴 · 크기로 */
+    const paintPreview = () => {
+        const f = SHOP_FONTS.find((x) => x.key === shopSet.font) || SHOP_FONTS[0];
+        const box = $("shop-fontprev");
+        if (!box) return;
+        box.style.setProperty("font-family", familyOf(f), "important");
+        box.style.fontSize = Math.round(14 * shopSet.size * 10) / 10 + "px";
+        const size = (SHOP_SIZES.find((z) => parseFloat(z[0]) === shopSet.size) || ["", "보통"])[1];
+        $("shop-fp-name").textContent = f.name + " · " + size;
+    };
+    const paintFonts = () => {
+        fonts.querySelectorAll("button").forEach((b) => b.classList.toggle("is-on", b.dataset.v === shopSet.font));
+        paintPreview();
+    };
+    /** 설정을 열 때 글꼴 여덟 가지를 한꺼번에 받아 둔다 — 단추마다 제 글꼴로 보이게 */
+    const loadAllFonts = () => {
+        if (document.getElementById("shop-font-all")) return;
+        const link = document.createElement("link");
+        link.id = "shop-font-all"; link.rel = "stylesheet";
+        link.href = "https://fonts.googleapis.com/css2?" + SHOP_FONTS.filter((f) => f.g).map((f) => "family=" + f.g).join("&") + "&display=swap";
+        document.head.appendChild(link);
+    };
     SHOP_FONTS.forEach((f) => {
         const b = document.createElement("button");
         b.type = "button"; b.dataset.v = f.key; b.textContent = f.name;
+        b.style.setProperty("font-family", familyOf(f), "important");      // 단추 글씨는 그 글꼴로
         b.addEventListener("click", async () => { shopSet.font = f.key; shopSave(); paintFonts(); await applyShopTheme(); });
         fonts.appendChild(b);
     });
     paintFonts();
 
-    $("shop-btn").addEventListener("click", () => { paintColors(); applyShopLogo(); sheet.hidden = false; });
+    $("shop-btn").addEventListener("click", () => { loadAllFonts(); paintColors(); paintFonts(); applyShopLogo(); sheet.hidden = false; });
     $("shop-close").addEventListener("click", () => { sheet.hidden = true; });
     sheet.addEventListener("click", (e) => { if (e.target === sheet) sheet.hidden = true; });
 }

@@ -1871,6 +1871,14 @@ label.design-card { cursor: pointer; }
 .shop-wide { width: 100%; }
 .shop-fonts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
 .shop-fonts button { min-height: 46px; padding: 6px 8px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text); font-size: 14px; cursor: pointer; }
+.shop-fontprev { margin: 2px 0 10px; padding: 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); }
+.shop-fp-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; font-size: 11.5px; color: var(--muted); font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; }
+.shop-fp-head em { font-style: normal; color: var(--accent-2); }
+.shop-fp-title { font-size: 1.15em; font-weight: 700; color: var(--accent-2); margin-bottom: 8px; }
+.shop-fp-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.shop-fp-val { margin-left: auto; color: var(--text); }
+.shop-fp-val b { color: var(--accent); }
+.shop-fp-text { margin: 0; line-height: 1.55; color: var(--text-2, var(--text)); }
 .shop-fonts button.is-on { border-color: var(--accent); background: var(--sel-bg, var(--surface-2)); }
 .shop-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
 .shop-seg button { min-height: 44px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text); font-size: 13px; cursor: pointer; }
