@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=172";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=172";
-import * as License from "./license.js?v=172";
-import * as Custom from "./custom-designs.js?v=172";
-import * as Update from "./update.js?v=172";
-import * as Crm from "./crm-ui.js?v=172";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=173";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=173";
+import * as License from "./license.js?v=173";
+import * as Custom from "./custom-designs.js?v=173";
+import * as Update from "./update.js?v=173";
+import * as Crm from "./crm-ui.js?v=173";
 
-const BUILD = "172";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "173";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -848,6 +848,7 @@ async function refreshLicense() {
             document.querySelector(".lic-title").textContent = "7일 무료 체험 시작하기";
             renderTrialForm();
             $("lic-back-trial").hidden = true;
+            showPrevKey();
             return;
         }
         if (lic.free) {
@@ -992,6 +993,9 @@ function openRegisterFromTrial() {
 async function showPrevKey() {
     const box = $("lic-prev");
     box.hidden = true;
+    // 화면 맨 위(제목 바로 아래)에 둔다 — 체험 신청 양식이 길어 아래에 두면 스크롤해야 보인다
+    const msg = $("lic-message");
+    if (msg && msg.parentNode && box.nextElementSibling !== msg) msg.parentNode.insertBefore(box, msg);
     let prev = null;
     try { prev = await License.previousKey(); } catch (e) { prev = null; }
     if (!prev || $("license-gate").hidden) return;
