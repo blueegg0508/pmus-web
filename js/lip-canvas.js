@@ -244,6 +244,18 @@
         /** 입꼬리에서 안쪽으로 이 만큼이 '바깥쪽 구간' 이다 (0~1 파라미터 기준) */
         const CORNER_OVER_REACH = 0.34;
 
+        /**
+         * 윗입술 오버립 세기 (2026-11-18 현장 의견: "입술산 각도 · 간격이 어색하다").
+         * 예전에는 sin(tπ) — 한가운데(인중 골)가 가장 많이, 입술산은 그보다 덜 밀렸다.
+         * 그러면 올릴수록 골이 메워져 입술산이 뭉툭해지고 둘 사이가 벌어져 보인다.
+         * 입술산 ~ 입술산 구간은 똑같이 밀고(모양 그대로 평행 이동), 입꼬리로 갈수록 줄인다.
+         */
+        function overTopWeight(t) {
+            const sn = Math.sin(t * Math.PI);
+            // 입술산 ~ 입술산은 거의 같게(평행 이동), 어깨는 둥글게 — 평평하게만 밀면 윗선이 네모져 보인다
+            return 0.5 * sn + 0.5 * Math.min(1, sn / Math.sin(0.34 * Math.PI));
+        }
+
         /** 바깥쪽 구간에서의 밀어내는 세기 (0 = 안 밀림) */
         function cornerOverWeight(t) {
             const R = CORNER_OVER_REACH;
@@ -460,12 +472,10 @@
             }
             // 상부 외곽 오버립 (전체 상단 부드러운 아치 확장)
             if (upperTopOver > 0) {
-                y -= upperTopOver * Math.sin(t * Math.PI) * (h / 600);
+                y -= upperTopOver * overTopWeight(t) * (h / 600);
             }
             // 입꼬리 오버립 — 입술산에서 입꼬리로 가는 구간만 위로
-            if (cornerOverU > 0) {
-                y -= cornerOverU * cornerOverWeight(t) * (h / 600);
-            }
+            // (입꼬리 오버립은 getTransformedCurves 에서 곡선 전체를 보고 채운다 — fillCornerOver)
             // 윗입술 좌/우 비대칭 볼륨
             if (t < 0.5 && upperLeftVolume !== 0) {
                 y -= upperLeftVolume * Math.sin(t * 2 * Math.PI) * (h / 600);
@@ -616,9 +626,7 @@
                 y += lowerBottomOver * Math.sin(t * Math.PI) * (h / 600);
             }
             // 입꼬리 오버립 — 입꼬리로 가는 구간만 아래로
-            if (cornerOverL > 0) {
-                y += cornerOverL * cornerOverWeight(t) * (h / 600);
-            }
+            // (입꼬리 오버립은 getTransformedCurves 에서 곡선 전체를 보고 채운다 — fillCornerOver)
             // 4) 아랫입술 좌/우 비대칭 볼륨
             if (t < 0.5 && lowerLeftVolume !== 0) {
                 y += lowerLeftVolume * Math.sin(t * 2 * Math.PI) * (h / 600);
@@ -645,10 +653,48 @@
         }
 
         // ✨ 윗입술 / 아랫입술 완전 분리된 독립 폐곡선 산출 (자연스러운 볼륨감 및 C-커브 스무딩)
+        /**
+         * 입꼬리 오버립 (2026-11-18 현장 의견: "입술산 간격이 너무 멀다 · 입꼬리가 어색하다").
+         * 예전에는 입술산과 입꼬리 한가운데를 사인 곡선으로 밀어 올렸다. 그 자리에 혹이 하나 더 생겨
+         * 입술산이 양옆으로 벌어진 M 자처럼 보였다.
+         * 이제는 입술산(아랫입술은 가장 아래 점)에서 입꼬리까지 볼록한 호를 그려 놓고,
+         * 원래 선을 그 호 쪽으로 끌어간다. 호는 입술산보다 높아지지 않으므로 혹이 생기지 않고,
+         * 입술산 자리 · 입꼬리 점은 그대로다. 세기 40 이면 호에 거의 닿는다.
+         * @param dir -1 윗입술(위로) · +1 아랫입술(아래로)
+         */
+        function fillCornerOver(pts, amount, dir) {
+            const n = pts.length;
+            if (!(amount > 0) || n < 7) return pts;
+            const k = Math.min(1, amount / 40) * 0.9;
+            const out = pts.map(function (q) { return [q[0], q[1]]; });
+            const side = function (from, to, step) {
+                // 이쪽 절반에서 가장 솟은(아랫입술은 가장 내려간) 점 — 입꼬리 쪽 12% 는 빼고 찾는다
+                let pk = -1;
+                for (let i = from; step > 0 ? i <= to : i >= to; i += step) {
+                    const t = i / (n - 1), d = Math.min(t, 1 - t);
+                    if (d < 0.12) continue;
+                    if (pk < 0 || dir * pts[i][1] > dir * pts[pk][1]) pk = i;
+                }
+                if (pk < 0) return;
+                const c = pts[from], pkP = pts[pk];
+                const span = pkP[0] - c[0];
+                if (Math.abs(span) < 1) return;
+                for (let i = from; step > 0 ? i < pk : i > pk; i += step) {
+                    const u = Math.max(0, Math.min(1, (pts[i][0] - c[0]) / span));
+                    const env = c[1] + (pkP[1] - c[1]) * Math.pow(Math.sin(u * Math.PI / 2), 0.85);
+                    if (dir * env > dir * pts[i][1]) out[i][1] = pts[i][1] + (env - pts[i][1]) * k;
+                }
+            };
+            const mid = Math.floor((n - 1) / 2);
+            side(0, mid, 1);
+            side(n - 1, n - 1 - mid, -1);
+            return out;
+        }
+
         function getTransformedCurves() {
-            const uo_t = upperRawPts.map((p, i) => transformUpperOuter(p, i / (upperRawPts.length - 1)));
+            const uo_t = fillCornerOver(upperRawPts.map((p, i) => transformUpperOuter(p, i / (upperRawPts.length - 1))), cornerOverU, -1);
             const ui_t = upperInnerRawPts.map((p, i) => transformUpperInner(p, i / (upperInnerRawPts.length - 1)));
-            const lo_t = lowerRawPts.map((p, i) => transformLowerOuter(p, i / (lowerRawPts.length - 1)));
+            const lo_t = fillCornerOver(lowerRawPts.map((p, i) => transformLowerOuter(p, i / (lowerRawPts.length - 1))), cornerOverL, 1);
             const li_t = lowerInnerRawPts.map((p, i) => transformLowerInner(p, i / (lowerInnerRawPts.length - 1)));
 
             const smoothUpperOuter = computeOpenSpline(uo_t, 45);
@@ -887,6 +933,16 @@
 
 
 
+        /** 화면 원색을 '피부에 자리 잡은 색' 으로 — 채도를 조금 빼고 아주 밝은 값은 눌러 형광기를 없앤다 */
+        function settleColor(c) {
+            const lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
+            const k = 0.86;                              // 채도 86%
+            let r = lum + (c.r - lum) * k, g = lum + (c.g - lum) * k, b = lum + (c.b - lum) * k;
+            const top = Math.max(r, g, b);
+            if (top > 232) { const f = 232 / top; r *= f; g *= f; b *= f; }
+            return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
+        }
+
         // 🎨 윗입술/아랫입술 독립 틴트 시뮬레이션 렌더링
         function renderTintSimulation(targetCtx, w, h, curves) {
             if (!fillTint) return;
@@ -901,6 +957,7 @@
                 ? pigLayers.map(function (l) { return { rgb: hexToRgb(l.hex), a: l.a / 100 }; })
                 : [{ rgb: hexToRgb(currentColor), a: 1 }];
             tintLayers.forEach(function (L) {
+            L.rgb = settleColor(L.rgb);
             offCtx.fillStyle = `rgba(${L.rgb.r}, ${L.rgb.g}, ${L.rgb.b}, ${Math.min(1, alpha * L.a)})`;
 
             // 1. 윗입술 채움
@@ -933,21 +990,35 @@
             } else {
                 targetCtx.filter = 'none';
             }
-            if (pigLayers.length) {
-                // 색소 조색: 그냥 덮어 칠하면 입술 결 · 음영이 사라져 스티커처럼 보인다.
-                // 색(색상 · 채도)은 색소 것으로 바꾸되 밝기는 입술 것을 살리고('color'),
-                // 그 위에 색소를 옅게 한 번 더 얹어 밝기도 색소 쪽으로 조금 끌어온다 —
-                // 어두운 입술에 밝은 중화색을 올리면 실제로도 밝아지기 때문이다.
-                targetCtx.globalCompositeOperation = "color";
+            // 색 올리기 (2026-11-18 현장 의견: "어떤 색을 골라도 형광톤처럼 뜬다").
+            // 예전에는 고른 색을 입술 위에 거의 불투명하게 덮어 칠했다. 화면의 원색이 그대로 올라와
+            // 입술 결 · 음영이 사라지고, 살빛보다 밝고 쨍한 '칠한 색' 이 되어 형광펜처럼 보였다.
+            // 실제 착색은 피부 속 색소가 비쳐 보이는 것이라 ① 입술의 밝고 어두움(결 · 음영)은 그대로 남고
+            // ② 색은 살빛과 섞여 조금 가라앉으며 ③ 올릴수록 살짝 어두워진다. 그 차례로 얹는다.
+            //   color    : 색상 · 채도만 색소 쪽으로 (밝기는 사진의 입술 것)
+            //   multiply : 색소가 빛을 먹는 만큼 조금 깊게
+            //   덮기     : 아주 옅게 — 어두운 입술에 밝은 색을 올렸을 때 밝아지는 몫
+            targetCtx.globalCompositeOperation = "color";
+            if (targetCtx.globalCompositeOperation === "color") {
+                const soft = (currentTech === 'water_color' || currentTech === 'natural' || currentTech === 'mlbb');
+                targetCtx.globalAlpha = soft ? 0.82 : 0.92;
+                targetCtx.drawImage(offCanvas, 0, 0);
+                targetCtx.globalCompositeOperation = "multiply";
+                targetCtx.globalAlpha = soft ? 0.52 : 0.64;
                 targetCtx.drawImage(offCanvas, 0, 0);
                 targetCtx.globalCompositeOperation = "source-over";
-                targetCtx.globalAlpha = 0.4;
+                targetCtx.globalAlpha = pigLayers.length ? 0.22 : (soft ? 0.10 : 0.18);
                 targetCtx.drawImage(offCanvas, 0, 0);
-                targetCtx.globalAlpha = 1;
             } else {
-                targetCtx.globalCompositeOperation = (currentTech === 'water_color' || currentTech === 'natural') ? "multiply" : "source-over";
+                // 'color' 섞기를 모르는 오래된 브라우저 — 곱하기 + 옅은 덮기로 대신한다
+                targetCtx.globalCompositeOperation = "multiply";
+                targetCtx.globalAlpha = 0.7;
+                targetCtx.drawImage(offCanvas, 0, 0);
+                targetCtx.globalCompositeOperation = "source-over";
+                targetCtx.globalAlpha = 0.3;
                 targetCtx.drawImage(offCanvas, 0, 0);
             }
+            targetCtx.globalAlpha = 1;
             targetCtx.restore();
 
             // 3. 탕후루 광택
@@ -992,7 +1063,7 @@
                 const n = pts.length;
                 for (let i = 0; i < n; i += 2) {
                     const t = n > 1 ? i / (n - 1) : 0;
-                    const d = amount ? amount * Math.sin(t * Math.PI) * (h / 600) : 0;
+                    const d = amount ? amount * (sign < 0 ? overTopWeight(t) : Math.sin(t * Math.PI)) * (h / 600) : 0;
                     out.push([pts[i][0], pts[i][1], 0, sign * d]);
                 }
                 if (n > 1 && (n - 1) % 2 !== 0) {          // 끝점(입꼬리)은 꼭 넣는다
