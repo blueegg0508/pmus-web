@@ -13,17 +13,18 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
 <script>try { var sk = localStorage.getItem("pmus.skin"); if (sk) document.documentElement.setAttribute("data-skin", sk); } catch (e) {}</script>
-<link rel="stylesheet" href="css/skins.css?v=167">
-<script src="js/line-icons.js?v=167" defer></script>
-<link rel="stylesheet" href="css/app.css?v=167">
+<link rel="stylesheet" href="css/skins.css?v=168">
+<script src="js/line-icons.js?v=168" defer></script>
+<link rel="stylesheet" href="css/app.css?v=168">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=167" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=168" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="skin-btn" class="diag-btn skin-btn" type="button" title="화면 디자인" aria-label="화면 디자인 바꾸기">🎨</button>
+        <button id="shop-btn" class="diag-btn" type="button">설정</button>
         <button id="diag-btn" class="diag-btn" type="button">버전</button>
         <button id="lic-badge" class="lic-badge" type="button" hidden></button>
     </div>
@@ -32,7 +33,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=167" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=168" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -202,6 +203,78 @@
         <div class="skin-grid" id="skin-grid"></div>
         <div class="lic-sheet-actions">
             <button class="btn btn-primary btn-sm" id="skin-close">닫기</button>
+        </div>
+    </div>
+</div>
+
+<!-- ── 프로그램 설정 (2026-11-17) — 매장마다 로고 · 색 · 시작 방식을 맞춘다 ── -->
+<div id="shop-sheet" class="lic-sheet" hidden>
+    <div class="lic-sheet-box shop-box">
+        <h3 class="lic-sheet-title">프로그램 설정</h3>
+
+        <section class="shop-sec">
+            <h4>매장 로고</h4>
+            <p class="shop-help">위쪽 PMUS 로고 자리에 우리 매장 로고를 넣습니다. 배경이 투명한 PNG 가 가장 깔끔합니다.</p>
+            <div class="shop-logo-row">
+                <div class="shop-logo-prev"><img id="shop-logo-prev" alt="지금 로고"></div>
+                <div class="shop-logo-btns">
+                    <label class="btn btn-ghost btn-sm" for="shop-logo-file" role="button" tabindex="0">로고 고르기</label>
+                    <button type="button" class="btn btn-ghost btn-sm" id="shop-logo-reset">기본 로고로</button>
+                </div>
+                <input type="file" id="shop-logo-file" accept="image/*" hidden>
+            </div>
+        </section>
+
+        <section class="shop-sec">
+            <h4>화면 색</h4>
+            <p class="shop-help">배색을 고르거나, 아래에서 배경 색과 버튼 색을 직접 정합니다. 두 가지만 고르면 나머지 색은 거기에 맞춰 정해집니다.</p>
+            <div class="shop-presets" id="shop-presets"></div>
+            <div class="shop-colors">
+                <label>배경 색 <input type="color" id="shop-bg"></label>
+                <label>버튼 색 <input type="color" id="shop-accent"></label>
+            </div>
+            <div class="shop-sample" id="shop-sample">
+                <span class="shop-sample-card">미리 보기</span>
+                <span class="shop-sample-btn">버튼</span>
+                <span class="shop-sample-ghost">보조 버튼</span>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm shop-wide" id="shop-color-reset">기본 색으로</button>
+        </section>
+
+        <section class="shop-sec">
+            <h4>글꼴 · 글자 크기</h4>
+            <p class="shop-help">모두 무료로 쓸 수 있는 글꼴입니다. 기본 말고는 인터넷에서 받아 오므로 처음 고를 때 연결이 필요합니다.</p>
+            <div class="shop-fonts" id="shop-fonts"></div>
+            <div class="shop-seg" id="shop-size">
+                <button type="button" data-v="0.92">작게</button>
+                <button type="button" data-v="1">보통</button>
+                <button type="button" data-v="1.1">크게</button>
+                <button type="button" data-v="1.2">아주 크게</button>
+            </div>
+        </section>
+
+        <section class="shop-sec">
+            <h4>시작 방식</h4>
+            <p class="shop-help">앱을 켜고 사진을 넣었을 때 먼저 열리는 편집 방식입니다.</p>
+            <div class="shop-seg" id="shop-start">
+                <button type="button" data-v="quick">퀵</button>
+                <button type="button" data-v="manual">메뉴얼</button>
+            </div>
+        </section>
+
+        <section class="shop-sec">
+            <h4>작업 이어하기</h4>
+            <p class="shop-help">다른 앱에 다녀와도 하던 작업을 되살리는 시간입니다. 마지막으로 손댄 뒤 이 시간이 지나면 새로 시작합니다.</p>
+            <div class="shop-seg" id="shop-resume">
+                <button type="button" data-v="0">끄기</button>
+                <button type="button" data-v="2">2시간</button>
+                <button type="button" data-v="12">12시간</button>
+            </div>
+        </section>
+
+        <p class="shop-help shop-foot">설정은 이 기기에만 저장됩니다. 편집 화면의 색은 편집 화면을 다시 열 때 바뀝니다.</p>
+        <div class="lic-sheet-actions">
+            <button class="btn btn-primary btn-sm" id="shop-close">닫기</button>
         </div>
     </div>
 </div>
@@ -501,7 +574,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=167"></script>
-<script type="module" src="js/app.js?v=167"></script>
+<script type="module" src="js/pwa.js?v=168"></script>
+<script type="module" src="js/app.js?v=168"></script>
 </body>
 </html>

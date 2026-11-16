@@ -1843,3 +1843,38 @@ label.design-card { cursor: pointer; }
 .crm-backup-note.is-due { color: var(--text); }
 .crm-backup-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .crm-backup-btns .btn { text-align: center; }
+
+/* ── 프로그램 설정 (2026-11-17) ───────────────────────────────────── */
+.shop-box { max-width: 420px; }
+.shop-sec { padding: 14px 0; border-top: 1px solid var(--line); }
+.shop-sec:first-of-type { border-top: 0; padding-top: 0; }
+.shop-sec h4 { margin: 0 0 4px; font-size: 14px; font-weight: 700; color: var(--text); }
+.shop-help { margin: 0 0 10px; font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+.shop-foot { margin: 4px 0 14px; }
+.shop-logo-row { display: flex; align-items: center; gap: 12px; }
+.shop-logo-prev { flex: none; width: 120px; height: 56px; display: grid; place-items: center; padding: 6px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); }
+.shop-logo-prev img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.shop-logo-btns { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; }
+.shop-logo-btns .btn { width: 100%; text-align: center; cursor: pointer; }
+.shop-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
+.shop-preset { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px; min-height: 64px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text); font-size: 12px; cursor: pointer; }
+.shop-preset i { width: 44px; height: 22px; border-radius: 6px; border: 1px solid rgba(128,128,128,.45); display: block; }
+.shop-preset.is-on { border-color: var(--accent); }
+.shop-colors { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.shop-colors label { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; min-height: 48px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); font-size: 13px; color: var(--text); }
+.shop-colors input[type="color"] { width: 44px; height: 30px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.shop-sample { display: flex; align-items: center; gap: 8px; padding: 12px; margin-bottom: 10px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); font-size: 12.5px; }
+.shop-sample-card { flex: 1 1 auto; padding: 8px 10px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); color: var(--text); }
+.shop-sample-btn { padding: 8px 14px; border-radius: 8px; background: var(--accent); color: var(--on-accent, #241812); font-weight: 700; }
+.shop-sample-ghost { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--accent); color: var(--accent-2); }
+.shop-wide { width: 100%; }
+.shop-fonts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; }
+.shop-fonts button { min-height: 46px; padding: 6px 8px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text); font-size: 14px; cursor: pointer; }
+.shop-fonts button.is-on { border-color: var(--accent); background: var(--sel-bg, var(--surface-2)); }
+.shop-seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.shop-seg button { min-height: 44px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text); font-size: 13px; cursor: pointer; }
+.shop-seg button.is-on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #241812); font-weight: 700; }
+/* 매장 로고는 가로로 긴 것이 많다 — 높이를 기준으로 맞춘다 */
+.app-logo.is-shop { width: auto; max-width: 132px; height: 40px; }
+/* 테스트 버전에 따로 있던 스킨 단추는 설정의 '화면 색' 으로 합쳤다 */
+.skin-btn { display: none !important; }

@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=167";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=167";
-import * as License from "./license.js?v=167";
-import * as Custom from "./custom-designs.js?v=167";
-import * as Update from "./update.js?v=167";
-import * as Crm from "./crm-ui.js?v=167";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=168";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=168";
+import * as License from "./license.js?v=168";
+import * as Custom from "./custom-designs.js?v=168";
+import * as Update from "./update.js?v=168";
+import * as Crm from "./crm-ui.js?v=168";
 
-const BUILD = "167";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "168";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -82,7 +82,11 @@ function saveStandardLipOnly(v) {
  *  현장에서는 대부분 퀵으로 쓰고, 세부 작업이 필요할 때만 메뉴얼로 넘어간다.
  *  지난번에 메뉴얼로 끝냈다고 다음 손님까지 메뉴얼로 시작할 이유는 없다. */
 function loadEditMode() {
-    return "quick";
+    // 프로그램 설정의 '시작 방식' (2026-11-17). 고르지 않았으면 예전처럼 퀵.
+    try {
+        const shop = JSON.parse(localStorage.getItem("pmus.shop") || "{}");
+        return shop && shop.start === "manual" ? "manual" : "quick";
+    } catch (e) { return "quick"; }
 }
 function saveEditMode() { /* 켤 때마다 퀵으로 시작하므로 남겨둘 것이 없다 */ }
 
@@ -318,7 +322,7 @@ async function mountSimulator(kind, cfg) {
     // 기존 컨트롤의 이벤트 핸들러가 살아 있는 상태로 이동시킬 수 있다.
     const sa = safeAreaInsets();
     let doc = `<!DOCTYPE html>
-<html lang="ko" data-skin="${currentSkin()}"><head><meta charset="utf-8">
+<html lang="ko" data-skin="${shopSet.theme ? "midnight" : currentSkin()}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>:root{--sa-top:${sa.top}px;--sa-bottom:${sa.bottom}px;--sa-left:${sa.left}px;--sa-right:${sa.right}px}</style>
 <script>(function(){
@@ -328,11 +332,11 @@ if(t&&t!==window&&t.tagName){var u=String(t.src||t.href||"");if(!u||u===location
 s("오류",(e.message||"")+" @"+(e.lineno||0))},true);
 window.addEventListener("unhandledrejection",function(e){var r=e.reason;s("미처리",(r&&r.message)||r)});
 window.__blReport=s;})();<\/script>
-<style>${css}</style>
+<style>${shopRecolor(css)}</style>
 <style>${skinCss}</style>
-<style>${muiCss}</style></head>
+<style>${shopRecolor(muiCss)}</style>${shopFrameStyle()}</head>
 <body>
-${fillTemplate(markup, cfg)}
+${fillTemplate(shopRecolor(markup), cfg)}
 <script>${iconJs}<\/script>
 <script>window.CFG = ${JSON.stringify(cfg)};<\/script>
 <script>${helperJs}<\/script>
@@ -2993,7 +2997,7 @@ async function restoreSession() {
         return false;
     }
     const meta = await sessGet("meta");
-    if (!meta || meta.v !== 1 || !(Date.now() - meta.at < SESS_MAX_AGE)) {
+    if (!meta || meta.v !== 1 || !(Date.now() - meta.at < shopResumeMs())) {
         if (meta) await sessClear();
         return false;
     }
@@ -3064,7 +3068,315 @@ function startSessionKeeper() {
     window.addEventListener("pagehide", sessionTick);
 }
 
+
+/* ── 프로그램 설정 (2026-11-17 원장님 요청) ─────────────────────────────
+ *
+ * 매장마다 프로그램을 자기 것처럼 쓰게 한다: 위쪽 로고 · 화면 색(배경 + 버튼 두 가지) · 시작 방식 · 작업 이어하기 시간.
+ * 전부 이 기기(localStorage "pmus.shop")에만 둔다.
+ *
+ * 색은 두 가지만 받고 나머지(카드 · 선 · 글자 · 눌린 버튼 …)는 거기서 계산한다 — 열몇 가지를 다 고르게 하면
+ * 글자가 안 보이는 조합이 쉽게 나온다. 배경이 밝으면 글자를 어둡게, 어두우면 밝게 뒤집는다.
+ * 화면에 색을 입히는 길은 둘이다:
+ *   ① 이름 붙은 색(--bg · --accent …)은 그 이름에 새 값을 넣는다
+ *   ② css 에 숫자로 박혀 있는 기본 색은 글자째 새 색으로 바꿔 끼운다 (shopRecolor)
+ * 편집 화면(iframe)은 띄울 때 mountSimulator 가 같은 방법으로 입힌다.
+ * ------------------------------------------------------------------- */
+const SHOP_KEY = "pmus.shop";
+const SHOP_DEFAULT_LOGO = "assets/logo.png";
+/** 기본 화면(로즈골드)의 색 — css 에 박혀 있는 값들. 색을 바꿀 때 이 값들을 찾아 바꾼다. */
+const SHOP_BASE = {
+    bg: "#131014", bgDeep: "#0e0b0f", surface: "#1b171d", surface2: "#241f27", surface3: "#322b35",
+    line: "#2f2832", line2: "#443b47", text: "#f3ece6", text2: "#ddd3cc", muted: "#a89a92", muted2: "#8b7e77",
+    accent: "#c99a72", accent2: "#ebcba9", accentLine: "#6e5440", selBg: "#3a2d26", onAccent: "#241812",
+};
+/** 배색 12가지 — 앞의 넷은 테스트 버전의 스킨 넷(2026-11-17 원장님: 기본으로 깔고 정식판에도),
+ *  나머지는 검은 바탕부터 흰 바탕까지 · 빨주노초파남보 색상을 고루. */
+const SHOP_LEGACY = {
+    bgDeep: "181615 171513 1c1917 191424", surface: "1e1a17", surface2: "241e19 25201b 25201c 2d241c",
+    surface3: "332b24 362b20 3a3026 3a322c 3e3227 3d332a", line2: "483a2c 44372c 5a4737",
+    accent2: "e6c8a6 e9cfa8", accentLine: "8c6239 7a6553", text: "fff9f2", text2: "e4dfd7 e0e0e0 c8c8c8", muted: "a89f91 a89b8c",
+};
+const SHOP_PRESETS = [
+    { name: "미드나잇 로즈골드", bg: "#131014", accent: "#c99a72" },
+    { name: "블랙 샴페인", bg: "#0e0e10", accent: "#c8a96a" },
+    { name: "아이보리 골드", bg: "#f6f2ea", accent: "#b08a3e" },
+    { name: "로즈 누드", bg: "#f8efed", accent: "#c0727f" },
+    { name: "와인 레드", bg: "#190e11", accent: "#d9596b" },
+    { name: "선셋 오렌지", bg: "#1a130e", accent: "#e58a45" },
+    { name: "허니 옐로", bg: "#faf6e4", accent: "#b08c14" },
+    { name: "포레스트 그린", bg: "#0e1613", accent: "#6dba8d" },
+    { name: "오션 블루", bg: "#0e1520", accent: "#62a4e6" },
+    { name: "딥 인디고", bg: "#111129", accent: "#8d95ee" },
+    { name: "라벤더 화이트", bg: "#f4f1fa", accent: "#7a5fc7" },
+    { name: "스노 화이트", bg: "#fbfbfa", accent: "#3a3a40" },
+];
+/** 밝은 바탕에서만 손볼 것 — 어두운 바탕을 전제로 박아 둔 흰 글자 · 흰 테두리 · 흰 견본 그림 */
+const SHOP_LIGHT_CSS = `
+.design-card img, .mui-qdesign img { filter: brightness(0) opacity(.55); }
+.design-card.is-active img, .mui-qdesign.is-active img { filter: brightness(0) opacity(.9); }
+html.mui-on .mui-chips.mui-chips > * { background: var(--surface-2) !important; color: var(--text-2) !important; border: 1px solid var(--line-2) !important; box-shadow: none !important; text-shadow: none !important; }
+html.mui-on .mui-chips.mui-chips > .active, html.mui-on .mui-chips.mui-chips > .is-active { background: var(--accent) !important; color: var(--on-accent) !important; border-color: var(--accent) !important; }
+.diag-btn { color: var(--text-2) !important; background: var(--surface-2) !important; border-color: var(--line-2) !important; }
+.lic-sheet { background: rgba(40, 34, 28, .45) !important; }
+.ctrl-row label, .acc-title, .acc-header { color: var(--text) !important; }
+.ctrl-row label span { color: var(--accent-2) !important; }
+`;
+/** 글꼴 — 모두 무료로 쓸 수 있는 것 (SIL Open Font License). 기본 말고는 구글 폰트에서 받아 온다.
+ *  인터넷이 안 되는 곳에서는 받아 둔 적이 없으면 기본 글꼴로 보인다. */
+const SHOP_FONTS = [
+    { key: "default", name: "기본 (프리텐다드)", family: "" },
+    { key: "noto", name: "노토 산스", family: "'Noto Sans KR'", g: "Noto+Sans+KR:wght@400;500;700;800" },
+    { key: "nanumgothic", name: "나눔고딕", family: "'Nanum Gothic'", g: "Nanum+Gothic:wght@400;700;800" },
+    { key: "gowundodum", name: "고운돋움", family: "'Gowun Dodum'", g: "Gowun+Dodum" },
+    { key: "plex", name: "IBM 플렉스 산스", family: "'IBM Plex Sans KR'", g: "IBM+Plex+Sans+KR:wght@400;500;700" },
+    { key: "nanummyeongjo", name: "나눔명조", family: "'Nanum Myeongjo'", g: "Nanum+Myeongjo:wght@400;700;800" },
+    { key: "gowunbatang", name: "고운바탕", family: "'Gowun Batang'", g: "Gowun+Batang:wght@400;700" },
+    { key: "jua", name: "주아 (둥근)", family: "'Jua'", g: "Jua" },
+];
+const SHOP_SIZES = [["0.92", "작게"], ["1", "보통"], ["1.1", "크게"], ["1.2", "아주 크게"]];
+let shopSet = { logo: null, theme: null, start: "quick", resume: 2, font: "default", size: 1 };
+try {
+    const raw = JSON.parse(localStorage.getItem(SHOP_KEY) || "{}");
+    if (raw && typeof raw === "object") {
+        if (typeof raw.logo === "string" && raw.logo.startsWith("data:image/")) shopSet.logo = raw.logo;
+        if (raw.theme && /^#[0-9a-f]{6}$/i.test(raw.theme.bg || "") && /^#[0-9a-f]{6}$/i.test(raw.theme.accent || "")) {
+            shopSet.theme = { bg: raw.theme.bg.toLowerCase(), accent: raw.theme.accent.toLowerCase() };
+        }
+        if (raw.start === "manual") shopSet.start = "manual";
+        if ([0, 2, 12].includes(raw.resume)) shopSet.resume = raw.resume;
+        if (SHOP_FONTS.some((f) => f.key === raw.font)) shopSet.font = raw.font;
+        if (SHOP_SIZES.some((z) => parseFloat(z[0]) === raw.size)) shopSet.size = raw.size;
+    }
+} catch (e) { /* 저장소를 못 쓰는 창 — 기본값으로 */ }
+function shopSave() {
+    try { localStorage.setItem(SHOP_KEY, JSON.stringify(shopSet)); return true; } catch (e) { return false; }
+}
+/** 작업 이어하기를 되살리는 시간 (ms). 0 이면 끔. */
+function shopResumeMs() { return shopSet.resume * 60 * 60 * 1000; }
+
+// ── 색 계산 ──
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function rgbHex(c) { return "#" + c.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join(""); }
+function mixHex(a, b, t) { const x = hexRgb(a), y = hexRgb(b); return rgbHex(x.map((v, i) => v + (y[i] - v) * t)); }
+function lumOf(h) {
+    const c = hexRgb(h).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function contrastOf(a, b) { const x = lumOf(a), y = lumOf(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+/** 배경 · 버튼 두 색에서 화면에 쓰는 색 한 벌을 만든다 */
+function shopPalette(bg, accent) {
+    const dark = lumOf(bg) < 0.4;
+    const ink = dark ? "#ffffff" : "#000000";               // 배경에서 멀어지는 쪽
+    const text = dark ? mixHex("#ffffff", accent, 0.08) : mixHex("#17130f", accent, 0.10);
+    // 버튼 색이 배경에 묻히면 글자 · 테두리가 안 보인다 — 구분될 때까지 배경 반대쪽으로 민다
+    let acc = accent;
+    for (let i = 0; i < 12 && contrastOf(acc, bg) < 2.6; i++) acc = mixHex(acc, ink, 0.12);
+    const onAccent = contrastOf(acc, "#1b1410") >= contrastOf(acc, "#ffffff") ? "#1b1410" : "#ffffff";
+    let acc2 = mixHex(acc, ink, dark ? 0.42 : 0.30);        // 글자로 쓰는 밝은(어두운) 버튼 색
+    for (let i = 0; i < 12 && contrastOf(acc2, bg) < 4.5; i++) acc2 = mixHex(acc2, ink, 0.15);
+    return {
+        dark: dark,
+        bg: bg, bgDeep: mixHex(bg, dark ? "#000000" : "#ffffff", dark ? 0.28 : 0.45),
+        surface: mixHex(bg, ink, dark ? 0.045 : 0.035), surface2: mixHex(bg, ink, dark ? 0.085 : 0.07),
+        surface3: mixHex(bg, ink, dark ? 0.15 : 0.12),
+        line: mixHex(bg, ink, dark ? 0.13 : 0.14), line2: mixHex(bg, ink, dark ? 0.22 : 0.24),
+        text: text, text2: mixHex(text, bg, 0.14), muted: mixHex(text, bg, 0.38), muted2: mixHex(text, bg, 0.48),
+        accent: acc, accent2: acc2, accentLine: mixHex(bg, acc, 0.5), selBg: mixHex(bg, acc, 0.24), onAccent: onAccent,
+    };
+}
+function shopNowPalette() { return shopSet.theme ? shopPalette(shopSet.theme.bg, shopSet.theme.accent) : null; }
+/** 이름 붙은 색에 넣을 값들 */
+function shopVars(pal) {
+    const a = hexRgb(pal.accent).join(", "), b = hexRgb(pal.bg).join(", ");
+    return `--bg:${pal.bg};--bg-deep:${pal.bgDeep};--surface:${pal.surface};--surface-2:${pal.surface2};--surface-3:${pal.surface3};`
+        + `--surface-deep:${pal.surface};--line:${pal.line};--line-2:${pal.line2};--text:${pal.text};--text-2:${pal.text2};`
+        + `--muted:${pal.muted};--muted-2:${pal.muted2};--link:${pal.accent2};--accent:${pal.accent};--accent-2:${pal.accent2};`
+        + `--accent-line:${pal.accentLine};--on-accent:${pal.onAccent};--sel:${pal.accent};--sel-bg:${pal.selBg};`
+        + `--accent-rgb:${a};--bg-rgb:${b};`;
+}
+/** 글자 크기 — css 에 px 로 박혀 있어 한 번에 키울 수 없다. 글자째 찾아 배율을 곱한다. */
+function shopResize(text) {
+    const k = shopSet.size;
+    if (!text || k === 1) return text;
+    return text.replace(/font-size:\s*([\d.]+)px/g, (m, n) => "font-size: " + Math.round(parseFloat(n) * k * 10) / 10 + "px");
+}
+/** css · 마크업 글자 속의 기본 색을 새 색으로 바꿔 끼우고 글자 크기를 맞춘다. 바꾼 것이 없으면 그대로 돌려준다. */
+function shopRecolor(text) {
+    text = shopResize(text);
+    const pal = shopNowPalette();
+    if (!pal || !text) return text;
+    const map = {};
+    Object.keys(SHOP_BASE).forEach((k) => { map[SHOP_BASE[k].slice(1)] = pal[k]; });
+    // 눈썹 · 입술 화면에 예전부터 박혀 있던 갈색 계열도 같은 자리의 새 색으로
+    Object.keys(SHOP_LEGACY).forEach((k) => { SHOP_LEGACY[k].split(" ").forEach((h) => { map[h] = pal[k]; }); });
+    const ar = hexRgb(pal.accent), br = hexRgb(pal.bg), dr = hexRgb(pal.bgDeep);
+    return text
+        .replace(/#([0-9a-fA-F]{6})\b/g, (m, h) => map[h.toLowerCase()] || m)
+        .replace(/rgba\(\s*201\s*,\s*154\s*,\s*114\s*,/g, `rgba(${ar[0]}, ${ar[1]}, ${ar[2]},`)
+        .replace(/rgba\(\s*19\s*,\s*16\s*,\s*20\s*,/g, `rgba(${br[0]}, ${br[1]}, ${br[2]},`)
+        .replace(/rgba\(\s*14\s*,\s*11\s*,\s*15\s*,/g, `rgba(${dr[0]}, ${dr[1]}, ${dr[2]},`);
+}
+/** 편집 화면(iframe) 문서의 <head> 에 넣을 것 */
+function shopFrameStyle() {
+    const pal = shopNowPalette();
+    return shopFontHead()
+        + (pal ? `<style>html:root:root{${shopVars(pal)}}${pal.dark ? "" : SHOP_LIGHT_CSS}</style>` : "");
+}
+/** 글꼴 · 글자 크기를 입히는 <link> · <style> (앱 화면과 편집 화면이 같이 쓴다) */
+function shopFontHead() {
+    const f = SHOP_FONTS.find((x) => x.key === shopSet.font) || SHOP_FONTS[0];
+    let out = "";
+    if (f.g) {
+        out += `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${f.g}&display=swap">`
+            + `<style>html body, html button, html input, html select, html textarea { font-family: ${f.family}, "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif !important; }</style>`;
+    }
+    // rem · em 으로 적힌 글자는 바탕 크기를 따라간다
+    if (shopSet.size !== 1) out += `<style>html { font-size: ${Math.round(16 * shopSet.size * 10) / 10}px; }</style>`;
+    return out;
+}
+
+let shopCssText = null;        // css/app.css 원문 (한 번만 받는다)
+async function applyShopTheme() {
+    document.querySelectorAll("[data-shop-font]").forEach((n) => n.remove());
+    const pal = shopNowPalette();
+    let tag = document.getElementById("shop-theme");
+    const meta = document.querySelector('meta[name="theme-color"]');
+    // 글꼴 · 글자 크기
+    const fontHead = shopFontHead();
+    if (fontHead) {
+        const box = document.createElement("template");
+        box.innerHTML = fontHead;
+        Array.from(box.content.children).forEach((n) => { n.setAttribute("data-shop-font", "1"); document.head.appendChild(n); });
+    }
+    if (!pal && shopSet.size === 1) {
+        if (tag) tag.remove();
+        if (meta) meta.setAttribute("content", SHOP_BASE.bg);
+        return;
+    }
+    if (shopCssText === null) {
+        const link = document.querySelector('link[rel="stylesheet"][href*="css/app.css"]');
+        try { shopCssText = await (await fetch(link ? link.getAttribute("href") : "css/app.css")).text(); } catch (e) { shopCssText = ""; }
+    }
+    if (!tag) { tag = document.createElement("style"); tag.id = "shop-theme"; document.head.appendChild(tag); }
+    // 박혀 있는 색을 바꾼 사본을 뒤에 한 번 더 싣고, 이름 붙은 색에는 새 값을 넣는다
+    tag.textContent = shopRecolor(shopCssText)
+        + (pal ? `\nhtml:root:root{${shopVars(pal)}}` + (pal.dark ? "" : SHOP_LIGHT_CSS) : "");
+    if (meta) meta.setAttribute("content", pal ? pal.bg : SHOP_BASE.bg);
+    // 테스트 버전의 스킨(data-skin)은 '미드나잇' 으로 돌려 둔다 — 고른 배색이 그 위에 덮인다
+    if (pal && document.documentElement.hasAttribute("data-skin")) document.documentElement.setAttribute("data-skin", "midnight");
+}
+function applyShopLogo() {
+    document.querySelectorAll(".app-logo").forEach((im) => {
+        im.style.display = "";
+        im.src = shopSet.logo || (SHOP_DEFAULT_LOGO + "?v=" + BUILD);
+        im.classList.toggle("is-shop", !!shopSet.logo);
+    });
+    const pv = $("shop-logo-prev");
+    if (pv) pv.src = shopSet.logo || (SHOP_DEFAULT_LOGO + "?v=" + BUILD);
+}
+/** 고른 그림을 로고 크기로 줄여 담는다 (투명 배경은 그대로) */
+function shopReadLogo(file) {
+    return new Promise((resolve, reject) => {
+        if (!file || !/^image\//.test(file.type)) { reject(new Error("그림 파일을 골라 주세요")); return; }
+        const url = URL.createObjectURL(file);
+        const im = new Image();
+        im.onload = () => {
+            try {
+                const k = Math.min(1, 480 / im.naturalWidth, 200 / im.naturalHeight);
+                const c = document.createElement("canvas");
+                c.width = Math.max(1, Math.round(im.naturalWidth * k));
+                c.height = Math.max(1, Math.round(im.naturalHeight * k));
+                const x = c.getContext("2d");
+                x.imageSmoothingQuality = "high";
+                x.drawImage(im, 0, 0, c.width, c.height);
+                const out = c.toDataURL("image/png");
+                c.width = 0; c.height = 0;
+                resolve(out);
+            } catch (e) { reject(new Error("이 그림은 쓸 수 없습니다")); } finally { URL.revokeObjectURL(url); }
+        };
+        im.onerror = () => { URL.revokeObjectURL(url); reject(new Error("그림을 읽지 못했습니다")); };
+        im.src = url;
+    });
+}
+function bindShopSettings() {
+    const sheet = $("shop-sheet");
+    if (!sheet) return;
+    const seg = (id, cur, onPick) => {
+        const box = $(id);
+        const paint = (v) => box.querySelectorAll("button").forEach((b) => b.classList.toggle("is-on", b.dataset.v === String(v)));
+        box.querySelectorAll("button").forEach((b) => b.addEventListener("click", () => { paint(b.dataset.v); onPick(b.dataset.v); }));
+        paint(cur);
+    };
+    const paintColors = () => {
+        const t = shopSet.theme || { bg: SHOP_BASE.bg, accent: SHOP_BASE.accent };
+        $("shop-bg").value = t.bg;
+        $("shop-accent").value = t.accent;
+        $("shop-presets").querySelectorAll(".shop-preset").forEach((b) =>
+            b.classList.toggle("is-on", b.dataset.bg === t.bg && b.dataset.accent === t.accent));
+    };
+    const setTheme = async (bg, accent) => {
+        bg = bg.toLowerCase(); accent = accent.toLowerCase();
+        shopSet.theme = (bg === SHOP_BASE.bg && accent === SHOP_BASE.accent) ? null : { bg: bg, accent: accent };
+        shopSave();
+        paintColors();
+        await applyShopTheme();
+    };
+    const presets = $("shop-presets");
+    SHOP_PRESETS.forEach((p) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "shop-preset";
+        b.dataset.bg = p.bg; b.dataset.accent = p.accent;
+        const sw = document.createElement("i");
+        sw.style.background = `linear-gradient(90deg, ${p.bg} 0 55%, ${p.accent} 55% 100%)`;
+        const nm = document.createElement("span"); nm.textContent = p.name;
+        b.appendChild(sw); b.appendChild(nm);
+        b.addEventListener("click", () => setTheme(p.bg, p.accent));
+        presets.appendChild(b);
+    });
+    $("shop-bg").addEventListener("input", (e) => setTheme(e.target.value, $("shop-accent").value));
+    $("shop-accent").addEventListener("input", (e) => setTheme($("shop-bg").value, e.target.value));
+    $("shop-color-reset").addEventListener("click", () => setTheme(SHOP_BASE.bg, SHOP_BASE.accent));
+
+    $("shop-logo-file").addEventListener("change", async (e) => {
+        const f = e.target.files && e.target.files[0];
+        e.target.value = "";
+        if (!f) return;
+        try {
+            shopSet.logo = await shopReadLogo(f);
+            if (!shopSave()) { shopSet.logo = null; toast("이 기기에 로고를 저장하지 못했습니다 (저장 공간 부족)", 3600); }
+            applyShopLogo();
+        } catch (err) { toast(err.message); }
+    });
+    $("shop-logo-reset").addEventListener("click", () => { shopSet.logo = null; shopSave(); applyShopLogo(); });
+
+    seg("shop-start", shopSet.start, (v) => {
+        shopSet.start = v === "manual" ? "manual" : "quick";
+        shopSave();
+        // 아직 편집에 들어가지 않았으면 바로 따라간다
+        if (!state.mountedKind) { state.editMode = shopSet.start; updateStepVisibility(); }
+    });
+    seg("shop-resume", shopSet.resume, (v) => { shopSet.resume = parseInt(v, 10) || 0; shopSave(); });
+    seg("shop-size", shopSet.size, async (v) => { shopSet.size = parseFloat(v) || 1; shopSave(); await applyShopTheme(); });
+    const fonts = $("shop-fonts");
+    const paintFonts = () => fonts.querySelectorAll("button").forEach((b) => b.classList.toggle("is-on", b.dataset.v === shopSet.font));
+    SHOP_FONTS.forEach((f) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.dataset.v = f.key; b.textContent = f.name;
+        b.addEventListener("click", async () => { shopSet.font = f.key; shopSave(); paintFonts(); await applyShopTheme(); });
+        fonts.appendChild(b);
+    });
+    paintFonts();
+
+    $("shop-btn").addEventListener("click", () => { paintColors(); applyShopLogo(); sheet.hidden = false; });
+    $("shop-close").addEventListener("click", () => { sheet.hidden = true; });
+    sheet.addEventListener("click", (e) => { if (e.target === sheet) sheet.hidden = true; });
+}
+
 (async function init() {
+    // 프로그램 설정 — 화면이 보이기 전에 매장 로고 · 색부터 입힌다
+    applyShopLogo();
+    await applyShopTheme();
+    bindShopSettings();
     await buildDesignGrid();
     bindEvents();
     bindLicenseUI();
