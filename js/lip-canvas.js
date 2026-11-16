@@ -659,13 +659,13 @@
          * 입술산이 양옆으로 벌어진 M 자처럼 보였다.
          * 이제는 입술산(아랫입술은 가장 아래 점)에서 입꼬리까지 볼록한 호를 그려 놓고,
          * 원래 선을 그 호 쪽으로 끌어간다. 호는 입술산보다 높아지지 않으므로 혹이 생기지 않고,
-         * 입술산 자리 · 입꼬리 점은 그대로다. 세기 40 이면 호에 거의 닿는다.
+         * 입술산 자리 · 입꼬리 점은 그대로다. 조절바 최대(5)에서 호까지의 4할쯤 채운다.
          * @param dir -1 윗입술(위로) · +1 아랫입술(아래로)
          */
         function fillCornerOver(pts, amount, dir) {
             const n = pts.length;
             if (!(amount > 0) || n < 7) return pts;
-            const k = Math.min(1, amount / 40) * 0.9;
+            const k = Math.min(1, amount / 12);
             const out = pts.map(function (q) { return [q[0], q[1]]; });
             const side = function (from, to, step) {
                 // 이쪽 절반에서 가장 솟은(아랫입술은 가장 내려간) 점 — 입꼬리 쪽 12% 는 빼고 찾는다
@@ -2285,93 +2285,93 @@
             document.getElementById('valGlobalWidth').textContent = Math.round(globalWidth) + '%';
 
             document.getElementById('rngUpperY').value = upperOffsetY;
-            document.getElementById('valUpperY').textContent = Math.round(upperOffsetY) + 'px';
+            document.getElementById('valUpperY').textContent = fmtPx(upperOffsetY) + 'px';
             document.getElementById('rngUpperX').value = upperOffsetX;
-            document.getElementById('valUpperX').textContent = Math.round(upperOffsetX) + 'px';
+            document.getElementById('valUpperX').textContent = fmtPx(upperOffsetX) + 'px';
             document.getElementById('rngUpperWidth').value = upperWidth;
             document.getElementById('valUpperWidth').textContent = Math.round(upperWidth) + '%';
 
             document.getElementById('rngLowerY').value = lowerOffsetY;
-            document.getElementById('valLowerY').textContent = Math.round(lowerOffsetY) + 'px';
+            document.getElementById('valLowerY').textContent = fmtPx(lowerOffsetY) + 'px';
             document.getElementById('rngLowerX').value = lowerOffsetX;
-            document.getElementById('valLowerX').textContent = Math.round(lowerOffsetX) + 'px';
+            document.getElementById('valLowerX').textContent = fmtPx(lowerOffsetX) + 'px';
             document.getElementById('rngLowerWidth').value = lowerWidth;
             document.getElementById('valLowerWidth').textContent = Math.round(lowerWidth) + '%';
 
             // 1. 윗입술 상부
             document.getElementById('rngUpperTopOver').value = upperTopOver;
-            document.getElementById('valUpperTopOver').textContent = Math.round(upperTopOver) + 'px';
+            document.getElementById('valUpperTopOver').textContent = fmtPx(upperTopOver) + 'px';
             document.getElementById('rngCornerOverU').value = cornerOverU;
-            document.getElementById('valCornerOverU').textContent = Math.round(cornerOverU) + 'px';
+            document.getElementById('valCornerOverU').textContent = fmtPx(cornerOverU) + 'px';
             document.getElementById('rngCornerOverL').value = cornerOverL;
-            document.getElementById('valCornerOverL').textContent = Math.round(cornerOverL) + 'px';
+            document.getElementById('valCornerOverL').textContent = fmtPx(cornerOverL) + 'px';
             document.getElementById('rngUpperTopPeakVol').value = upperTopPeakVol;
-            document.getElementById('valUpperTopPeakVol').textContent = Math.round(upperTopPeakVol) + 'px';
+            document.getElementById('valUpperTopPeakVol').textContent = fmtPx(upperTopPeakVol) + 'px';
             document.getElementById('rngPhiltrumRound').value = philtrumRound;
-            document.getElementById('valPhiltrumRound').textContent = Math.round(philtrumRound) + 'px';
+            document.getElementById('valPhiltrumRound').textContent = fmtPx(philtrumRound) + 'px';
             document.getElementById('rngPhiltrumDepth').value = philtrumDepth;
-            document.getElementById('valPhiltrumDepth').textContent = Math.round(philtrumDepth) + 'px';
+            document.getElementById('valPhiltrumDepth').textContent = fmtPx(philtrumDepth) + 'px';
             document.getElementById('rngPhiltrumWidth').value = philtrumWidth;
-            document.getElementById('valPhiltrumWidth').textContent = Math.round(philtrumWidth) + 'px';
+            document.getElementById('valPhiltrumWidth').textContent = fmtPx(philtrumWidth) + 'px';
             document.getElementById('rngUpperHeight').value = upperHeight;
             document.getElementById('valUpperHeight').textContent = Math.round(upperHeight) + '%';
 
             // 2. 윗입술 하부
             document.getElementById('rngUpperBottomFullRound').value = upperBottomFullRound;
-            document.getElementById('valUpperBottomFullRound').textContent = Math.round(upperBottomFullRound) + 'px';
+            document.getElementById('valUpperBottomFullRound').textContent = fmtPx(upperBottomFullRound) + 'px';
             document.getElementById('rngUpperBottomY').value = upperBottomY;
-            document.getElementById('valUpperBottomY').textContent = Math.round(upperBottomY) + 'px';
+            document.getElementById('valUpperBottomY').textContent = fmtPx(upperBottomY) + 'px';
             document.getElementById('rngUpperBottomCenterVol').value = upperBottomCenterVol;
-            document.getElementById('valUpperBottomCenterVol').textContent = Math.round(upperBottomCenterVol) + 'px';
+            document.getElementById('valUpperBottomCenterVol').textContent = fmtPx(upperBottomCenterVol) + 'px';
             document.getElementById('rngUpperBottomRound').value = upperBottomRound;
-            document.getElementById('valUpperBottomRound').textContent = Math.round(upperBottomRound) + 'px';
+            document.getElementById('valUpperBottomRound').textContent = fmtPx(upperBottomRound) + 'px';
             document.getElementById('rngUpperBottomSideVol').value = upperBottomSideVol;
-            document.getElementById('valUpperBottomSideVol').textContent = Math.round(upperBottomSideVol) + 'px';
+            document.getElementById('valUpperBottomSideVol').textContent = fmtPx(upperBottomSideVol) + 'px';
 
             // 3. 아랫입술 상부
             document.getElementById('rngLowerTopY').value = lowerTopY;
-            document.getElementById('valLowerTopY').textContent = Math.round(lowerTopY) + 'px';
+            document.getElementById('valLowerTopY').textContent = fmtPx(lowerTopY) + 'px';
             document.getElementById('rngLowerTopCenterVol').value = lowerTopCenterVol;
-            document.getElementById('valLowerTopCenterVol').textContent = Math.round(lowerTopCenterVol) + 'px';
+            document.getElementById('valLowerTopCenterVol').textContent = fmtPx(lowerTopCenterVol) + 'px';
             document.getElementById('rngLowerTopRound').value = lowerTopRound;
-            document.getElementById('valLowerTopRound').textContent = Math.round(lowerTopRound) + 'px';
+            document.getElementById('valLowerTopRound').textContent = fmtPx(lowerTopRound) + 'px';
             document.getElementById('rngLowerTopSideVol').value = lowerTopSideVol;
-            document.getElementById('valLowerTopSideVol').textContent = Math.round(lowerTopSideVol) + 'px';
+            document.getElementById('valLowerTopSideVol').textContent = fmtPx(lowerTopSideVol) + 'px';
 
             // 4. 아랫입술 하부
             document.getElementById('rngLowerBottomOver').value = lowerBottomOver;
-            document.getElementById('valLowerBottomOver').textContent = Math.round(lowerBottomOver) + 'px';
+            document.getElementById('valLowerBottomOver').textContent = fmtPx(lowerBottomOver) + 'px';
             document.getElementById('rngLowerBottomCenterVol').value = lowerBottomCenterVol;
-            document.getElementById('valLowerBottomCenterVol').textContent = Math.round(lowerBottomCenterVol) + 'px';
+            document.getElementById('valLowerBottomCenterVol').textContent = fmtPx(lowerBottomCenterVol) + 'px';
             document.getElementById('rngLowerBottomRound').value = lowerBottomRound;
-            document.getElementById('valLowerBottomRound').textContent = Math.round(lowerBottomRound) + 'px';
+            document.getElementById('valLowerBottomRound').textContent = fmtPx(lowerBottomRound) + 'px';
             document.getElementById('rngLowerHeight').value = lowerHeight;
             document.getElementById('valLowerHeight').textContent = Math.round(lowerHeight) + '%';
 
             // 윗입술 입꼬리 상하 조절
             document.getElementById('rngUpperLeftCorner').value = upperLeftCornerY;
-            document.getElementById('valUpperLeftCorner').textContent = Math.round(upperLeftCornerY) + 'px';
+            document.getElementById('valUpperLeftCorner').textContent = fmtPx(upperLeftCornerY) + 'px';
             document.getElementById('rngUpperRightCorner').value = upperRightCornerY;
-            document.getElementById('valUpperRightCorner').textContent = Math.round(upperRightCornerY) + 'px';
+            document.getElementById('valUpperRightCorner').textContent = fmtPx(upperRightCornerY) + 'px';
             syncSharpSliders();
 
             // 아랫입술 입꼬리 상하 조절
             document.getElementById('rngLowerLeftCorner').value = lowerLeftCornerY;
-            document.getElementById('valLowerLeftCorner').textContent = Math.round(lowerLeftCornerY) + 'px';
+            document.getElementById('valLowerLeftCorner').textContent = fmtPx(lowerLeftCornerY) + 'px';
             document.getElementById('rngLowerRightCorner').value = lowerRightCornerY;
-            document.getElementById('valLowerRightCorner').textContent = Math.round(lowerRightCornerY) + 'px';
+            document.getElementById('valLowerRightCorner').textContent = fmtPx(lowerRightCornerY) + 'px';
 
             // 윗입술 좌우 볼륨
             document.getElementById('rngUpperLeftVol').value = upperLeftVolume;
-            document.getElementById('valUpperLeftVol').textContent = Math.round(upperLeftVolume) + 'px';
+            document.getElementById('valUpperLeftVol').textContent = fmtPx(upperLeftVolume) + 'px';
             document.getElementById('rngUpperRightVol').value = upperRightVolume;
-            document.getElementById('valUpperRightVol').textContent = Math.round(upperRightVolume) + 'px';
+            document.getElementById('valUpperRightVol').textContent = fmtPx(upperRightVolume) + 'px';
 
             // 아랫입술 좌우 볼륨
             document.getElementById('rngLowerLeftVol').value = lowerLeftVolume;
-            document.getElementById('valLowerLeftVol').textContent = Math.round(lowerLeftVolume) + 'px';
+            document.getElementById('valLowerLeftVol').textContent = fmtPx(lowerLeftVolume) + 'px';
             document.getElementById('rngLowerRightVol').value = lowerRightVolume;
-            document.getElementById('valLowerRightVol').textContent = Math.round(lowerRightVolume) + 'px';
+            document.getElementById('valLowerRightVol').textContent = fmtPx(lowerRightVolume) + 'px';
 
             // 🎨 틴트 컬러 & 블러
             const elBlur = document.getElementById('rngBlur');
@@ -2392,13 +2392,16 @@
         }
 
         // 슬라이더 바인딩 헬퍼
+        /** px 값 표시 — 0.5 눈금이라 소수 한 자리까지 (2026-11-17: 변형 조절바 최대 5px) */
+        function fmtPx(v) { v = Math.round((+v || 0) * 10) / 10; return Number.isInteger(v) ? String(v) : v.toFixed(1); }
+
         function bind(id, valId, suffix, callback) {
             const el = document.getElementById(id);
             const valEl = document.getElementById(valId);
             if (!el || !valEl) return;
             el.addEventListener('input', function() {
                 const v = parseFloat(this.value);
-                valEl.textContent = (suffix === 'px' && id === 'rngBlur' ? v : Math.round(v)) + suffix;
+                valEl.textContent = (suffix === 'px' ? (id === 'rngBlur' ? v : fmtPx(v)) : Math.round(v)) + suffix;
                 callback(v);
                 checkAutoExtract();
                 requestRender();
@@ -2659,9 +2662,9 @@
         function pigLabel() { return pigLayers.map(function (l) { return l.name; }).join(' + '); }
         window.__blPigLabel = pigLabel;
         /** 겹친 결과색 (바탕 없이 색소끼리만 겹쳤을 때) */
-        function pigMixCss() {
+        function pigMixCss(layers) {
             let r = 0, g = 0, b = 0, a = 0;
-            pigLayers.forEach(function (l) {
+            (layers || pigLayers).forEach(function (l) {
                 const c = hexToRgb(l.hex), la = l.a / 100;
                 r = c.r * la + r * (1 - la); g = c.g * la + g * (1 - la); b = c.b * la + b * (1 - la);
                 a = la + a * (1 - la);
@@ -2701,6 +2704,10 @@
                 empty.textContent = '아래에서 색소를 눌러 주세요';
                 list.appendChild(empty);
             }
+            if (typeof pigFavRender === 'function') {
+                pigFavRender();
+                try { window.dispatchEvent(new CustomEvent('bl:pigfav')); } catch (e) {}
+            }
             grid.textContent = '';
             (PIGMENTS[pigGroup] || []).forEach(function (p) {
                 const at = pigLayers.findIndex(function (l) { return l.name === p[0] && l.hex === p[1]; });
@@ -2730,7 +2737,89 @@
             if (dot) dot.style.background = pigMixCss() || 'transparent';
             if (txt) txt.textContent = pigLayers.length ? ('겹친 결과 · ' + pigLayers.length + '가지') : '고른 색소 없음';
             if (clr) clr.disabled = !pigLayers.length;
+            const fs = document.getElementById('btnPigFavSave');
+            if (fs) fs.disabled = !pigLayers.length;
         }
+
+        // ── ⭐ 조색 즐겨찾기 (2026-11-17 원장님 요청) ──────────────────────────────
+        // 자주 쓰는 조합(색소 · 차례 · 진하기)을 기기에 담아 두고 한 번 눌러 바로 올린다.
+        // 편집 화면을 닫아도, 앱을 껐다 켜도 남는다 (이 기기 안에만).
+        const PIG_FAV_KEY = 'pmus.pigFavs';
+        const PIG_FAV_MAX = 30;
+        let pigFavs = [];
+        try {
+            const raw = JSON.parse(localStorage.getItem(PIG_FAV_KEY) || '[]');
+            if (Array.isArray(raw)) pigFavs = raw.filter(function (f) { return f && Array.isArray(f.layers) && f.layers.length; });
+        } catch (e) { pigFavs = []; }
+        function pigFavSig(layers) { return layers.map(function (l) { return l.name + '|' + l.hex + '|' + l.a; }).join(','); }
+        function pigFavStore() {
+            try { localStorage.setItem(PIG_FAV_KEY, JSON.stringify(pigFavs)); } catch (e) { /* 저장 못 하는 기기 — 이번에만 쓴다 */ }
+            pigFavRender();
+            try { window.dispatchEvent(new CustomEvent('bl:pigfav')); } catch (e) {}
+        }
+        function pigFavApply(i) {
+            const f = pigFavs[i];
+            if (!f) return;
+            pigLayers.length = 0;
+            f.layers.slice(0, PIG_MAX).forEach(function (l) { pigLayers.push({ name: l.name, hex: l.hex, a: l.a }); });
+            pigChanged();
+        }
+        function pigFavRender() {
+            const list = document.getElementById('pigFavList'), cnt = document.getElementById('pigFavCount');
+            if (!list) return;
+            list.textContent = '';
+            if (cnt) cnt.textContent = pigFavs.length ? (pigFavs.length + '개') : '';
+            if (!pigFavs.length) {
+                const empty = document.createElement('div');
+                empty.className = 'pig-empty';
+                empty.textContent = '색소를 겹친 뒤 「즐겨찾기에 담기」 를 누르면 여기에 모입니다';
+                list.appendChild(empty);
+                return;
+            }
+            const now = pigFavSig(pigLayers);
+            pigFavs.forEach(function (f, i) {
+                const row = document.createElement('div');
+                row.className = 'pig-favrow' + (pigFavSig(f.layers) === now ? ' is-on' : '');
+                const use = document.createElement('button');
+                use.type = 'button'; use.className = 'pig-favuse';
+                const dot = document.createElement('i'); dot.style.background = pigMixCss(f.layers);
+                const tx = document.createElement('span');
+                const nm = document.createElement('b'); nm.textContent = f.name;
+                const sub = document.createElement('em');
+                sub.textContent = f.layers.map(function (l) { return l.name + ' ' + l.a + '%'; }).join(' · ');
+                tx.appendChild(nm); tx.appendChild(sub);
+                use.appendChild(dot); use.appendChild(tx);
+                use.addEventListener('click', function () { pigFavApply(i); });
+                const del = document.createElement('button');
+                del.type = 'button'; del.className = 'pig-del'; del.textContent = '삭제';
+                del.setAttribute('aria-label', f.name + ' 즐겨찾기 삭제');
+                del.addEventListener('click', function () { pigFavs.splice(i, 1); pigFavStore(); });
+                row.appendChild(use); row.appendChild(del);
+                list.appendChild(row);
+            });
+        }
+        /** 퀵 화면이 즐겨찾기 줄을 그릴 때 쓴다 */
+        window.__blPigFavs = function () {
+            const now = pigFavSig(pigLayers);
+            return pigFavs.map(function (f) { return { name: f.name, css: pigMixCss(f.layers), on: pigFavSig(f.layers) === now }; });
+        };
+        window.__blPigApplyFav = pigFavApply;
+        (function () {
+            const btn = document.getElementById('btnPigFavSave'), inp = document.getElementById('pigFavName');
+            if (btn) btn.addEventListener('click', function () {
+                const note = document.getElementById('pigNote');
+                const say = function (t, warn) { if (note) { note.textContent = t; note.classList.toggle('is-warn', !!warn); } };
+                if (!pigLayers.length) return;
+                const sig = pigFavSig(pigLayers);
+                if (pigFavs.some(function (f) { return pigFavSig(f.layers) === sig; })) { say('이미 즐겨찾기에 있는 조합입니다.', true); return; }
+                if (pigFavs.length >= PIG_FAV_MAX) { say('즐겨찾기는 ' + PIG_FAV_MAX + '개까지 담을 수 있습니다. 안 쓰는 것을 삭제해 주세요.', true); return; }
+                const name = ((inp && inp.value) || '').trim().slice(0, 20) || pigLabel();
+                pigFavs.unshift({ name: name, layers: pigLayers.map(function (l) { return { name: l.name, hex: l.hex, a: l.a }; }) });
+                if (inp) inp.value = '';
+                say('즐겨찾기에 담았습니다 — 위 「즐겨찾기 조합」 에서 한 번 눌러 바로 쓸 수 있습니다.');
+                pigFavStore();
+            });
+        })();
         function pigChanged() {
             if (pigLayers.length) {
                 // 색소를 쓰는 동안에는 기본 색상표의 선택 표시를 지운다 (둘 중 하나만 적용되므로)
@@ -2957,7 +3046,7 @@
                 });
                 pair.vals.forEach((id) => {
                     const el = document.getElementById(id);
-                    if (el) el.textContent = Math.round(v) + 'px';
+                    if (el) el.textContent = fmtPx(v) + 'px';
                 });
             });
         }

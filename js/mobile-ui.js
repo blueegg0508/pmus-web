@@ -1586,14 +1586,15 @@
     function overRow(text, targets) {
         targets = targets.filter(Boolean);
         if (!targets.length) return null;
-        var MAX = 40;
+        var MAX = 5;        // 2026-11-17 원장님: 5px 넘으면 과장되어 장난스러워 보인다 → 최대 5px, 0.5 눈금
+        var STEP = 0.5;
 
         var row = el("div", "ctrl-row");
         var label = el("label", null, text);
         var step = el("span", "mui-step");
         var val = el("span", null, "0px");
         var rng = document.createElement("input");
-        rng.type = "range"; rng.min = "0"; rng.max = String(MAX); rng.step = "1";
+        rng.type = "range"; rng.min = "0"; rng.max = String(MAX); rng.step = String(STEP);
 
         /** phase: "down" 잡음 / "up" 놓음 / 없으면 값 반영 */
         function drive(v, phase) {
@@ -1619,7 +1620,7 @@
 
         function bump(dir) {
             var cur = parseFloat(rng.value) || 0;
-            var next = Math.min(MAX, Math.max(0, cur + dir));
+            var next = Math.min(MAX, Math.max(0, cur + dir * STEP));
             if (next === cur) return;
             rng.value = next;
             show(next);
@@ -1872,6 +1873,26 @@
             window.addEventListener("bl:pig", function (e) {
                 qPig.textContent = e.detail ? ("💧 조색 중 · " + e.detail) : "💧 색소 조색 (퍼마블랜드 · 최대 3색)";
             });
+            // ⭐ 조색 즐겨찾기 — 퀵에서 한 번 눌러 바로 올린다 (2026-11-17 원장님 요청)
+            var qFav = el("div", "mui-qfavs");
+            qFav.hidden = true;
+            quick.insertBefore(qFav, qPig.nextSibling);
+            var drawFavs = function () {
+                var list = typeof window.__blPigFavs === "function" ? window.__blPigFavs() : [];
+                qFav.textContent = "";
+                qFav.hidden = !list.length;
+                list.forEach(function (f, i) {
+                    var b = el("button", "mui-qfav" + (f.on ? " is-on" : ""));
+                    b.type = "button";
+                    var dot = el("i"); dot.style.background = f.css;
+                    var nm = el("em"); nm.textContent = f.name;
+                    b.appendChild(dot); b.appendChild(nm);
+                    b.addEventListener("click", function () { window.__blPigApplyFav(i); });
+                    qFav.appendChild(b);
+                });
+            };
+            window.addEventListener("bl:pigfav", drawFavs);
+            drawFavs();
         }
     }
 
