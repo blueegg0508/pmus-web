@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=168";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=168";
-import * as License from "./license.js?v=168";
-import * as Custom from "./custom-designs.js?v=168";
-import * as Update from "./update.js?v=168";
-import * as Crm from "./crm-ui.js?v=168";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=169";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=169";
+import * as License from "./license.js?v=169";
+import * as Custom from "./custom-designs.js?v=169";
+import * as Update from "./update.js?v=169";
+import * as Crm from "./crm-ui.js?v=169";
 
-const BUILD = "168";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "169";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -3282,7 +3282,7 @@ function shopReadLogo(file) {
         const im = new Image();
         im.onload = () => {
             try {
-                const k = Math.min(1, 480 / im.naturalWidth, 200 / im.naturalHeight);
+                const k = Math.min(1, 512 / im.naturalWidth, 512 / im.naturalHeight);     // 권장: 정사각형 512px
                 const c = document.createElement("canvas");
                 c.width = Math.max(1, Math.round(im.naturalWidth * k));
                 c.height = Math.max(1, Math.round(im.naturalHeight * k));

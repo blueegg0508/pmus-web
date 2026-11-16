@@ -1852,8 +1852,9 @@ label.design-card { cursor: pointer; }
 .shop-help { margin: 0 0 10px; font-size: 12.5px; line-height: 1.55; color: var(--muted); }
 .shop-foot { margin: 4px 0 14px; }
 .shop-logo-row { display: flex; align-items: center; gap: 12px; }
-.shop-logo-prev { flex: none; width: 120px; height: 56px; display: grid; place-items: center; padding: 6px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); }
-.shop-logo-prev img { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* 로고 틀은 정사각형(1:1) — 그림이 틀 밖으로 나가지 않게 크기를 못박고 그 안에 맞춰 넣는다 (2026-11-17 현장) */
+.shop-logo-prev { flex: none; width: 104px; height: 104px; box-sizing: border-box; padding: 8px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+.shop-logo-prev img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .shop-logo-btns { display: flex; flex-direction: column; gap: 6px; flex: 1 1 auto; }
 .shop-logo-btns .btn { width: 100%; text-align: center; cursor: pointer; }
 .shop-presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 10px; }
@@ -1875,6 +1876,6 @@ label.design-card { cursor: pointer; }
 .shop-seg button { min-height: 44px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); color: var(--text); font-size: 13px; cursor: pointer; }
 .shop-seg button.is-on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #241812); font-weight: 700; }
 /* 매장 로고는 가로로 긴 것이 많다 — 높이를 기준으로 맞춘다 */
-.app-logo.is-shop { width: auto; max-width: 132px; height: 40px; }
+.app-logo.is-shop { width: 44px; height: 44px; max-height: 44px; object-fit: contain; border-radius: 6px; }
 /* 테스트 버전에 따로 있던 스킨 단추는 설정의 '화면 색' 으로 합쳤다 */
 .skin-btn { display: none !important; }
