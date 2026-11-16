@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=164";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=164";
-import * as License from "./license.js?v=164";
-import * as Custom from "./custom-designs.js?v=164";
-import * as Update from "./update.js?v=164";
-import * as Crm from "./crm-ui.js?v=164";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=165";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=165";
+import * as License from "./license.js?v=165";
+import * as Custom from "./custom-designs.js?v=165";
+import * as Update from "./update.js?v=165";
+import * as Crm from "./crm-ui.js?v=165";
 
-const BUILD = "164";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "165";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -305,6 +305,12 @@ async function mountSimulator(kind, cfg) {
     // CFG 는 아래에서 JSON 으로 굳어 iframe 안에 박히므로, 그 뒤에 넣으면
     // 시뮬레이터는 번호를 모른 채 뜨고 준비 완료 신호가 전부 걸러진다.
     cfg.mount_gen = ++mountGen;
+    // 작업 이어하기 — 되살릴 조절값이 있으면 이번 편집 화면에만 실어 보낸다
+    if (pendingRestore && pendingRestore.kind === kind) {
+        cfg.restore = pendingRestore.state;
+        SESS.sim = { kind: kind, gen: mountGen, state: pendingRestore.state };
+    }
+    pendingRestore = null;
     // 저장 사진에 찍을 상호 (2026-10-30 — 묶음 할인 키를 다른 매장이 빌려 쓰지 못하게, 정상 구매자에게는 홍보)
     cfg.owner_shop = ownerShopLabel();
 
@@ -332,6 +338,19 @@ ${fillTemplate(markup, cfg)}
 <script>${helperJs}<\/script>
 <script>${js}<\/script>
 <script>${muiJs}<\/script>
+<script>(function(){
+/* 작업 이어하기 — 조절값이 바뀌면 앱 본체에 알리고, 되살릴 값이 실려 왔으면 적용한다 */
+var last="",K="${kind}",R=window.CFG&&window.CFG.restore;
+function snap(){try{if(typeof window.__blGetState!=="function")return;var st=window.__blGetState();var j=JSON.stringify(st);if(j===last)return;last=j;
+window.parent.postMessage({type:"mui:state",gen:window.CFG.mount_gen,kind:K,state:JSON.parse(j)},"*")}catch(e){}}
+function begin(){setInterval(snap,1500);
+document.addEventListener("visibilitychange",function(){if(document.visibilityState!=="visible")snap()});
+window.addEventListener("pagehide",snap)}
+function put(){try{window.__blSetState(R)}catch(e){if(window.__blReport)window.__blReport("이어하기",e&&e.message)}}
+if(R&&typeof window.__blSetState==="function"){
+/* 그림이 다 실린 뒤 자리를 다시 잡는 초기화가 있어, 조금 사이를 두고 두 번 적용한다 */
+setTimeout(put,500);setTimeout(function(){put();begin()},1600)}else begin();
+})();<\/script>
 </body></html>`;
 
     if (my !== renderToken) return;
@@ -503,6 +522,14 @@ window.addEventListener("message", (e) => {
         $("sim-frame").style.height = "";   // CSS(100dvh !important)가 맡는다
         $("step-canvas").hidden = false;
         $("step-canvas").scrollIntoView({ block: "start" });
+        return;
+    }
+
+    if (d.type === "mui:state") {
+        // 편집 화면의 조절값 — 작업 이어하기용으로 들고 있다가 sessionTick 이 적는다
+        if (d.gen !== mountGen || !fromSimFrame(e)) return;
+        SESS.sim = { kind: d.kind, gen: d.gen, state: d.state };
+        if (document.visibilityState !== "visible") sessionTick();
         return;
     }
 
@@ -2868,6 +2895,175 @@ function bindDiag() {
     });
 }
 
+
+/* ── 작업 이어하기 (2026-11-16 현장 의견) ───────────────────────────────
+ *
+ * 작업하다 카톡 · 전화 · 카메라 같은 다른 앱에 다녀오면 처음 화면으로 돌아가 있다는 의견이 나왔다.
+ * 폰은 뒤로 간 앱의 메모리를 거둬 가고, 돌아오면 앱을 처음부터 다시 띄운다. 막을 수는 없다.
+ * 그래서 작업 내용을 기기 안(IndexedDB)에 계속 적어 두고, 다시 뜰 때 그 자리로 되돌린다.
+ *
+ *   photo  고른 사진 (수평 맞춘 것)                — 바뀔 때만 다시 쓴다 (수백 KB)
+ *   bases  이어서 쓸 밑그림들 (눈썹 ↔ 입술)         — 바뀔 때만
+ *   meta   부위 · 디자인 · 퀵/메뉴얼 · 잰 얼굴 자리 · 편집 화면의 조절값
+ *
+ * 편집 화면(iframe)은 조절값이 바뀔 때마다 mui:state 로 알려 주고, 여기서 2초마다 · 앱이 뒤로 갈 때 적는다.
+ * 사진을 바꾸거나 [전체 초기화] 를 누르면 지운다. 마지막으로 손댄 지 2시간이 지난 것은 되살리지 않는다 (다음 손님일 수 있다).
+ * 고객 사진은 이 기기 밖으로 나가지 않는다.
+ * ------------------------------------------------------------------- */
+const SESS = { db: null, ready: false, hadData: false, photoRef: null, basesSig: "", metaJson: "", sim: null };
+const SESS_MAX_AGE = 2 * 60 * 60 * 1000;      // 마지막으로 손댄 지 2시간이 넘으면 되살리지 않는다
+const SESS_GUARD_KEY = "pmus.restoring";
+/** 되살릴 편집 화면 조절값 — 다음에 띄우는 편집 화면 한 번에만 실어 보낸다 */
+let pendingRestore = null;
+
+function sessOpen() {
+    return new Promise((resolve, reject) => {
+        const r = indexedDB.open("pmus-session", 1);
+        r.onupgradeneeded = () => { r.result.createObjectStore("kv"); };
+        r.onsuccess = () => resolve(r.result);
+        r.onerror = () => reject(r.error);
+    });
+}
+/** 저장소를 못 쓰는 기기(개인 모드 등)에서는 조용히 넘어간다 — 이어하기만 안 될 뿐이다 */
+async function sessDo(mode, fn) {
+    try {
+        if (!SESS.db) SESS.db = await sessOpen();
+        return await new Promise((resolve, reject) => {
+            const tx = SESS.db.transaction("kv", mode);
+            const req = fn(tx.objectStore("kv"));
+            tx.oncomplete = () => resolve(req ? req.result : undefined);
+            tx.onerror = tx.onabort = () => reject(tx.error);
+        });
+    } catch (e) {
+        return undefined;
+    }
+}
+const sessGet = (k) => sessDo("readonly", (s) => s.get(k));
+const sessPut = (k, v) => sessDo("readwrite", (s) => s.put(v, k));
+const sessClear = () => sessDo("readwrite", (s) => s.clear());
+
+/** 지금 상태를 적는다. 바뀐 것만 쓴다. */
+function sessionTick() {
+    if (!SESS.ready) return;
+    if (!state.photo || !state.photoDataUrl) {
+        if (SESS.hadData) {                       // 사진을 내렸다 (다시 찍기 · 전체 초기화) → 지운다
+            SESS.hadData = false; SESS.photoRef = null; SESS.basesSig = ""; SESS.metaJson = ""; SESS.sim = null;
+            sessClear();
+        }
+        return;
+    }
+    SESS.hadData = true;
+    if (SESS.photoRef !== state.photoDataUrl) {
+        if (SESS.photoRef) SESS.sim = null;       // 다른 사진이면 앞 사진의 조절값은 버린다
+        SESS.photoRef = state.photoDataUrl;
+        sessPut("photo", state.photoDataUrl);
+    }
+    const sig = state.bases.map((b) => b.id).join(",");
+    if (sig !== SESS.basesSig) {
+        SESS.basesSig = sig;
+        sessPut("bases", state.bases);
+    }
+    const sim = (SESS.sim && SESS.sim.kind === state.mountedKind && SESS.sim.gen === mountGen)
+        ? { kind: SESS.sim.kind, state: SESS.sim.state } : null;
+    const meta = {
+        v: 1, mode: state.mode, design: state.design, editMode: state.editMode,
+        eyes: state.eyes, brows: state.brows, lipInfo: state.lipInfo, baseChoice: state.baseChoice,
+        mounted: state.mountedKind, sim: sim,
+    };
+    let json = "";
+    try { json = JSON.stringify(meta); } catch (e) { return; }
+    if (json !== SESS.metaJson) {
+        SESS.metaJson = json;
+        meta.at = Date.now();
+        sessPut("meta", meta);
+    }
+}
+
+/**
+ * 앱이 다시 떴을 때, 하던 작업이 남아 있으면 그 자리로 되돌린다.
+ * 되살리다 앱이 또 죽으면(메모리 부족 등) 켤 때마다 죽는 꼴이 되므로,
+ * 되살리는 중이라는 표시를 남겨 두고 다음에 그 표시가 있으면 지우고 새로 시작한다.
+ */
+async function restoreSession() {
+    let crashed = false;
+    try { crashed = localStorage.getItem(SESS_GUARD_KEY) === "1"; } catch (e) {}
+    if (crashed) {
+        try { localStorage.removeItem(SESS_GUARD_KEY); } catch (e) {}
+        await sessClear();
+        return false;
+    }
+    const meta = await sessGet("meta");
+    if (!meta || meta.v !== 1 || !(Date.now() - meta.at < SESS_MAX_AGE)) {
+        if (meta) await sessClear();
+        return false;
+    }
+    const photo = await sessGet("photo");
+    if (!photo) return false;
+    try { localStorage.setItem(SESS_GUARD_KEY, "1"); } catch (e) {}
+    try {
+        showLoading("하던 작업을 불러오는 중...");
+        const img = await loadImage(photo);
+        const bases = (await sessGet("bases")) || [];
+        state.photo = img;
+        state.photoDataUrl = photo;
+        state.eyes = meta.eyes || null;
+        state.brows = meta.brows || null;
+        state.lipInfo = meta.lipInfo || null;
+        state.bases = Array.isArray(bases) ? bases : [];
+        state.baseChoice = meta.baseChoice || null;
+        state.editMode = meta.editMode === "manual" ? "manual" : "quick";
+        if (meta.mode && hasFeature(meta.mode)) state.mode = meta.mode;
+        if (meta.design) {
+            // 그사이 지운 '내 디자인' 이면 기본 디자인으로
+            try { await designSource(meta.design); state.design = meta.design; } catch (e) { /* 기본 그대로 */ }
+        }
+        // 이미 적혀 있는 것과 같으니 다시 쓰지 않게 표시해 둔다
+        SESS.photoRef = photo;
+        SESS.basesSig = state.bases.map((b) => b.id).join(",");
+        SESS.hadData = true;
+
+        $("preview-img").src = photo;
+        $("photo-size").textContent = `${img.naturalWidth} × ${img.naturalHeight}`;
+        $("drop-zone").hidden = true;
+        $("photo-preview").hidden = false;
+        $("step-mode").hidden = false;
+        const badge = $("detect-status");
+        badge.textContent = state.eyes ? "얼굴 인식 완료" : "얼굴 미검출 — 수동 배치";
+        badge.className = state.eyes ? "badge badge-ok" : "badge badge-warn";
+        document.querySelectorAll(".mode-tab").forEach((t) =>
+            t.classList.toggle("is-active", t.dataset.mode === state.mode));
+        document.querySelectorAll(".design-card").forEach((b) =>
+            b.classList.toggle("is-active", b.dataset.file === state.design));
+        updateStepVisibility();
+
+        if (meta.mounted && meta.mounted === state.mode) {
+            pendingRestore = (meta.sim && meta.sim.kind === meta.mounted && meta.sim.state)
+                ? { kind: meta.sim.kind, state: meta.sim.state } : null;
+            openSettings(false);
+            await rerender();
+        }
+        toast("하던 작업을 이어서 엽니다", 3200);
+        // 편집 화면이 뜨고도 한동안 멀쩡하면 표시를 지운다
+        setTimeout(() => { try { localStorage.removeItem(SESS_GUARD_KEY); } catch (e) {} }, 6000);
+        return true;
+    } catch (err) {
+        console.warn("작업 이어하기 실패", err);
+        try { localStorage.removeItem(SESS_GUARD_KEY); } catch (e) {}
+        await sessClear();
+        return false;
+    } finally {
+        hideLoading();
+    }
+}
+
+function startSessionKeeper() {
+    SESS.ready = true;
+    setInterval(sessionTick, 2000);
+    // 앱이 뒤로 가는 순간 한 번 더 — 그 뒤로는 언제 메모리를 거둬 갈지 모른다
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState !== "visible") sessionTick(); });
+    window.addEventListener("pagehide", sessionTick);
+}
+
 (async function init() {
     await buildDesignGrid();
     bindEvents();
@@ -2918,6 +3114,10 @@ function bindDiag() {
         hideLoading();
         hideSplash();
     }
+
+    // 다른 앱에 다녀온 사이 앱이 내려갔다 다시 뜬 것이면, 하던 작업을 그 자리로 되돌린다
+    await restoreSession();
+    startSessionKeeper();
 
     // 화면이 다 뜬 뒤에 조용히 확인한다. 새 판이 있을 때만 알린다.
     setTimeout(() => { checkUpdate(true); }, 2500);

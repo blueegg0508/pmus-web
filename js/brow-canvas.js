@@ -1029,6 +1029,10 @@
             }
         }
 
+        // 작업 이어하기 (2026-11-16) — 앱 본체가 조절값을 기기에 적어 두었다가, 앱이 다시 뜨면 돌려준다
+        window.__blGetState = function () { return captureStateSnapshot(); };
+        window.__blSetState = function (st) { if (st && st.leftPos && st.rightPos) applyStateSnapshot(st); };
+
         function undoAction() {
             flushPendingInteraction();
             if (undoStack.length === 0) return;

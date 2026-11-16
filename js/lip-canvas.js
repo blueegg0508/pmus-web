@@ -2811,6 +2811,59 @@
         // 입술 원본 화면에는 그 버튼이 없어 여기서 문을 열어 준다.
         window.__blLipRedo = lipRedo;
 
+        // 작업 이어하기 (2026-11-16) — 앱 본체가 조절값을 기기에 적어 두었다가, 앱이 다시 뜨면 돌려준다.
+        // 되돌리기용 snapshotState 에는 색 · 기법 · 투명도가 없어 여기서 더한다.
+        window.__blGetState = function () {
+            const st = snapshotState();
+            st.x = {
+                color: currentColor, tech: currentTech, opacity: opacity, natLip: natLip,
+                fillTint: fillTint, showDesignLine: showDesignLine,
+                pig: pigLayers.map(function (l) { return { name: l.name, hex: l.hex, a: l.a }; }),
+            };
+            return st;
+        };
+        window.__blSetState = function (st) {
+            if (!st || typeof st.globalOffsetX !== 'number') return;
+            applyLipState(st);
+            const x = st.x || {};
+            const setRange = function (id, v) {
+                const el = document.getElementById(id);
+                if (!el || typeof v !== 'number') return;
+                el.value = String(v);
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+            };
+            setRange('rngOpacity', x.opacity);
+            setRange('rngNatLip', x.natLip);
+            if (x.tech) {
+                currentTech = x.tech;
+                document.querySelectorAll('.tech-btn').forEach(function (b) {
+                    b.classList.toggle('active', b.getAttribute('data-tech') === x.tech);
+                });
+            }
+            if (x.color) {
+                currentColor = x.color;
+                const pk = document.getElementById('customColorPicker');
+                if (pk) pk.value = x.color;
+                document.querySelectorAll('.color-chip').forEach(function (c) {
+                    c.classList.toggle('active', (c.getAttribute('data-color') || '').toLowerCase() === String(x.color).toLowerCase());
+                });
+            }
+            const flip = function (id, now, want) {
+                if (typeof want !== 'boolean' || now === want) return;
+                const b = document.getElementById(id);
+                if (b) b.click();
+            };
+            flip('btnToggleFillTint', fillTint, x.fillTint);
+            flip('btnToggleDesignLine', showDesignLine, x.showDesignLine);
+            pigLayers.length = 0;
+            (Array.isArray(x.pig) ? x.pig : []).slice(0, 3).forEach(function (l) {
+                if (l && l.hex) pigLayers.push({ name: String(l.name || ''), hex: String(l.hex), a: Math.max(10, Math.min(100, +l.a || 100)) });
+            });
+            if (pigLayers.length) pigChanged(); else pigRender();
+            syncSliders();
+            requestRender();
+        };
+
         // ── 입꼬리 뾰족하게 ────────────────────────────────────────────────
         // 입꼬리는 윗입술·아랫입술이 만나는 한 점이라 값이 하나여야 한다.
         // 그래서 두 카드에 같은 조절바를 두고 서로 값을 맞춰 준다.
