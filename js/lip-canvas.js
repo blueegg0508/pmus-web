@@ -1145,6 +1145,88 @@
             ctx.drawImage(gls.canvas, rx, ry);
             ctx.restore();
         }
+        /**
+         * 입술 요철 명암 (2026-11-20 원장님 — "매트립도 빛 반사는 적지만 요철에 따라 색 명암이 달라진다").
+         * 색을 올리면 입술 결이 흐려져 판판한 색면처럼 보였다. 사진 속 입술에서 잔주름 · 요철을 뽑아,
+         * 빛 쪽을 향한 면은 살짝 밝게 · 반대쪽과 주름 골은 살짝 어둡게 다시 새긴다 (반사광 없이 명암만).
+         * 매트일수록 또렷하게, 글로스로 갈수록 조금 줄인다 (글로스는 반사가 그 몫을 한다).
+         * 모두 사진 좌표 판에서 계산하므로 확대해도 같다.
+         */
+        function renderLipRelief(ctx, w, h, curves) {
+            const b = lipBounds(curves);
+            if (!(b.w > 8 && b.h > 6)) return;
+            const pad = 4;
+            const rx = Math.max(0, Math.floor(b.x0 - pad)), ry = Math.max(0, Math.floor(b.y0 - pad));
+            const rw = Math.min(w - rx, Math.ceil(b.w + pad * 2)), rh = Math.min(h - ry, Math.ceil(b.h + pad * 2));
+            if (rw < 4 || rh < 4) return;
+            const m = ctx.getTransform ? ctx.getTransform() : { a: 1, d: 1, e: 0, f: 0 };
+            const raw = wetBuffer('rraw', rw, rh);
+            raw.ctx.clearRect(0, 0, rw, rh);
+            raw.ctx.drawImage(ctx.canvas, m.a * rx + m.e, m.d * ry + m.f, m.a * rw, m.d * rh, 0, 0, rw, rh);
+            const rd = raw.ctx.getImageData(0, 0, rw, rh).data;
+            const clip = wetBuffer('rclip', rw, rh);
+            clip.ctx.clearRect(0, 0, rw, rh);
+            clip.ctx.fillStyle = '#fff';
+            [curves.closedUpperLoop, curves.closedLowerLoop].forEach(function (lp) { tracePath(clip.ctx, lp, rx, ry); clip.ctx.fill(); });
+            // 경계 쪽으로 갈수록 스르르 줄인다
+            const inner = wetBuffer('rinner', rw, rh);
+            inner.ctx.clearRect(0, 0, rw, rh);
+            inner.ctx.filter = 'blur(' + Math.max(1, b.h * 0.03).toFixed(1) + 'px)';
+            inner.ctx.drawImage(clip.canvas, 0, 0);
+            inner.ctx.filter = 'none';
+            const cd = inner.ctx.getImageData(0, 0, rw, rh).data;
+            const N = rw * rh;
+            const L = new Float32Array(N), B = new Float32Array(N), T = new Float32Array(N);
+            for (let q = 0, o = 0; q < N; q++, o += 4) L[q] = 0.299 * rd[o] + 0.587 * rd[o + 1] + 0.114 * rd[o + 2];
+            const rad = Math.max(1, Math.round(b.h * 0.03));
+            const blur = function (src, dst, r) {
+                for (let y = 0; y < rh; y++) {
+                    let acc = 0; const row = y * rw;
+                    for (let x = -r; x <= r; x++) acc += src[row + Math.min(rw - 1, Math.max(0, x))];
+                    for (let x = 0; x < rw; x++) { T[row + x] = acc / (2 * r + 1); acc += src[row + Math.min(rw - 1, x + r + 1)] - src[row + Math.max(0, x - r)]; }
+                }
+                for (let x = 0; x < rw; x++) {
+                    let acc = 0;
+                    for (let y = -r; y <= r; y++) acc += T[Math.min(rh - 1, Math.max(0, y)) * rw + x];
+                    for (let y = 0; y < rh; y++) { dst[y * rw + x] = acc / (2 * r + 1); acc += T[Math.min(rh - 1, y + r + 1) * rw + x] - T[Math.max(0, y - r) * rw + x]; }
+                }
+            };
+            blur(L, B, rad); blur(B, B, rad);
+            let sum = 0, sum2 = 0, cnt = 0;
+            for (let q = 0; q < N; q++) {
+                const v = L[q] - B[q]; L[q] = v;                      // L 을 잔주름(고주파)으로 다시 쓴다
+                if (cd[q * 4 + 3] > 200) { sum += v; sum2 += v * v; cnt++; }
+            }
+            const sd = cnt ? Math.max(1.5, Math.sqrt(Math.max(0, sum2 / cnt - (sum / cnt) * (sum / cnt)))) : 4;
+            const ang = glossAngle * Math.PI / 180;
+            const st = Math.max(1, Math.round(b.h * 0.012));
+            const ox = Math.round(Math.sin(ang) * st), oy = Math.round(-Math.cos(ang) * st);
+            const strength = 1 - 0.45 * Math.min(1, gloss / 100);      // 매트 1 · 글로스 0.55
+            const out = wetBuffer('rshade', rw, rh);
+            const img = out.ctx.createImageData(rw, rh), od = img.data;
+            for (let y = 0; y < rh; y++) {
+                for (let x = 0; x < rw; x++) {
+                    const q = y * rw + x, a = cd[q * 4 + 3] / 255;
+                    const o = q * 4;
+                    if (a <= 0.01) continue;
+                    const bx = Math.min(rw - 1, Math.max(0, x - ox)), by = Math.min(rh - 1, Math.max(0, y - oy));
+                    const face = (L[by * rw + bx] - L[q]) / sd;              // 빛 쪽을 향하면 +
+                    const fine = L[q] / sd;                                  // 결 자체 (골은 -)
+                    let v = 22 * Math.max(-2.2, Math.min(2.2, face)) + 14 * Math.max(-2.5, Math.min(2.5, fine));
+                    v *= strength;
+                    const g = Math.max(0, Math.min(255, 128 + v));
+                    od[o] = od[o + 1] = od[o + 2] = g; od[o + 3] = Math.round(a * 255);
+                }
+            }
+            out.ctx.putImageData(img, 0, 0);
+            ctx.save();
+            ctx.filter = 'none';
+            ctx.globalCompositeOperation = 'soft-light';      // 128 은 그대로, 밝으면 밝게 · 어두우면 어둡게 (색은 지킨다)
+            ctx.globalAlpha = 1;
+            ctx.drawImage(out.canvas, rx, ry);
+            ctx.restore();
+        }
+
         /** 마무리 단추(매트 · 글로스)를 지금 값에 맞춘다 */
         function syncFinish() {
             const r = document.getElementById('rngGloss'), v = document.getElementById('valGloss');
@@ -1280,6 +1362,7 @@
             targetCtx.restore();
 
             // 3. 탕후루 광택
+            try { renderLipRelief(targetCtx, w, h, curves); } catch (e) { /* 명암을 못 새겨도 색은 그대로 */ }
             if (gloss > 0) renderWetGloss(targetCtx, w, h, curves, gloss);
         }
 
