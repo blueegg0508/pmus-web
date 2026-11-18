@@ -1090,9 +1090,10 @@
             }
             const sd = cnt ? Math.max(1.5, Math.sqrt(Math.max(0, sum2 / cnt - (sum / cnt) * (sum / cnt)))) : 4;
             // 빛이 오는 쪽 (0° 위 · 90° 오른쪽 · 180° 아래 · 270° 왼쪽)
+            // (2026-11-21) 정수 칸 이웃 대신 기울기 · 빛 방향 내적 — 각도를 돌려도 주름 무늬는 그대로, 반사만 연속으로 옮겨 간다
             const ang = glossAngle * Math.PI / 180;
-            const step = Math.max(1, Math.round(b.h * 0.012));
-            const ox = Math.round(Math.sin(ang) * step), oy = Math.round(-Math.cos(ang) * step);
+            const step = Math.max(1, b.h * 0.012);
+            const ox = Math.sin(ang) * step, oy = -Math.cos(ang) * step;
             const sstep = function (e0, e1, v) { const t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
             const gl = wetBuffer('glint', rw, rh);
             const out = gl.ctx.createImageData(rw, rh), od = out.data;
@@ -1102,8 +1103,8 @@
                     const cl = clipData[q * 4 + 3] / 255;
                     if (cl <= 0) continue;
                     const zone = zoneData[q * 4] / 255;                 // 반사가 많이 맺힐 자리 (0 ~ 1)
-                    const bx = Math.min(rw - 1, Math.max(0, x - ox)), by = Math.min(rh - 1, Math.max(0, y - oy));
-                    const face = (HP[by * rw + bx] - HP[q]) / sd;         // 빛 쪽을 향한 경사
+                    const gx = (HP[q + 1] - HP[q - 1]) * 0.5, gy = (HP[q + rw] - HP[q - rw]) * 0.5;
+                    const face = -(gx * ox + gy * oy) / sd;               // 빛 쪽을 향한 경사
                     const ridge = HP[q] / sd;                             // 도드라진 결
                     let v = Math.max(sstep(0.55, 1.6, face), 0.85 * sstep(0.9, 2.2, ridge));
                     // 반사는 빛 덩어리 자리에 몰리고, 그 밖에서는 아주 드물게만
@@ -1201,8 +1202,8 @@
             }
             const sd = cnt ? Math.max(1.5, Math.sqrt(Math.max(0, sum2 / cnt - (sum / cnt) * (sum / cnt)))) : 4;
             const ang = glossAngle * Math.PI / 180;
-            const st = Math.max(1, Math.round(b.h * 0.012));
-            const ox = Math.round(Math.sin(ang) * st), oy = Math.round(-Math.cos(ang) * st);
+            const st = Math.max(1, b.h * 0.012);
+            const ox = Math.sin(ang) * st, oy = -Math.cos(ang) * st;
             const strength = 1 - 0.45 * Math.min(1, gloss / 100);      // 매트 1 · 글로스 0.55
             const out = wetBuffer('rshade', rw, rh);
             const img = out.ctx.createImageData(rw, rh), od = img.data;
@@ -1211,8 +1212,10 @@
                     const q = y * rw + x, a = cd[q * 4 + 3] / 255;
                     const o = q * 4;
                     if (a <= 0.01) continue;
-                    const bx = Math.min(rw - 1, Math.max(0, x - ox)), by = Math.min(rh - 1, Math.max(0, y - oy));
-                    const face = (L[by * rw + bx] - L[q]) / sd;              // 빛 쪽을 향하면 +
+                    const xl = x > 0 ? q - 1 : q, xr = x < rw - 1 ? q + 1 : q;
+                    const yu = y > 0 ? q - rw : q, yd = y < rh - 1 ? q + rw : q;
+                    const gx = (L[xr] - L[xl]) / Math.max(1, xr - xl), gy = (L[yd] - L[yu]) / Math.max(1, (yd - yu) / rw);
+                    const face = -(gx * ox + gy * oy) / sd;                  // 빛 쪽을 향하면 + (기울기 · 빛 방향 내적)
                     const fine = L[q] / sd;                                  // 결 자체 (골은 -)
                     let v = 22 * Math.max(-2.2, Math.min(2.2, face)) + 14 * Math.max(-2.5, Math.min(2.5, fine));
                     v *= strength;
