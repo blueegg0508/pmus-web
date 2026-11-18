@@ -995,7 +995,9 @@
             const tex = wetBuffer('tex', rw, rh);
             tex.ctx.clearRect(0, 0, rw, rh);
             tex.ctx.filter = 'grayscale(1) contrast(3.4) brightness(1.5)';
-            tex.ctx.drawImage(ctx.canvas, rx, ry, rw, rh, 0, 0, rw, rh);
+            // 판에 걸린 배율 · 이동을 거슬러 사진 좌표의 그 자리를 읽는다
+            const m = ctx.getTransform ? ctx.getTransform() : { a: 1, d: 1, e: 0, f: 0 };
+            tex.ctx.drawImage(ctx.canvas, m.a * rx + m.e, m.d * ry + m.f, m.a * rw, m.d * rh, 0, 0, rw, rh);
             tex.ctx.filter = 'none';
             // ① 빛 덩어리 (검은 바탕 위)
             const hl = wetBuffer('hl', rw, rh);
@@ -1036,7 +1038,14 @@
             g.drawImage(clip.canvas, 0, 0);
             g.filter = 'none';
             g.globalCompositeOperation = 'source-over';
+            // 넓게 번지는 물기 — 흐림도 사진 좌표 판에서 미리 걸어 둔다 (판의 흐림은 확대 배율을 무시한다)
+            const soft = wetBuffer('hlsoft', rw, rh);
+            soft.ctx.clearRect(0, 0, rw, rh);
+            soft.ctx.filter = 'blur(' + Math.max(1, b.h * 0.035).toFixed(1) + 'px)';
+            soft.ctx.drawImage(hl.canvas, 0, 0);
+            soft.ctx.filter = 'none';
             ctx.save();
+            ctx.filter = 'none';
             // 촉촉해 보이게 색을 살짝 깊게 한 뒤 빛을 얹는다
             ctx.globalCompositeOperation = 'soft-light';
             ctx.globalAlpha = 0.18 * k;
@@ -1044,10 +1053,8 @@
             // 넓게 번지는 물기 + 또렷하게 맺힌 빛 — 두 번 얹는다
             ctx.globalCompositeOperation = 'screen';
             ctx.globalAlpha = 0.7 * k;
-            ctx.filter = 'blur(' + Math.max(1, b.h * 0.035).toFixed(1) + 'px)';
-            ctx.drawImage(hl.canvas, rx, ry);
+            ctx.drawImage(soft.canvas, rx, ry);
             ctx.globalAlpha = 0.95 * k;
-            ctx.filter = 'none';
             ctx.drawImage(hl.canvas, rx, ry);
             ctx.restore();
         }
@@ -1116,10 +1123,18 @@
 
             // 주름 질감 보존 블렌딩
             targetCtx.save();
+            targetCtx.filter = 'none';
             if (blurVal > 0) {
-                targetCtx.filter = `blur(${blurVal}px)`;
-            } else {
-                targetCtx.filter = 'none';
+                // 경계 흐림은 사진 좌표 판(offCanvas)에 건다 — 그리는 판에 걸면 확대할수록 경계가 또렷해졌다
+                const bl = wetBuffer('tintblur', w, h);
+                bl.ctx.clearRect(0, 0, w, h);
+                bl.ctx.filter = `blur(${blurVal}px)`;
+                bl.ctx.drawImage(offCanvas, 0, 0);
+                bl.ctx.filter = 'none';
+                offCtx.save();
+                offCtx.globalCompositeOperation = 'copy';
+                offCtx.drawImage(bl.canvas, 0, 0);
+                offCtx.restore();
             }
             // 색 올리기 (2026-11-18 현장 의견: "어떤 색을 골라도 형광톤처럼 뜬다").
             // 예전에는 고른 색을 입술 위에 거의 불투명하게 덮어 칠했다. 화면의 원색이 그대로 올라와
