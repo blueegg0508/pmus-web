@@ -710,6 +710,22 @@
            ["btnResetContour", "↺ 원본복원"]]
     ).forEach(function (p) { move(chips, pick(p[0], p[1])); });
 
+    /**
+     * 입술 탭 아이콘 (2026-11-20 원장님) — 입술 모양에서 고르는 쪽은 진한 실선, 다른 쪽은 점선.
+     * 윗입술 탭은 윗입술이, 아랫입술 탭은 아랫입술이 진하다. 다른 선 아이콘과 같은 크기 · 굵기 계열.
+     */
+    function lipTabIcon(which) {
+        var up = "M2 12c2.6-3.3 5-4.8 7-4.8 1.3 0 2.2.7 3 1.6.8-.9 1.7-1.6 3-1.6 2 0 4.4 1.5 7 4.8";
+        var lo = "M2 12c2.6 3.6 6 5.6 10 5.6s7.4-2 10-5.6";
+        var solid = 'fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"';
+        var dash = 'fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="1.2 2.4" opacity=".85"';
+        return '<svg class="li li-solo mui-lipicon" viewBox="0 0 24 24" aria-hidden="true" style="margin:0">'
+            + '<path d="' + up + '" ' + (which === "upper" ? solid : dash) + '/>'
+            + '<path d="' + lo + '" ' + (which === "lower" ? solid : dash) + '/>'
+            + '<path d="M2 12h20" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>'
+            + '</svg>';
+    }
+
     // ── 5. 탭 정의 & 컨트롤 이동 ────────────────────────────────────────
     var TABS = isBrow ? [
         {
@@ -787,11 +803,11 @@
          * html.mui-on 이 감추므로 보이지 않고, 캔버스 코드가 이름으로 찾아
          * 값을 읽고 쓰는 일은 그대로 이어진다. */
         {
-            key: "upper", icon: "💖", label: "윗입술", title: "윗입술 정밀 디자인",
+            key: "upper", icon: lipTabIcon("upper"), label: "윗입술", title: "윗입술 정밀 디자인",
             nodes: function () { return [$("detectionBadge"), openCard("cardUpper")]; }
         },
         {
-            key: "lower", icon: "🌓", label: "아랫입술", title: "아랫입술 정밀 디자인",
+            key: "lower", icon: lipTabIcon("lower"), label: "아랫입술", title: "아랫입술 정밀 디자인",
             nodes: function () {
                 // 윗입술 카드에 남긴 것과 같은 값이라 여기서는 감춘다
                 var dupe = $("gridSharpLower");
