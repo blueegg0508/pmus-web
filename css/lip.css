@@ -1006,6 +1006,10 @@
 
 /* ── 마무리: 매트 / 글로스 (2026-11-19) ── */
 .lip-finish-row { margin-bottom: 10px; }
+.lip-light-wrap { display: flex; align-items: center; gap: 10px; }
+.lip-light-dial { flex: 0 0 52px; width: 52px; height: 52px; color: var(--text-2, #ddd3cc); touch-action: none; cursor: grab; }
+.lip-light-col { flex: 1 1 auto; min-width: 0; }
+.lip-light-col input[type=range] { width: 100%; }
 .lip-finish-ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted, #a89a92); margin-top: 2px; }
 .mui-qfinish { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 0 12px; }
 .mui-qfinish button { min-height: 44px; border-radius: 10px; background: var(--surface-2, #241f27); border: 1px solid var(--line-2, #443b47); color: var(--text-2, #ddd3cc); font-size: 13.5px; font-weight: 700; cursor: pointer; }

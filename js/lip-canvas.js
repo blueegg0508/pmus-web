@@ -283,7 +283,7 @@
         let natLip = 100;
         let gloss = 0;
         /** 빛 방향 (도) — 0 = 정면 위에서, - 왼쪽에서, + 오른쪽에서. 광택이 빛 오는 쪽으로 옮겨 가고 그쪽이 더 밝다 */
-        let glossAngle = 0;
+        let glossAngle = 45;      // 빛이 오는 쪽 — 0° 위, 시계 방향 (90° 오른쪽 · 180° 아래 · 270° 왼쪽). 기본 45° 사선
         let blurVal = 3.5;
 
 
@@ -1022,16 +1022,18 @@
             };
             const cx = (b.x0 + b.x1) / 2;
             // 빛 방향: 빛이 오는 쪽으로 빛 덩어리가 옮겨 가고, 그쪽 것은 밝게 · 반대쪽은 어둡게
-            const sx = Math.sin(glossAngle * Math.PI / 180);          // -0.87 ~ 0.87
+            const sx = Math.sin(glossAngle * Math.PI / 180);          // 왼쪽 -1 ~ 오른쪽 1
+            const sy = (1 - Math.cos(glossAngle * Math.PI / 180)) / 2;  // 위 0 ~ 아래 1
             const lx = sx * b.l.w * 0.20, ux = sx * b.u.w * 0.16;
+            const ly = sy * b.l.h * 0.22, uy = sy * b.u.h * 0.20;
             const near = function (side) { return Math.max(0.15, Math.min(1.25, 1 + 0.6 * side * sx)); };   // side: -1 왼쪽 · +1 오른쪽
             // 아랫입술: 가운데 볼록한 곳에 크게, 양옆에 작게
-            blob(cx + lx, b.l.y0 + b.l.h * 0.44, b.l.w * 0.30, b.l.h * 0.34, 1);
-            blob(cx - b.l.w * 0.24 + lx * 0.6, b.l.y0 + b.l.h * 0.42, b.l.w * 0.13, b.l.h * 0.24, 0.55 * near(-1));
-            blob(cx + b.l.w * 0.24 + lx * 0.6, b.l.y0 + b.l.h * 0.42, b.l.w * 0.13, b.l.h * 0.24, 0.55 * near(1));
+            blob(cx + lx, b.l.y0 + b.l.h * 0.44 + ly, b.l.w * 0.30, b.l.h * 0.34, 1);
+            blob(cx - b.l.w * 0.24 + lx * 0.6, b.l.y0 + b.l.h * 0.42 + ly, b.l.w * 0.13, b.l.h * 0.24, 0.55 * near(-1));
+            blob(cx + b.l.w * 0.24 + lx * 0.6, b.l.y0 + b.l.h * 0.42 + ly, b.l.w * 0.13, b.l.h * 0.24, 0.55 * near(1));
             // 윗입술: 양 봉우리 아래
-            blob(cx - b.u.w * 0.16 + ux, b.u.y0 + b.u.h * 0.56, b.u.w * 0.15, b.u.h * 0.30, Math.min(1, 0.7 * near(-1)));
-            blob(cx + b.u.w * 0.16 + ux, b.u.y0 + b.u.h * 0.56, b.u.w * 0.15, b.u.h * 0.30, Math.min(1, 0.7 * near(1)));
+            blob(cx - b.u.w * 0.16 + ux, b.u.y0 + b.u.h * 0.56 + uy, b.u.w * 0.15, b.u.h * 0.30, Math.min(1, 0.7 * near(-1)));
+            blob(cx + b.u.w * 0.16 + ux, b.u.y0 + b.u.h * 0.56 + uy, b.u.w * 0.15, b.u.h * 0.30, Math.min(1, 0.7 * near(1)));
             // ── 입술 요철 따라 맺히는 빛 (2026-11-20 원장님 참고 사진) ──────────────────────
             // 실제 글로스 입술은 '빛 덩어리' 가 아니라, 입술의 잔주름 · 요철 하나하나가 빛을 받는 면에서
             // 하얗게 잘게 끊어진 반사가 맺힌다. 그래서 사진 속 입술에서 잔주름(요철)을 뽑아 내고,
@@ -1087,7 +1089,7 @@
                 if (clipData[q * 4 + 3] > 128) { sum += HP[q]; sum2 += HP[q] * HP[q]; cnt++; }
             }
             const sd = cnt ? Math.max(1.5, Math.sqrt(Math.max(0, sum2 / cnt - (sum / cnt) * (sum / cnt)))) : 4;
-            // 빛이 오는 쪽 (0° = 정면 위, - 왼쪽, + 오른쪽)
+            // 빛이 오는 쪽 (0° 위 · 90° 오른쪽 · 180° 아래 · 270° 왼쪽)
             const ang = glossAngle * Math.PI / 180;
             const step = Math.max(1, Math.round(b.h * 0.012));
             const ox = Math.round(Math.sin(ang) * step), oy = Math.round(-Math.cos(ang) * step);
@@ -1227,6 +1229,64 @@
             ctx.restore();
         }
 
+        /**
+         * 틴트립 진하기 판 (사진 좌표). 윗입술 · 아랫입술 각각 세로줄마다 '맞닿는 선 → 바깥 경계' 를 0 → 1 로,
+         * 가로로는 입술 가운데 → 입꼬리를 0 → 1 로 재어, 둘을 합한 거리만큼 부드럽게 옅어진다.
+         * 그래서 진하기의 중심은 맞닿는 선의 정 가운데 하나이고, 등고선이 입술 모양을 따라 퍼진다.
+         */
+        function tintGradMask(curves, w, h) {
+            const b = lipBounds(curves);
+            if (!(b.w > 8 && b.h > 6)) return null;
+            const pad = 3;
+            const rx = Math.max(0, Math.floor(b.x0 - pad)), ry = Math.max(0, Math.floor(b.y0 - pad));
+            const rw = Math.min(w - rx, Math.ceil(b.w + pad * 2)), rh = Math.min(h - ry, Math.ceil(b.h + pad * 2));
+            if (rw < 4 || rh < 4) return null;
+            const read = function (name, lp) {
+                const c = wetBuffer(name, rw, rh);
+                c.ctx.clearRect(0, 0, rw, rh);
+                c.ctx.fillStyle = '#fff';
+                if (lp && lp.length > 2) { tracePath(c.ctx, lp, rx, ry); c.ctx.fill(); }
+                return c.ctx.getImageData(0, 0, rw, rh).data;
+            };
+            const U = read('tgu', curves.closedUpperLoop), Lo = read('tgl', curves.closedLowerLoop);
+            const cx = (b.x0 + b.x1) / 2 - rx, half = Math.max(4, b.w / 2);
+            const sstep = function (e0, e1, v) { const t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+            const out = wetBuffer('tgrad', rw, rh);
+            const img = out.ctx.createImageData(rw, rh), od = img.data;
+            for (let x = 0; x < rw; x++) {
+                // 이 세로줄에서 윗입술 · 아랫입술이 차지하는 범위
+                let u0 = -1, u1 = -1, l0 = -1, l1 = -1;
+                for (let y = 0; y < rh; y++) {
+                    const o = (y * rw + x) * 4 + 3;
+                    if (U[o] > 100) { if (u0 < 0) u0 = y; u1 = y; }
+                    if (Lo[o] > 100) { if (l0 < 0) l0 = y; l1 = y; }
+                }
+                const th = Math.min(1, Math.abs(x + 0.5 - cx) / half);       // 가운데 0 → 입꼬리 1
+                const fill = function (y0, y1, fromBottom) {
+                    if (y0 < 0) return;
+                    const span = Math.max(1, y1 - y0);
+                    for (let y = y0; y <= y1; y++) {
+                        const tv = fromBottom ? (y1 - y) / span : (y - y0) / span;   // 맞닿는 선 0 → 바깥 경계 1
+                        const d = Math.sqrt(tv * tv * 0.9 + th * th * 0.75);
+                        const a = 1 - sstep(0.0, 1.05, d);
+                        const o = (y * rw + x) * 4;
+                        od[o] = od[o + 1] = od[o + 2] = 255;
+                        od[o + 3] = Math.max(od[o + 3], Math.round(a * 255));
+                    }
+                };
+                fill(u0, u1, true);    // 윗입술: 아래쪽(맞닿는 선)이 0
+                fill(l0, l1, false);   // 아랫입술: 위쪽(맞닿는 선)이 0
+            }
+            out.ctx.putImageData(img, 0, 0);
+            // 세로줄 계단이 보이지 않게 살짝만 흐린다 (사진 좌표 판에서)
+            const sm = wetBuffer('tgrads', rw, rh);
+            sm.ctx.clearRect(0, 0, rw, rh);
+            sm.ctx.filter = 'blur(' + Math.max(1, b.h * 0.04).toFixed(1) + 'px)';
+            sm.ctx.drawImage(out.canvas, 0, 0);
+            sm.ctx.filter = 'none';
+            return { canvas: sm.canvas, x: rx, y: ry };
+        }
+
         /** 마무리 단추(매트 · 글로스)를 지금 값에 맞춘다 */
         function syncFinish() {
             const r = document.getElementById('rngGloss'), v = document.getElementById('valGloss');
@@ -1350,28 +1410,24 @@
             // 풀립 · 벨벳은 경계까지 꽉 채우는 기법이라 예전처럼 고르게 올린다.
             // 틴트립 (2026-11-20 원장님): 윗입술 · 아랫입술이 맞닿는 선이 가장 진하고 바깥 경계로 갈수록 연해진다.
             // 입 다문 선을 굵게 그어 크게 흐린 판을 만들어, 그 판만큼만 색을 진하게 올린다.
+            // (2026-11-21 원장님) 예전에는 입 다문 선을 굵게 그어 흐린 띠로 진하기를 정해, 띠 가장자리에
+            // 진하고 옅은 경계가 줄처럼 보였다. 이제는 두 입술이 맞닿는 선의 '정 가운데' 를 가장 진하게 두고,
+            // 입술 모양을 따라 — 세로로는 맞닿는 선 → 바깥 경계, 가로로는 가운데 → 입꼬리 — 고르게 옅어진다.
             if (currentTech === 'tint_lip') {
-                layTint(0.07);
-                const bb = lipBounds(curves);
-                const mk = wetBuffer('mask', w, h);
-                mk.ctx.clearRect(0, 0, w, h);
-                mk.ctx.save();
-                mk.ctx.strokeStyle = '#fff';
-                mk.ctx.lineCap = 'round'; mk.ctx.lineJoin = 'round';
-                mk.ctx.lineWidth = Math.max(4, bb.h * 0.3);
-                mk.ctx.filter = 'blur(' + Math.max(3, bb.h * 0.17).toFixed(1) + 'px)';
-                [curves.smoothUpperInner, curves.smoothLowerInner].forEach(function (ln) {
-                    if (!ln || ln.length < 2) return;
-                    mk.ctx.beginPath();
-                    mk.ctx.moveTo(ln[0][0], ln[0][1]);
-                    for (let i = 1; i < ln.length; i++) mk.ctx.lineTo(ln[i][0], ln[i][1]);
-                    mk.ctx.stroke();
-                });
-                mk.ctx.restore();
-                offCtx.save();
-                offCtx.globalCompositeOperation = 'destination-in';
-                offCtx.drawImage(mk.canvas, 0, 0);
-                offCtx.restore();
+                layTint(0.10);
+                const gm = tintGradMask(curves, w, h);
+                if (gm) {
+                    offCtx.save();
+                    offCtx.globalCompositeOperation = 'destination-in';
+                    offCtx.drawImage(gm.canvas, gm.x, gm.y);
+                    offCtx.restore();
+                    offCtx.save();          // 판 밖(입술 밖)은 비운다
+                    offCtx.globalCompositeOperation = 'destination-out';
+                    offCtx.fillStyle = '#000';
+                    offCtx.fillRect(0, 0, w, gm.y); offCtx.fillRect(0, gm.y + gm.canvas.height, w, h);
+                    offCtx.fillRect(0, gm.y, gm.x, gm.canvas.height); offCtx.fillRect(gm.x + gm.canvas.width, gm.y, w, gm.canvas.height);
+                    offCtx.restore();
+                }
                 layTint(1.1);
                 layTint(0.45);
             } else if (currentTech !== 'full_lip') {
@@ -2992,11 +3048,38 @@
         (function () {
             const r = document.getElementById('rngLight'), v = document.getElementById('valLight');
             if (!r) return;
-            r.addEventListener('input', function () {
-                glossAngle = parseFloat(this.value) || 0;
+            const dial = document.getElementById('lipLightDial'), sun = document.getElementById('lipLightSun');
+            const show = function () {
                 if (v) v.textContent = Math.round(glossAngle) + '°';
+                if (sun) sun.setAttribute('transform', 'rotate(' + glossAngle + ' 24 24)');
+            };
+            r.addEventListener('input', function () {
+                let a = parseFloat(this.value);
+                if (!isFinite(a)) a = 45;
+                if (a < 0) { a += 360; this.value = String(a); }       // 예전 저장값(-60 ~ 60)도 그대로 읽는다
+                glossAngle = a % 360;
+                show();
                 requestRender();
             });
+            // 다이얼을 손가락으로 돌려도 된다 — 입술 가운데를 중심으로 빛이 오는 쪽을 가리킨다
+            if (dial) {
+                const turn = function (e) {
+                    const bb = dial.getBoundingClientRect();
+                    const p = e.touches ? e.touches[0] : e;
+                    const dx = p.clientX - (bb.left + bb.width / 2), dy = p.clientY - (bb.top + bb.height / 2);
+                    if (dx * dx + dy * dy < 4) return;
+                    let a = Math.round(Math.atan2(dx, -dy) * 180 / Math.PI / 5) * 5;
+                    if (a < 0) a += 360;
+                    r.value = String(a);
+                    r.dispatchEvent(new Event('input', { bubbles: true }));
+                };
+                let on = false;
+                dial.addEventListener('pointerdown', function (e) { on = true; try { dial.setPointerCapture(e.pointerId); } catch (x) { /* 없어도 된다 */ } turn(e); e.preventDefault(); });
+                dial.addEventListener('pointermove', function (e) { if (on) turn(e); });
+                dial.addEventListener('pointerup', function () { on = false; });
+                dial.addEventListener('pointercancel', function () { on = false; });
+            }
+            show();
         })();
         // 마무리: 매트(0) ~ 글로스(100) 조절바 — 색 · 모양은 그대로 두고 광택만 바꾼다
         (function () {

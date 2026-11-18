@@ -369,11 +369,21 @@
                                 <input type="range" id="rngGloss" min="0" max="100" step="5" value="0">
                                 <div class="lip-finish-ends"><span>매트</span><span>글로스</span></div>
                             </div>
-                            <!-- 빛 방향 — 빛이 오는 쪽으로 광택이 옮겨 간다 (2026-11-20 원장님) -->
+                            <!-- 빛 방향 — 입술 가운데를 중심으로 360° (2026-11-21 원장님 — 기본은 45° 사선) -->
                             <div class="ctrl-row lip-finish-row" id="lipLightRow">
-                                <label>빛 방향 <span id="valLight">0°</span></label>
-                                <input type="range" id="rngLight" min="-60" max="60" step="5" value="0">
-                                <div class="lip-finish-ends"><span>왼쪽에서</span><span>정면 위</span><span>오른쪽에서</span></div>
+                                <label>빛 방향 <span id="valLight">45°</span></label>
+                                <div class="lip-light-wrap">
+                                    <svg id="lipLightDial" class="lip-light-dial" viewBox="0 0 48 48" data-no-icon aria-hidden="true">
+                                        <circle cx="24" cy="24" r="19" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".35"/>
+                                        <path d="M14 24c2.4-2.6 4.6-3.6 6.6-3.6 1.4 0 2.4.6 3.4 1.4 1-.8 2-1.4 3.4-1.4 2 0 4.2 1 6.6 3.6c-2.6 3.2-5.8 4.6-10 4.6s-7.4-1.4-10-4.6z" fill="currentColor" opacity=".55"/>
+                                        <path d="M14 24h20" stroke="currentColor" stroke-width=".9" opacity=".6"/>
+                                        <g id="lipLightSun"><line x1="24" y1="24" x2="24" y2="9" stroke="currentColor" stroke-width="1" stroke-dasharray="1.5 2" opacity=".6"/><circle cx="24" cy="6" r="4" fill="#f5b400" stroke="#fff" stroke-width="1.2"/></g>
+                                    </svg>
+                                    <div class="lip-light-col">
+                                        <input type="range" id="rngLight" min="0" max="360" step="5" value="45">
+                                        <div class="lip-finish-ends"><span>위</span><span>오른쪽</span><span>아래</span><span>왼쪽</span><span>위</span></div>
+                                    </div>
+                                </div>
                             </div>
                             <!-- 대표 색상 — 쿨톤 · 웜톤 셋씩 (2026-11-19 원장님) -->
                             <div class="color-tone-label">쿨톤</div>
