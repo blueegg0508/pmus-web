@@ -1802,6 +1802,30 @@
         quick.appendChild(qTopSlot);
     }
 
+    // 입술: 시술 기법 (내추럴 · 풀립 · 틴트립) — 대표 색상 바로 위 (2026-11-20 원장님)
+    var qTech = null;
+    if (!isBrow && document.querySelector(".tech-btn[data-tech]")) {
+        quick.appendChild(qhead("시술 기법"));
+        qTech = el("div", "mui-qtech");
+        document.querySelectorAll(".tech-btn[data-tech]").forEach(function (src) {
+            var b = el("button", null, src.textContent.trim());
+            b.type = "button"; b.setAttribute("data-tech", src.getAttribute("data-tech"));
+            b.addEventListener("click", function () { src.click(); qTech.sync(); });
+            qTech.appendChild(b);
+        });
+        qTech.sync = function () {
+            var on = document.querySelector(".tech-btn.active[data-tech]");
+            var k = on ? on.getAttribute("data-tech") : "";
+            qTech.querySelectorAll("button").forEach(function (b) { b.classList.toggle("is-on", b.getAttribute("data-tech") === k); });
+        };
+        qTech.sync();
+        quick.appendChild(qTech);
+        // 메뉴얼에서 바꿔도 따라간다
+        document.querySelectorAll(".tech-btn[data-tech]").forEach(function (src) {
+            src.addEventListener("click", function () { setTimeout(qTech.sync, 0); });
+        });
+    }
+
     quick.appendChild(qhead("대표 색상"));
     if (qColors) quick.appendChild(qColors);
 
@@ -1930,6 +1954,7 @@
 
     function syncQuick() {
         if (qColors && qColors.sync) qColors.sync();
+        if (qTech && qTech.sync) qTech.sync();
         qExtra.forEach(function (n) { if (n.sync) n.sync(); });
     }
 

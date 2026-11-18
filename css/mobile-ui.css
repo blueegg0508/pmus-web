@@ -898,6 +898,10 @@ html.mui-on .mui-shot.is-compare > .mui-split {
     grid-template-columns: repeat(4, 1fr);
     gap: 8px;
 }
+/* 입술 시술 기법 (내추럴 · 풀립 · 틴트립) */
+.mui-qtech { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 0 0 6px; }
+.mui-qtech button { min-height: 44px; border-radius: 10px; background: var(--surface-2, #241f27); border: 1px solid var(--line-2, #443b47); color: var(--text-2, #ddd3cc); font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.mui-qtech button.is-on { background: var(--accent, #c99a72); border-color: var(--accent, #c99a72); color: var(--on-accent, #241812); }
 /* 입술 대표 색상: 쿨톤 · 웜톤 — 이름표 한 칸 + 색 셋 */
 .mui-qcolors.is-toned { grid-template-columns: 44px repeat(3, 1fr); align-items: center; }
 .mui-qtone { font-size: 12px; font-weight: 700; color: var(--muted, #a89a92); text-align: center; }

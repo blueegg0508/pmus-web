@@ -1313,7 +1313,7 @@
             //   color    : 색상 · 채도만 색소 쪽으로 (밝기는 사진의 입술 것)
             //   multiply : 색소가 빛을 먹는 만큼 조금 깊게
             //   덮기     : 아주 옅게 — 어두운 입술에 밝은 색을 올렸을 때 밝아지는 몫
-            const soft = (currentTech === 'water_color' || currentTech === 'natural' || currentTech === 'mlbb');
+            const soft = (currentTech === 'natural' || currentTech === 'tint_lip');
             const layTint = function (mul) {
                 targetCtx.globalCompositeOperation = "color";
                 if (targetCtx.globalCompositeOperation === "color") {
@@ -1340,9 +1340,34 @@
             // 입 다문 선 쪽이 가장 진하고 바깥 경계로 갈수록 스르르 옅어진다 (스머지 · 그라데이션).
             // 그래서 옅게 한 번 고르게 깔고, 가장자리를 흐린 것을 그 위에 한 번 더 올린다.
             // 풀립 · 벨벳은 경계까지 꽉 채우는 기법이라 예전처럼 고르게 올린다.
-            const sheer = !(currentTech === 'full_lip' || currentTech === 'velvet_lip');
-            if (sheer) {
-                const grad = currentTech === 'gradient_lip';
+            // 틴트립 (2026-11-20 원장님): 윗입술 · 아랫입술이 맞닿는 선이 가장 진하고 바깥 경계로 갈수록 연해진다.
+            // 입 다문 선을 굵게 그어 크게 흐린 판을 만들어, 그 판만큼만 색을 진하게 올린다.
+            if (currentTech === 'tint_lip') {
+                layTint(0.07);
+                const bb = lipBounds(curves);
+                const mk = wetBuffer('mask', w, h);
+                mk.ctx.clearRect(0, 0, w, h);
+                mk.ctx.save();
+                mk.ctx.strokeStyle = '#fff';
+                mk.ctx.lineCap = 'round'; mk.ctx.lineJoin = 'round';
+                mk.ctx.lineWidth = Math.max(4, bb.h * 0.3);
+                mk.ctx.filter = 'blur(' + Math.max(3, bb.h * 0.17).toFixed(1) + 'px)';
+                [curves.smoothUpperInner, curves.smoothLowerInner].forEach(function (ln) {
+                    if (!ln || ln.length < 2) return;
+                    mk.ctx.beginPath();
+                    mk.ctx.moveTo(ln[0][0], ln[0][1]);
+                    for (let i = 1; i < ln.length; i++) mk.ctx.lineTo(ln[i][0], ln[i][1]);
+                    mk.ctx.stroke();
+                });
+                mk.ctx.restore();
+                offCtx.save();
+                offCtx.globalCompositeOperation = 'destination-in';
+                offCtx.drawImage(mk.canvas, 0, 0);
+                offCtx.restore();
+                layTint(1.1);
+                layTint(0.45);
+            } else if (currentTech !== 'full_lip') {
+                const grad = false;
                 layTint(grad ? 0.2 : 0.36);
                 const bb = lipBounds(curves);
                 const mk = wetBuffer('mask', w, h);
@@ -2949,9 +2974,7 @@
                 this.classList.add('active');
                 currentTech = this.getAttribute('data-tech');
                 if (currentTech === 'full_lip') blurVal = 0.5;
-                else if (currentTech === 'gradient_lip') blurVal = 6.0;
-                else if (currentTech === 'water_color') blurVal = 4.5;
-                else if (currentTech === 'velvet_lip') blurVal = 2.0;
+                else if (currentTech === 'tint_lip') blurVal = 4.5;
                 else blurVal = 3.5;
                 syncSliders();
                 requestRender();
@@ -3357,6 +3380,7 @@
             setRange('rngNatLip', x.natLip);
             setRange('rngLight', x.light);
             if (x.tech) {
+                if (!document.querySelector('.tech-btn[data-tech="' + x.tech + '"]')) x.tech = 'natural';
                 currentTech = x.tech;
                 document.querySelectorAll('.tech-btn').forEach(function (b) {
                     b.classList.toggle('active', b.getAttribute('data-tech') === x.tech);
@@ -3785,9 +3809,9 @@
             const timeStr = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
             
             const TECH_MAP = {
-                'natural': '내추럴 틴트립',
-                'ombre': '그라데이션 옴브레',
-                'full': '풀 립 블렌딩',
+                'natural': '내추럴',
+                'full_lip': '풀립',
+                'tint_lip': '틴트립',
                 'contour': '입술라인 윤곽교정'
             };
             const techName = TECH_MAP[currentTech] || currentTech || '맞춤 립 디자인';
