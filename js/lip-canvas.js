@@ -946,7 +946,7 @@
         /** 화면 원색을 '피부에 자리 잡은 색' 으로 — 채도를 조금 빼고 아주 밝은 값은 눌러 형광기를 없앤다 */
         function settleColor(c) {
             const lum = 0.299 * c.r + 0.587 * c.g + 0.114 * c.b;
-            const k = 0.86;                              // 채도 86%
+            const k = lum > 190 ? 1.15 : 0.86;          // 채도 86% — 흰 바탕 색소(아주 밝은 색)는 오히려 살려야 분홍이 남는다
             let r = lum + (c.r - lum) * k, g = lum + (c.g - lum) * k, b = lum + (c.b - lum) * k;
             const top = Math.max(r, g, b);
             if (top > 232) { const f = 232 / top; r *= f; g *= f; b *= f; }
@@ -1314,16 +1314,24 @@
             //   multiply : 색소가 빛을 먹는 만큼 조금 깊게
             //   덮기     : 아주 옅게 — 어두운 입술에 밝은 색을 올렸을 때 밝아지는 몫
             const soft = (currentTech === 'natural' || currentTech === 'tint_lip');
+            // 아주 밝은 색(크림드핑크 · 코튼캔디처럼 흰 바탕에 분홍이 살짝 든 색소)은 '색만' 입히면
+            // 채도가 낮아 입술이 회색 · 보랏빛으로 죽는다 (2026-11-20 현장). 실제로는 흰 바탕 색소라
+            // 입술을 밝게 덮으며 분홍이 비친다 — 밝을수록 '색만 입히기' · 곱하기를 줄이고 덮기를 늘린다.
+            let pale = 0;
+            tintLayers.forEach(function (L) {
+                const lum = (0.299 * L.rgb.r + 0.587 * L.rgb.g + 0.114 * L.rgb.b) / 255;
+                pale = Math.max(pale, Math.max(0, Math.min(1, (lum - 0.62) / 0.24)) * Math.min(1, L.a * 1.4));
+            });
             const layTint = function (mul) {
                 targetCtx.globalCompositeOperation = "color";
                 if (targetCtx.globalCompositeOperation === "color") {
-                    targetCtx.globalAlpha = (soft ? 0.82 : 0.92) * mul;
+                    targetCtx.globalAlpha = (soft ? 0.82 : 0.92) * mul * (1 - 0.8 * pale);
                     targetCtx.drawImage(offCanvas, 0, 0);
                     targetCtx.globalCompositeOperation = "multiply";
-                    targetCtx.globalAlpha = (soft ? 0.52 : 0.64) * mul;
+                    targetCtx.globalAlpha = (soft ? 0.52 : 0.64) * mul * (1 - 0.95 * pale);
                     targetCtx.drawImage(offCanvas, 0, 0);
                     targetCtx.globalCompositeOperation = "source-over";
-                    targetCtx.globalAlpha = (pigLayers.length ? 0.22 : (soft ? 0.10 : 0.18)) * mul;
+                    targetCtx.globalAlpha = Math.min(1, (pigLayers.length ? 0.22 : (soft ? 0.10 : 0.18)) + 0.55 * pale) * mul;
                     targetCtx.drawImage(offCanvas, 0, 0);
                 } else {
                     // 'color' 섞기를 모르는 오래된 브라우저 — 곱하기 + 옅은 덮기로 대신한다
@@ -3027,8 +3035,8 @@
         // 색값은 판매처 제품 사진의 색을 눈으로 맞춘 것 — 참고용이다 (화면에도 그렇게 적는다).
         const PIGMENTS = {
             pb: [["필로우톡", "#B01840"], ["더스키 크림슨", "#9E1E28"], ["라즈베리", "#D21E5A"], ["러쉬핑크", "#E8287A"],
-                 ["레이디버그", "#EE1C1C"], ["바주카", "#F0508C"], ["배드걸", "#E0607A"], ["블러쉬드", "#D85040"],
-                 ["오렌지크러쉬", "#F0301A"], ["크림드핑크", "#F6C0B4"], ["파이어리 푸크시아", "#C81E96"], ["패션레드", "#E01818"],
+                 ["레이디버그", "#F0203F"], ["바주카", "#F0508C"], ["배드걸", "#E0607A"], ["블러쉬드", "#D85040"],
+                 ["오렌지크러쉬", "#F0301A"], ["크림드핑크", "#F8CBC8"], ["파이어리 푸크시아", "#C81E96"], ["패션레드", "#E01818"],
                  ["할리우드 펀치", "#8E1030"], ["헨파티", "#F04860"], ["애플리콧", "#F08A2A"]],
             luxe: [["레드애플", "#D80F0F"], ["체리레드", "#D00A14"], ["로즈로얄", "#C8505A"], ["로즈우드", "#C03C50"],
                    ["빈티지 마룬", "#701824"], ["부두아", "#8E1030"], ["크렌베리", "#8A0A0A"], ["빅토리안 로즈", "#B04A5E"],
