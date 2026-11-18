@@ -36,6 +36,11 @@
         var p = node.parentNode;
         if (!p || SKIP[p.nodeName] || (p.closest && p.closest("[data-no-icon]"))) return;
         if (p.nodeName === "OPTION" || p.nodeName === "TITLE") { node.nodeValue = strip(t); return; }
+        // 표에 없는 기호(☆ 등)만 있으면 손대지 않는다 — 감쌌다가 다시 감싸기를 끝없이 되풀이해 화면이 멈췄다 (2026-11-20)
+        RE.lastIndex = 0;
+        var any = false, mm;
+        while ((mm = RE.exec(t))) { if (MAP[key(mm[0])] || MAP[Array.from(key(mm[0]))[0]]) { any = true; break; } }
+        if (!any) return;
         var frag = document.createDocumentFragment(), last = 0, m;
         RE.lastIndex = 0;
         while ((m = RE.exec(t))) {

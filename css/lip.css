@@ -1010,3 +1010,6 @@
 .mui-qfinish { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 0 12px; }
 .mui-qfinish button { min-height: 44px; border-radius: 10px; background: var(--surface-2, #241f27); border: 1px solid var(--line-2, #443b47); color: var(--text-2, #ddd3cc); font-size: 13.5px; font-weight: 700; cursor: pointer; }
 .mui-qfinish button.is-on { background: var(--accent, #c99a72); border-color: var(--accent, #c99a72); color: var(--on-accent, #241812); }
+
+/* 즐겨찾기 판에서는 메뉴얼에서 내려둔 줄도 보인다 (퀵에서 ☆ 로 담은 것) */
+.mui-favpane .lip-shelved { display: block !important; }

@@ -154,13 +154,16 @@
     var modeBar = el("div", "mui-modebar");
     var mbQuick = el("button", null, "⚡ 퀵");
     var mbManual = el("button", null, "🎚️ 메뉴얼");
-    mbQuick.type = mbManual.type = "button";
-    modeBar.appendChild(mbQuick); modeBar.appendChild(mbManual);
+    // 즐겨찾기 — 메뉴얼의 조절바 가운데 ☆ 로 담은 것만 모아 본다 (2026-11-20 원장님)
+    var mbFav = el("button", null, "⭐ 즐겨찾기");
+    mbQuick.type = mbManual.type = mbFav.type = "button";
+    modeBar.appendChild(mbQuick); modeBar.appendChild(mbManual); modeBar.appendChild(mbFav);
 
     var tabs = el("div", "mui-tabs");
     var panes = el("div", "mui-panes");
     // 퀵 패널도 .mui-panes 로 두어 조절바·± 버튼 모양 규칙을 그대로 물려받는다
     var quick = el("div", "mui-panes mui-quick");
+    var favPane = el("div", "mui-panes mui-favpane");
     // 눈썹을 [왼쪽]/[오른쪽] 으로 골랐을 때 조절바가 그쪽만 바꾼다는 안내 (brow-canvas.js 가 bl:side 를 보낸다)
     var sideNote = el("div", "mui-sidenote");
     sideNote.hidden = true;
@@ -176,7 +179,7 @@
         }
     });
     sheet.appendChild(handle); sheet.appendChild(modeBar); sheet.appendChild(sideNote);
-    sheet.appendChild(tabs); sheet.appendChild(panes); sheet.appendChild(quick);
+    sheet.appendChild(tabs); sheet.appendChild(panes); sheet.appendChild(quick); sheet.appendChild(favPane);
 
     // ── 오른쪽 스크롤 막대 (2026-11-10) ─────────────────────────────────
     // 점선 레일을 스크롤 자리로 알아보지 못하고 조절바 위를 밀어 내리다 값이 틀어졌다.
@@ -198,7 +201,7 @@
     sheet.appendChild(sbar);
     (function () {
         var raf = 0, thumbH = 0;
-        function pane() { return sheet.classList.contains("is-quick") ? quick : panes; }
+        function pane() { return sheet.classList.contains("is-quick") ? quick : sheet.classList.contains("is-fav") ? favPane : panes; }
         var seen = {};
         function put(node, prop, v) {
             var k = (node === sbar ? "b" : "t") + prop;
@@ -230,6 +233,7 @@
         }
         function later() { if (!raf) raf = requestAnimationFrame(sync); }
         panes.addEventListener("scroll", later, { passive: true });
+        favPane.addEventListener("scroll", later, { passive: true });
         quick.addEventListener("scroll", later, { passive: true });
         window.addEventListener("resize", later);
         sheet.addEventListener("transitionend", later);
@@ -946,10 +950,50 @@
         wrap.appendChild(stepButton(input, +1));
     }
 
+    // ── 즐겨찾기 (2026-11-20 원장님) ─────────────────────────────────────
+    // 메뉴얼의 조절바 이름 줄에 ☆ 를 붙인다. 누르면 그 조절바가 '즐겨찾기' 판에 담긴다.
+    // 담은 차례대로 보이고, 이 기기에 부위별로(눈썹 · 입술) 저장된다.
+    var FAV_KEY = "pmus.favRows." + KIND;
+    var favIds = [];
+    try { var fr0 = JSON.parse(localStorage.getItem(FAV_KEY) || "[]"); if (Array.isArray(fr0)) favIds = fr0.filter(function (x) { return typeof x === "string"; }); } catch (e) { favIds = []; }
+    function favSave() { try { localStorage.setItem(FAV_KEY, JSON.stringify(favIds)); } catch (e) {} }
+    function paintFavStar(input) {
+        var row = input.closest(".ctrl-row");
+        var b = row && row.querySelector(".mui-favstar");
+        if (!b) return;
+        var on = favIds.indexOf(input.id) >= 0;
+        b.textContent = on ? "★" : "☆";
+        b.classList.toggle("is-on", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+        b.setAttribute("aria-label", on ? "즐겨찾기에서 빼기" : "즐겨찾기에 담기");
+    }
+    function attachFavStar(input) {
+        if (!input.id) return;
+        var row = input.closest(".ctrl-row");
+        var label = row && row.querySelector("label");
+        if (!label || label.querySelector(".mui-favstar")) return;
+        var b = el("button", "mui-favstar", "☆");
+        b.type = "button";
+        b.setAttribute("data-no-icon", "1");          // 선 아이콘으로 바꾸지 않는다 (☆ · ★ 그대로)
+        b.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var i = favIds.indexOf(input.id);
+            if (i >= 0) favIds.splice(i, 1); else favIds.push(input.id);
+            favSave();
+            paintFavStar(input);
+            if (uiMode === "fav") { favReturn(); favCollect(); }
+        });
+        var step = label.querySelector(".mui-step");
+        if (step) step.insertBefore(b, step.firstChild); else label.appendChild(b);
+        paintFavStar(input);
+    }
+
     function attachSteppers() {
         panes.querySelectorAll('input[type="range"]').forEach(function (input) {
             attachStepper(input);
             attachLock(input);
+            attachFavStar(input);
         });
 
         // 입술의 이동 라벨 두 줄은 캔버스 JS 가 라벨 전체를 다시 쓴다.
@@ -1959,20 +2003,54 @@
     }
 
     /** @param silent 앱 셸이 시킨 전환이면 true (되돌려 알릴 필요가 없다) */
+    /** 즐겨찾기 판: 담은 조절바를 메뉴얼 자리에서 잠깐 빌려 온다 (자리에는 표식을 남겨 그대로 돌려놓는다) */
+    var favMarks = [];
+    function favCollect() {
+        favPane.textContent = "";
+        favPane.appendChild(el("div", "mui-pane-title", "즐겨찾기 — 자주 쓰는 조절만"));
+        var n = 0;
+        favIds.forEach(function (id) {
+            var input = document.getElementById(id);
+            var row = input && input.closest(".ctrl-row");
+            if (!row || !row.parentNode) return;
+            var mark = document.createComment("mui-fav");
+            row.parentNode.insertBefore(mark, row);
+            favMarks.push({ row: row, mark: mark });
+            favPane.appendChild(row);
+            n++;
+        });
+        if (!n) {
+            favPane.appendChild(el("div", "mui-favempty",
+                "아직 담은 조절이 없습니다.<br><b>메뉴얼</b>에서 자주 쓰는 조절바 이름 줄의 <b>☆</b> 를 누르면 여기에 모입니다."));
+        } else {
+            favPane.appendChild(el("div", "mui-favhint", "☆ 를 다시 누르면 즐겨찾기에서 빠집니다. 더 담으려면 메뉴얼에서 ☆"));
+        }
+    }
+    function favReturn() {
+        favMarks.forEach(function (m) { if (m.mark.parentNode) { m.mark.parentNode.insertBefore(m.row, m.mark); m.mark.parentNode.removeChild(m.mark); } });
+        favMarks = [];
+    }
+
     function setUiMode(mode, silent) {
-        mode = mode === "manual" ? "manual" : "quick";
+        mode = mode === "manual" ? "manual" : mode === "fav" ? "fav" : "quick";
         if (mode === modeApplied) { if (mode === "quick") syncQuick(); return; }
+        if (modeApplied === "fav") favReturn();
         modeApplied = uiMode = mode;
 
         if (mode === "quick") { lendToQuick(); syncQuick(); }
         else giveBack();
+        if (mode === "fav") favCollect();
 
         sheet.classList.toggle("is-quick", mode === "quick");
+        sheet.classList.toggle("is-fav", mode === "fav");
         mbQuick.classList.toggle("is-active", mode === "quick");
         mbManual.classList.toggle("is-active", mode === "manual");
+        mbFav.classList.toggle("is-active", mode === "fav");
         setSnap("half");
+        favPane.scrollTop = 0;
 
-        if (!silent) {
+        // 즐겨찾기는 편집 화면 안에서만 쓰는 보기라 앱 셸에는 알리지 않는다 (앱 셸은 퀵 · 메뉴얼만 안다)
+        if (!silent && mode !== "fav") {
             try { window.parent.postMessage({ type: "mui:mode", mode: mode }, "*"); } catch (e) {}
         }
     }
@@ -1982,6 +2060,7 @@
 
     mbQuick.addEventListener("click", function () { setUiMode("quick"); });
     mbManual.addEventListener("click", function () { setUiMode("manual"); });
+    mbFav.addEventListener("click", function () { setUiMode("fav"); });
 
     // 앱 셸(부위 선택 화면)의 퀵/메뉴얼 탭에서 바꿨을 때
     window.addEventListener("message", function (e) {
