@@ -1005,7 +1005,8 @@
 .mui-qfav.is-on { border-color: var(--accent, #c99a72); background: var(--sel-bg, #3a2d26); color: var(--text, #f3ece6); }
 
 /* ── 마무리: 매트 / 글로스 (2026-11-19) ── */
-.lip-finish { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.lip-finish-row { margin-bottom: 10px; }
+.lip-finish-ends { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted, #a89a92); margin-top: 2px; }
 .mui-qfinish { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 0 0 12px; }
 .mui-qfinish button { min-height: 44px; border-radius: 10px; background: var(--surface-2, #241f27); border: 1px solid var(--line-2, #443b47); color: var(--text-2, #ddd3cc); font-size: 13.5px; font-weight: 700; cursor: pointer; }
 .mui-qfinish button.is-on { background: var(--accent, #c99a72); border-color: var(--accent, #c99a72); color: var(--on-accent, #241812); }

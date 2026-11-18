@@ -1814,27 +1814,10 @@
         qLevel.addEventListener("click", function () { $("btnSyncYLevel").click(); });
         quick.appendChild(qLevel);
     }
-    // 입술 마무리 — 매트 / 글로스 (2026-11-19). 색 바로 아래에서 한 번에 바꿔 보여 준다.
-    if (!isBrow && $("lipFinish")) {
-        var qFinish = el("div", "mui-qfinish");
-        [["matte", "매트"], ["gloss", "글로스"]].forEach(function (f) {
-            var b = el("button", null, f[1]);
-            b.type = "button"; b.setAttribute("data-finish", f[0]);
-            b.addEventListener("click", function () {
-                var src = document.querySelector('#lipFinish [data-finish="' + f[0] + '"]');
-                if (src) src.click();
-            });
-            qFinish.appendChild(b);
-        });
-        var paintFinish = function (on) {
-            qFinish.querySelectorAll("button").forEach(function (b) { b.classList.toggle("is-on", b.getAttribute("data-finish") === on); });
-        };
-        window.addEventListener("bl:finish", function (e) { paintFinish(e.detail); });
-        paintFinish(typeof window.__blFinish === "function" ? window.__blFinish() : "matte");
-        quick.appendChild(qFinish);
-    }
     var qColorSlot = el("div", "mui-qslot");
     quick.appendChild(qColorSlot);
+    // 입술 마무리 — 매트(0) ~ 글로스(100) 조절바를 색 바로 아래에 (2026-11-20)
+    if (!isBrow && $("lipFinishRow")) borrow($("lipFinishRow"), null, qColorSlot);
 
     quick.appendChild(qhead(isBrow ? "모양 빠른 조절" : "입술 볼륨 · 투명도"));
 

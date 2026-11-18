@@ -984,7 +984,7 @@
          *   ③ 입술 안쪽에만 남겨 '스크린' 으로 얹는다 (검은 곳은 아무 영향이 없다).
          */
         function renderWetGloss(ctx, w, h, curves, glossVal) {
-            const k = Math.min(1, glossVal / 100);
+            const k = Math.min(1, glossVal / 100) * 1.15;
             const b = lipBounds(curves);
             if (!(b.w > 8 && b.h > 6)) return;
             const pad = 6;
@@ -1053,13 +1053,26 @@
         }
         /** 마무리 단추(매트 · 글로스)를 지금 값에 맞춘다 */
         function syncFinish() {
-            const on = gloss > 0 ? 'gloss' : 'matte';
-            document.querySelectorAll('#lipFinish [data-finish]').forEach(function (b) {
-                b.classList.toggle('active', b.getAttribute('data-finish') === on);
-            });
-            try { window.dispatchEvent(new CustomEvent('bl:finish', { detail: on })); } catch (e) {}
+            const r = document.getElementById('rngGloss'), v = document.getElementById('valGloss');
+            if (r) r.value = String(Math.round(gloss));
+            if (v) v.textContent = String(Math.round(gloss));
         }
-        window.__blFinish = function () { return gloss > 0 ? 'gloss' : 'matte'; };
+        // 색마다 고른 매트 · 글로스 비율을 기억한다 — 그 색을 다시 고르면 그 비율로 (2026-11-20)
+        const GLOSS_KEY = 'pmus.glossByColor';
+        let glossByColor = {};
+        try { const g = JSON.parse(localStorage.getItem(GLOSS_KEY) || '{}'); if (g && typeof g === 'object') glossByColor = g; } catch (e) { glossByColor = {}; }
+        function glossKey() { return pigLayers.length ? 'pig:' + pigLabel() : String(currentColor || '').toLowerCase(); }
+        function rememberGloss() {
+            glossByColor[glossKey()] = gloss;
+            try { localStorage.setItem(GLOSS_KEY, JSON.stringify(glossByColor)); } catch (e) { /* 이번에만 쓴다 */ }
+        }
+        /** 색이 바뀌었을 때 — 그 색에 기억해 둔 비율이 있으면 그것으로 */
+        function recallGloss() {
+            const g = glossByColor[glossKey()];
+            if (typeof g !== 'number' || g === gloss) return;
+            gloss = Math.max(0, Math.min(100, g));
+            syncFinish();
+        }
 
         // 🎨 윗입술/아랫입술 독립 틴트 시뮬레이션 렌더링
         function renderTintSimulation(targetCtx, w, h, curves) {
@@ -2759,18 +2772,20 @@
                 requestRender();
             });
         });
-        // 마무리: 매트 / 글로스 — 색 · 모양은 그대로 두고 광택만 바꾼다
-        document.querySelectorAll('#lipFinish [data-finish]').forEach(function (b) {
-            b.addEventListener('click', function () {
-                const prev = snapshotState();
-                gloss = b.getAttribute('data-finish') === 'gloss' ? 75 : 0;
-                if (prev.gloss !== gloss) pushUndo(prev);
+        // 마무리: 매트(0) ~ 글로스(100) 조절바 — 색 · 모양은 그대로 두고 광택만 바꾼다
+        (function () {
+            const r = document.getElementById('rngGloss'), v = document.getElementById('valGloss');
+            if (!r) return;
+            r.addEventListener('input', function () {
+                gloss = parseFloat(this.value) || 0;
+                if (v) v.textContent = String(Math.round(gloss));
                 // 광택을 보려면 색이 채워져 있어야 한다
                 if (gloss > 0 && !fillTint) { const t = document.getElementById('btnToggleFillTint'); if (t) t.click(); }
-                syncFinish();
+                rememberGloss();
                 requestRender();
             });
-        });
+            syncFinish();
+        })();
         document.querySelectorAll('.color-chip').forEach(chip => {
             chip.addEventListener('click', function() {
                 document.querySelectorAll('.color-chip').forEach(c => c.classList.remove('active'));
@@ -2778,6 +2793,7 @@
                 currentColor = this.getAttribute('data-color');
                 document.getElementById('customColorPicker').value = currentColor;
                 pigClear();
+                recallGloss();
                 requestRender();
             });
         });
@@ -2976,6 +2992,7 @@
                 if (!fillTint) { const t = document.getElementById('btnToggleFillTint'); if (t) t.click(); }
             }
             pigRender();
+            if (typeof recallGloss === 'function') recallGloss();
             requestRender();
             try { window.dispatchEvent(new CustomEvent('bl:pig', { detail: pigLabel() })); } catch (e) {}
         }

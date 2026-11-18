@@ -365,10 +365,11 @@
                                 <button type="button" class="preset-chip tech-btn" data-tech="velvet_lip">🎀 벨벳</button>
                                 <button type="button" class="preset-chip tech-btn" data-tech="mlbb">🌸 MLBB</button>
                             </div>
-                            <!-- 마무리: 같은 색 · 모양을 매트로도 글로스로도 (2026-11-19) -->
-                            <div class="lip-finish" id="lipFinish">
-                                <button type="button" class="preset-chip active" data-finish="matte">매트</button>
-                                <button type="button" class="preset-chip" data-finish="gloss">글로스</button>
+                            <!-- 마무리: 0 = 완전 매트 ~ 100 = 완전 글로스 (2026-11-20 원장님 — 색마다 어울리는 비율로) -->
+                            <div class="ctrl-row lip-finish-row" id="lipFinishRow">
+                                <label>매트 ↔ 글로스 <span id="valGloss">0</span></label>
+                                <input type="range" id="rngGloss" min="0" max="100" step="5" value="0">
+                                <div class="lip-finish-ends"><span>매트</span><span>글로스</span></div>
                             </div>
                             <!-- 대표 색상 — 쿨톤 · 웜톤 셋씩 (2026-11-19 원장님) -->
                             <div class="color-tone-label">쿨톤</div>
