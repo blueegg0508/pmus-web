@@ -659,47 +659,53 @@
          * 입술산이 양옆으로 벌어진 M 자처럼 보였다.
          * 이제는 입술산(아랫입술은 가장 아래 점)에서 입꼬리까지 볼록한 호를 그려 놓고,
          * 원래 선을 그 호 쪽으로 끌어간다. 호는 입술산보다 높아지지 않으므로 혹이 생기지 않고,
-         * 입술산 자리 · 입꼬리 점은 그대로다. 조절바 최대(5)에서 호까지의 4할쯤 채운다.
+         * 입술산 자리 · 입꼬리 점은 그대로다. 조절바 값(px)만큼 밀어 올리고, 가장 도톰한 호에서 멈춘다.
          * @param dir -1 윗입술(위로) · +1 아랫입술(아래로)
          */
         function fillCornerOver(pts, amount, dir) {
+            // 2026-11-19 다시 고침: '가장 도톰한 호' 를 입술산 높이로 막아 두었더니, 웃는 얼굴처럼 입술선이 거의 평평하면
+            // 입꼬리와 입술산 높이 차이가 몇 px 뿐이라 20 을 올려도 거의 그대로였다.
+            // 이제 입꼬리(0)에서 입술산(1)까지 부드럽게 올라가며 밀고, 입술산에서 가운데 골로 가면서 절반까지 줄인다.
+            // 입술산이 가장 많이 밀리고 그 사이는 그보다 덜 밀리므로 혹이 생기지 않고, 골이 남아 입술산 모양도 산다.
             const n = pts.length;
             if (!(amount > 0) || n < 7) return pts;
-            const k = Math.min(1, amount / 12);
+            // 조절바 0 ~ 20. 예전 5 의 세기를 20 까지 고르게 나눠 쓰도록 0.42 를 곱한다 (20 ≒ 예전 8.4)
+            const push = amount * 0.42 * (canvas.height / 600);
             const out = pts.map(function (q) { return [q[0], q[1]]; });
+            const mid = Math.floor((n - 1) / 2);
             const side = function (from, to, step) {
-                // 이쪽 절반에서 가장 솟은(아랫입술은 가장 내려간) 점 — 입꼬리 쪽 12% 는 빼고 찾는다
                 let pk = -1;
                 for (let i = from; step > 0 ? i <= to : i >= to; i += step) {
                     const t = i / (n - 1), d = Math.min(t, 1 - t);
                     if (d < 0.12) continue;
                     if (pk < 0 || dir * pts[i][1] > dir * pts[pk][1]) pk = i;
                 }
-                if (pk < 0) return;
-                const c = pts[from], pkP = pts[pk];
-                const span = pkP[0] - c[0];
-                if (Math.abs(span) < 1) return;
-                for (let i = from; step > 0 ? i < pk : i > pk; i += step) {
-                    const u = Math.max(0, Math.min(1, (pts[i][0] - c[0]) / span));
-                    const env = c[1] + (pkP[1] - c[1]) * Math.pow(Math.sin(u * Math.PI / 2), 0.85);
-                    if (dir * env > dir * pts[i][1]) out[i][1] = pts[i][1] + (env - pts[i][1]) * k;
+                if (pk < 0) pk = from + step * Math.round(Math.abs(to - from) * 0.6);
+                const a = Math.abs(pk - from), b = Math.abs(to - pk) || 1;
+                for (let i = from; step > 0 ? i <= to : i >= to; i += step) {
+                    const d = Math.abs(i - from);
+                    let wgt;
+                    if (d <= a) wgt = Math.sin((Math.PI / 2) * (d / (a || 1)));          // 입꼬리 → 입술산
+                    else { const e = (d - a) / b; wgt = 1 - 0.5 * e * e; }                // 입술산 → 가운데
+                    out[i][1] = pts[i][1] + dir * push * wgt;
                 }
             };
-            const mid = Math.floor((n - 1) / 2);
             side(0, mid, 1);
             side(n - 1, n - 1 - mid, -1);
+            if ((n - 1) % 2 === 0) out[mid][1] = (out[mid - 1][1] + out[mid + 1][1]) / 2;
+            out[0][1] = pts[0][1]; out[n - 1][1] = pts[n - 1][1];   // 입꼬리 점은 그대로
             return out;
         }
 
         function getTransformedCurves() {
-            const uo_t = fillCornerOver(upperRawPts.map((p, i) => transformUpperOuter(p, i / (upperRawPts.length - 1))), cornerOverU, -1);
+            const uo_t = upperRawPts.map((p, i) => transformUpperOuter(p, i / (upperRawPts.length - 1)));
             const ui_t = upperInnerRawPts.map((p, i) => transformUpperInner(p, i / (upperInnerRawPts.length - 1)));
-            const lo_t = fillCornerOver(lowerRawPts.map((p, i) => transformLowerOuter(p, i / (lowerRawPts.length - 1))), cornerOverL, 1);
+            const lo_t = lowerRawPts.map((p, i) => transformLowerOuter(p, i / (lowerRawPts.length - 1)));
             const li_t = lowerInnerRawPts.map((p, i) => transformLowerInner(p, i / (lowerInnerRawPts.length - 1)));
 
-            const smoothUpperOuter = computeOpenSpline(uo_t, 45);
+            const smoothUpperOuter = fillCornerOver(computeOpenSpline(uo_t, 45), cornerOverU, -1);
             const smoothUpperInner = computeOpenSpline(ui_t, 35);
-            const smoothLowerOuter = computeOpenSpline(lo_t, 45);
+            const smoothLowerOuter = fillCornerOver(computeOpenSpline(lo_t, 45), cornerOverL, 1);
             const smoothLowerInner = computeOpenSpline(li_t, 35);
 
             // 1. 윗입술 독립 폐곡선 (스무딩 필터로 입꼬리 쐐기 각짐 제거 및 볼륨 유지)
@@ -943,6 +949,116 @@
             return { r: Math.round(r), g: Math.round(g), b: Math.round(b) };
         }
 
+        // ── 매트 / 글로스 (2026-11-19 파트너 의견: "같은 결과를 글로스 타입 · 매트 타입으로 보여 줄 수 있으면") ──
+        const wetBufs = {};
+        function wetBuffer(name, w, h) {
+            let c = wetBufs[name];
+            if (!c) c = wetBufs[name] = document.createElement('canvas');
+            if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+            return { canvas: c, ctx: c.getContext('2d') };
+        }
+        function tracePath(g, pts, ox, oy) {
+            g.beginPath();
+            if (!pts || pts.length < 3) return;
+            g.moveTo(pts[0][0] - ox, pts[0][1] - oy);
+            for (let i = 1; i < pts.length; i++) g.lineTo(pts[i][0] - ox, pts[i][1] - oy);
+            g.closePath();
+        }
+        function boundsOf(pts) {
+            let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+            (pts || []).forEach(function (q) { if (q[0] < x0) x0 = q[0]; if (q[0] > x1) x1 = q[0]; if (q[1] < y0) y0 = q[1]; if (q[1] > y1) y1 = q[1]; });
+            return { x0: x0, y0: y0, x1: x1, y1: y1, w: x1 - x0, h: y1 - y0 };
+        }
+        function lipBounds(curves) {
+            const u = boundsOf(curves.closedUpperLoop), l = boundsOf(curves.closedLowerLoop);
+            const x0 = Math.min(u.x0, l.x0), y0 = Math.min(u.y0, l.y0), x1 = Math.max(u.x1, l.x1), y1 = Math.max(u.y1, l.y1);
+            return { x0: x0, y0: y0, x1: x1, y1: y1, w: x1 - x0, h: y1 - y0, u: u, l: l };
+        }
+        /**
+         * 젖은 광택. 흰 선을 그려 넣으면 스티커처럼 보인다. 실제 글로스는 입술이 볼록한 자리에 빛이 맺히고,
+         * 그 빛이 입술 주름을 따라 잘게 끊어진다. 그래서
+         *   ① 빛이 맺힐 자리(아랫입술 가운데 · 윗입술 양 봉우리 아래)에 부드러운 빛 덩어리를 놓고
+         *   ② 사진 속 입술의 밝고 어두운 결을 세게 살린 그림을 곱해 주름 따라 끊어지게 한 뒤
+         *   ③ 입술 안쪽에만 남겨 '스크린' 으로 얹는다 (검은 곳은 아무 영향이 없다).
+         */
+        function renderWetGloss(ctx, w, h, curves, glossVal) {
+            const k = Math.min(1, glossVal / 100);
+            const b = lipBounds(curves);
+            if (!(b.w > 8 && b.h > 6)) return;
+            const pad = 6;
+            const rx = Math.max(0, Math.floor(b.x0 - pad)), ry = Math.max(0, Math.floor(b.y0 - pad));
+            const rw = Math.min(w - rx, Math.ceil(b.w + pad * 2)), rh = Math.min(h - ry, Math.ceil(b.h + pad * 2));
+            if (rw < 4 || rh < 4) return;
+            // ② 입술 결
+            const tex = wetBuffer('tex', rw, rh);
+            tex.ctx.clearRect(0, 0, rw, rh);
+            tex.ctx.filter = 'grayscale(1) contrast(3.4) brightness(1.5)';
+            tex.ctx.drawImage(ctx.canvas, rx, ry, rw, rh, 0, 0, rw, rh);
+            tex.ctx.filter = 'none';
+            // ① 빛 덩어리 (검은 바탕 위)
+            const hl = wetBuffer('hl', rw, rh);
+            const g = hl.ctx;
+            g.globalCompositeOperation = 'source-over';
+            g.fillStyle = '#000';
+            g.fillRect(0, 0, rw, rh);
+            const blob = function (cx, cy, ax, ay, a) {
+                if (!(ax > 1 && ay > 1)) return;
+                g.save();
+                g.translate(cx - rx, cy - ry);
+                g.scale(ax, ay);
+                const gr = g.createRadialGradient(0, 0, 0, 0, 0, 1);
+                gr.addColorStop(0, 'rgba(255,255,255,' + a + ')');
+                gr.addColorStop(0.55, 'rgba(255,255,255,' + (a * 0.45).toFixed(3) + ')');
+                gr.addColorStop(1, 'rgba(255,255,255,0)');
+                g.fillStyle = gr;
+                g.beginPath(); g.arc(0, 0, 1, 0, Math.PI * 2); g.fill();
+                g.restore();
+            };
+            const cx = (b.x0 + b.x1) / 2;
+            // 아랫입술: 가운데 볼록한 곳에 크게, 양옆에 작게
+            blob(cx, b.l.y0 + b.l.h * 0.44, b.l.w * 0.30, b.l.h * 0.34, 1);
+            blob(cx - b.l.w * 0.24, b.l.y0 + b.l.h * 0.42, b.l.w * 0.13, b.l.h * 0.24, 0.55);
+            blob(cx + b.l.w * 0.24, b.l.y0 + b.l.h * 0.42, b.l.w * 0.13, b.l.h * 0.24, 0.55);
+            // 윗입술: 양 봉우리 아래
+            blob(cx - b.u.w * 0.16, b.u.y0 + b.u.h * 0.56, b.u.w * 0.15, b.u.h * 0.30, 0.7);
+            blob(cx + b.u.w * 0.16, b.u.y0 + b.u.h * 0.56, b.u.w * 0.15, b.u.h * 0.30, 0.7);
+            g.globalCompositeOperation = 'multiply';
+            g.drawImage(tex.canvas, 0, 0);
+            // ③ 입술 안쪽만
+            const clip = wetBuffer('clip', rw, rh);
+            clip.ctx.clearRect(0, 0, rw, rh);
+            clip.ctx.fillStyle = '#fff';
+            [curves.closedUpperLoop, curves.closedLowerLoop].forEach(function (lp) { tracePath(clip.ctx, lp, rx, ry); clip.ctx.fill(); });
+            g.globalCompositeOperation = 'destination-in';
+            g.filter = 'blur(1.5px)';
+            g.drawImage(clip.canvas, 0, 0);
+            g.filter = 'none';
+            g.globalCompositeOperation = 'source-over';
+            ctx.save();
+            // 촉촉해 보이게 색을 살짝 깊게 한 뒤 빛을 얹는다
+            ctx.globalCompositeOperation = 'soft-light';
+            ctx.globalAlpha = 0.18 * k;
+            ctx.drawImage(hl.canvas, rx, ry);
+            // 넓게 번지는 물기 + 또렷하게 맺힌 빛 — 두 번 얹는다
+            ctx.globalCompositeOperation = 'screen';
+            ctx.globalAlpha = 0.7 * k;
+            ctx.filter = 'blur(' + Math.max(1, b.h * 0.035).toFixed(1) + 'px)';
+            ctx.drawImage(hl.canvas, rx, ry);
+            ctx.globalAlpha = 0.95 * k;
+            ctx.filter = 'none';
+            ctx.drawImage(hl.canvas, rx, ry);
+            ctx.restore();
+        }
+        /** 마무리 단추(매트 · 글로스)를 지금 값에 맞춘다 */
+        function syncFinish() {
+            const on = gloss > 0 ? 'gloss' : 'matte';
+            document.querySelectorAll('#lipFinish [data-finish]').forEach(function (b) {
+                b.classList.toggle('active', b.getAttribute('data-finish') === on);
+            });
+            try { window.dispatchEvent(new CustomEvent('bl:finish', { detail: on })); } catch (e) {}
+        }
+        window.__blFinish = function () { return gloss > 0 ? 'gloss' : 'matte'; };
+
         // 🎨 윗입술/아랫입술 독립 틴트 시뮬레이션 렌더링
         function renderTintSimulation(targetCtx, w, h, curves) {
             if (!fillTint) return;
@@ -998,38 +1114,56 @@
             //   color    : 색상 · 채도만 색소 쪽으로 (밝기는 사진의 입술 것)
             //   multiply : 색소가 빛을 먹는 만큼 조금 깊게
             //   덮기     : 아주 옅게 — 어두운 입술에 밝은 색을 올렸을 때 밝아지는 몫
-            targetCtx.globalCompositeOperation = "color";
-            if (targetCtx.globalCompositeOperation === "color") {
-                const soft = (currentTech === 'water_color' || currentTech === 'natural' || currentTech === 'mlbb');
-                targetCtx.globalAlpha = soft ? 0.82 : 0.92;
-                targetCtx.drawImage(offCanvas, 0, 0);
-                targetCtx.globalCompositeOperation = "multiply";
-                targetCtx.globalAlpha = soft ? 0.52 : 0.64;
-                targetCtx.drawImage(offCanvas, 0, 0);
-                targetCtx.globalCompositeOperation = "source-over";
-                targetCtx.globalAlpha = pigLayers.length ? 0.22 : (soft ? 0.10 : 0.18);
-                targetCtx.drawImage(offCanvas, 0, 0);
+            const soft = (currentTech === 'water_color' || currentTech === 'natural' || currentTech === 'mlbb');
+            const layTint = function (mul) {
+                targetCtx.globalCompositeOperation = "color";
+                if (targetCtx.globalCompositeOperation === "color") {
+                    targetCtx.globalAlpha = (soft ? 0.82 : 0.92) * mul;
+                    targetCtx.drawImage(offCanvas, 0, 0);
+                    targetCtx.globalCompositeOperation = "multiply";
+                    targetCtx.globalAlpha = (soft ? 0.52 : 0.64) * mul;
+                    targetCtx.drawImage(offCanvas, 0, 0);
+                    targetCtx.globalCompositeOperation = "source-over";
+                    targetCtx.globalAlpha = (pigLayers.length ? 0.22 : (soft ? 0.10 : 0.18)) * mul;
+                    targetCtx.drawImage(offCanvas, 0, 0);
+                } else {
+                    // 'color' 섞기를 모르는 오래된 브라우저 — 곱하기 + 옅은 덮기로 대신한다
+                    targetCtx.globalCompositeOperation = "multiply";
+                    targetCtx.globalAlpha = 0.7 * mul;
+                    targetCtx.drawImage(offCanvas, 0, 0);
+                    targetCtx.globalCompositeOperation = "source-over";
+                    targetCtx.globalAlpha = 0.3 * mul;
+                    targetCtx.drawImage(offCanvas, 0, 0);
+                }
+            };
+            // 맑은 발색 (2026-11-19 파트너 의견: "쨍한 크레파스 느낌이 아니라 맑은 컬러를 선호한다").
+            // 입술 전체를 같은 진하기로 칠하면 색종이를 오려 붙인 것처럼 보인다. 요즘 시술 결과는
+            // 입 다문 선 쪽이 가장 진하고 바깥 경계로 갈수록 스르르 옅어진다 (스머지 · 그라데이션).
+            // 그래서 옅게 한 번 고르게 깔고, 가장자리를 흐린 것을 그 위에 한 번 더 올린다.
+            // 풀립 · 벨벳은 경계까지 꽉 채우는 기법이라 예전처럼 고르게 올린다.
+            const sheer = !(currentTech === 'full_lip' || currentTech === 'velvet_lip');
+            if (sheer) {
+                const grad = currentTech === 'gradient_lip';
+                layTint(grad ? 0.2 : 0.36);
+                const bb = lipBounds(curves);
+                const mk = wetBuffer('mask', w, h);
+                mk.ctx.clearRect(0, 0, w, h);
+                mk.ctx.fillStyle = '#fff';
+                [closedUpper, closedLower].forEach(function (lp) { tracePath(mk.ctx, lp, 0, 0); mk.ctx.fill(); });
+                offCtx.save();
+                offCtx.globalCompositeOperation = 'destination-in';
+                offCtx.filter = 'blur(' + Math.max(2, bb.h * (grad ? 0.17 : 0.12)).toFixed(1) + 'px)';
+                offCtx.drawImage(mk.canvas, 0, 0);
+                offCtx.restore();
+                layTint(grad ? 0.92 : 0.64);
             } else {
-                // 'color' 섞기를 모르는 오래된 브라우저 — 곱하기 + 옅은 덮기로 대신한다
-                targetCtx.globalCompositeOperation = "multiply";
-                targetCtx.globalAlpha = 0.7;
-                targetCtx.drawImage(offCanvas, 0, 0);
-                targetCtx.globalCompositeOperation = "source-over";
-                targetCtx.globalAlpha = 0.3;
-                targetCtx.drawImage(offCanvas, 0, 0);
+                layTint(1);
             }
             targetCtx.globalAlpha = 1;
             targetCtx.restore();
 
             // 3. 탕후루 광택
-            if (gloss > 0) {
-                const { canvas: hCanvas, ctx: hCtx } = getBufferCanvas('gloss', w, h);
-                renderIntelligentLipGloss(hCtx, w, h, curves, gloss);
-
-                targetCtx.save();
-                targetCtx.drawImage(hCanvas, 0, 0);
-                targetCtx.restore();
-            }
+            if (gloss > 0) renderWetGloss(targetCtx, w, h, curves, gloss);
         }
 
         // 캔버스 렌더링
@@ -2623,6 +2757,18 @@
                 requestRender();
             });
         });
+        // 마무리: 매트 / 글로스 — 색 · 모양은 그대로 두고 광택만 바꾼다
+        document.querySelectorAll('#lipFinish [data-finish]').forEach(function (b) {
+            b.addEventListener('click', function () {
+                const prev = snapshotState();
+                gloss = b.getAttribute('data-finish') === 'gloss' ? 75 : 0;
+                if (prev.gloss !== gloss) pushUndo(prev);
+                // 광택을 보려면 색이 채워져 있어야 한다
+                if (gloss > 0 && !fillTint) { const t = document.getElementById('btnToggleFillTint'); if (t) t.click(); }
+                syncFinish();
+                requestRender();
+            });
+        });
         document.querySelectorAll('.color-chip').forEach(chip => {
             chip.addEventListener('click', function() {
                 document.querySelectorAll('.color-chip').forEach(c => c.classList.remove('active'));
@@ -2934,7 +3080,8 @@
             cornerOverL = prev.cornerOverL || 0;
             blurVal = prev.blurVal !== undefined ? prev.blurVal : 3.5;
             density = prev.density !== undefined ? prev.density : 100;
-            gloss = prev.gloss !== undefined ? prev.gloss : 35;
+            gloss = prev.gloss !== undefined ? prev.gloss : 0;
+            syncFinish();
             if (prev.lipHealMarks) lipHealMarks = prev.lipHealMarks.slice();
 
             syncSliders();

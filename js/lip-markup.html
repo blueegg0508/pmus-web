@@ -121,8 +121,8 @@
                                         <input type="range" id="rngUpperTopOver" min="0" max="5" step="0.5" value="0">
                                     </div>
                                     <div class="ctrl-row">
-                                        <label>↗️ 입꼬리 오버립 <span id="valCornerOverU">0px</span></label>
-                                        <input type="range" id="rngCornerOverU" min="0" max="5" step="0.5" value="0">
+                                        <label>윗입술 입꼬리 오버립 <span id="valCornerOverU">0px</span></label>
+                                        <input type="range" id="rngCornerOverU" min="0" max="20" step="0.5" value="0">
                                     </div>
                                     <div class="ctrl-row lip-shelved">
                                         <label>⛰️ 상부 입술산 볼륨 <span id="valUpperTopPeakVol">0px</span></label>
@@ -291,8 +291,8 @@
                                         <input type="range" id="rngLowerBottomOver" min="0" max="5" step="0.5" value="0">
                                     </div>
                                     <div class="ctrl-row lip-shelved">
-                                        <label>↘️ 입꼬리 오버립 <span id="valCornerOverL">0px</span></label>
-                                        <input type="range" id="rngCornerOverL" min="0" max="5" step="0.5" value="0">
+                                        <label>아랫입술 입꼬리 오버립 <span id="valCornerOverL">0px</span></label>
+                                        <input type="range" id="rngCornerOverL" min="0" max="20" step="0.5" value="0">
                                     </div>
                                     <div class="ctrl-row lip-shelved">
                                         <label>🌓 하부 중앙 볼륨 <span id="valLowerBottomCenterVol">0px</span></label>
@@ -364,6 +364,11 @@
                                 <button type="button" class="preset-chip tech-btn" data-tech="water_color">💧 수채화</button>
                                 <button type="button" class="preset-chip tech-btn" data-tech="velvet_lip">🎀 벨벳</button>
                                 <button type="button" class="preset-chip tech-btn" data-tech="mlbb">🌸 MLBB</button>
+                            </div>
+                            <!-- 마무리: 같은 색 · 모양을 매트로도 글로스로도 (2026-11-19) -->
+                            <div class="lip-finish" id="lipFinish">
+                                <button type="button" class="preset-chip active" data-finish="matte">매트</button>
+                                <button type="button" class="preset-chip" data-finish="gloss">글로스</button>
                             </div>
                             <div class="color-palette-wrap">
                                 <div class="color-chip active" style="background:#E25B6F;" data-color="#E25B6F">로즈핑크</div>

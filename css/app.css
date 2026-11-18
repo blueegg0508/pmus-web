@@ -680,7 +680,9 @@ body.sim-fullscreen.settings-open .settings-toggle { display: flex; }
     object-fit: cover;
     display: block;
 }
-.cam-frame.is-mirrored video { transform: scaleX(-1); }
+/* 촬영 거리 맞춤: 50cm 에서 찍어도 얼굴이 타원에 맞도록 가운데를 당겨 보여 준다 (camCrop 과 같은 배율) */
+.cam-frame video { transform: scale(var(--cam-zoom, 1)); }
+.cam-frame.is-mirrored video { transform: scale(var(--cam-zoom, 1)) scaleX(-1); }
 
 .cam-guide {
     position: absolute;

@@ -1808,6 +1808,25 @@
         qLevel.addEventListener("click", function () { $("btnSyncYLevel").click(); });
         quick.appendChild(qLevel);
     }
+    // 입술 마무리 — 매트 / 글로스 (2026-11-19). 색 바로 아래에서 한 번에 바꿔 보여 준다.
+    if (!isBrow && $("lipFinish")) {
+        var qFinish = el("div", "mui-qfinish");
+        [["matte", "매트"], ["gloss", "글로스"]].forEach(function (f) {
+            var b = el("button", null, f[1]);
+            b.type = "button"; b.setAttribute("data-finish", f[0]);
+            b.addEventListener("click", function () {
+                var src = document.querySelector('#lipFinish [data-finish="' + f[0] + '"]');
+                if (src) src.click();
+            });
+            qFinish.appendChild(b);
+        });
+        var paintFinish = function (on) {
+            qFinish.querySelectorAll("button").forEach(function (b) { b.classList.toggle("is-on", b.getAttribute("data-finish") === on); });
+        };
+        window.addEventListener("bl:finish", function (e) { paintFinish(e.detail); });
+        paintFinish(typeof window.__blFinish === "function" ? window.__blFinish() : "matte");
+        quick.appendChild(qFinish);
+    }
     var qColorSlot = el("div", "mui-qslot");
     quick.appendChild(qColorSlot);
 
@@ -1846,8 +1865,8 @@
             qSlot.appendChild(r); qExtra.push(r);
         });
         // 입꼬리 오버립 — 윗입술·아랫입술 따로. 현장에서 자주 만지는 값이다.
-        borrow(rowOf("rngCornerOverU"), "↗️ 입꼬리 오버립 (윗) ");
-        borrow(rowOf("rngCornerOverL"), "↘️ 입꼬리 오버립 (아래) ");
+        borrow(rowOf("rngCornerOverU"), "윗입술 입꼬리 오버립 ");
+        borrow(rowOf("rngCornerOverL"), "아랫입술 입꼬리 오버립 ");
         // 틴트 투명도. 원래 조절바를 그대로 옮겨 와서 메뉴얼과 값이 이어진다.
         // (라벨을 바꾸지 않으므로 두 화면에서 같은 이름으로 보인다)
         borrow(rowOf("rngOpacity"), null);

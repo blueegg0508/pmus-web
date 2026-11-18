@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=173";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=173";
-import * as License from "./license.js?v=173";
-import * as Custom from "./custom-designs.js?v=173";
-import * as Update from "./update.js?v=173";
-import * as Crm from "./crm-ui.js?v=173";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=174";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=174";
+import * as License from "./license.js?v=174";
+import * as Custom from "./custom-designs.js?v=174";
+import * as Update from "./update.js?v=174";
+import * as Crm from "./crm-ui.js?v=174";
 
-const BUILD = "173";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "174";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -2210,7 +2210,16 @@ const FRAME_GUIDE = {
     gridLines: 5,
 };
 
-const cam = { stream: null, facing: "environment" };
+const cam = { stream: null, facing: "environment", dz: 1 };
+
+/**
+ * 촬영 거리 (2026-11-19 현장 의견).
+ * 폰 카메라는 광각이라, 얼굴을 타원에 꽉 채우려면 30cm 안팎까지 다가가야 했다. 그렇게 가까우면 코 · 이마가
+ * 볼록 렌즈처럼 부풀어 얼굴이 둥글게 찍히고, 찍는 사람 · 찍히는 사람 모두 부담스럽다.
+ * 50cm 쯤 떨어져 찍어도 얼굴이 타원에 맞도록 화면을 이만큼 당겨 보여 준다 (원근 왜곡은 거리로 줄고, 크기는 확대로 맞춘다).
+ * 카메라가 '줌' 을 지원하면 카메라 줌으로, 아니면 영상의 가운데를 잘라 쓴다.
+ */
+const CAM_ZOOM = 1.6;
 
 function applyGuideGeometry() {
     const g = FRAME_GUIDE;
@@ -2268,12 +2277,25 @@ async function startStream() {
         cam.stream = await navigator.mediaDevices.getUserMedia({
             video: {
                 facingMode: cam.facing,
-                width:  { ideal: 1920 },
-                height: { ideal: 1920 },
+                // 가운데를 잘라 당겨 쓰므로 받을 수 있는 만큼 크게 받는다
+                width:  { ideal: 3840 },
+                height: { ideal: 3840 },
             },
             audio: false,
         });
         video.srcObject = cam.stream;
+        // 50cm 거리에 맞춰 당긴다 — 카메라 줌이 되면 그걸로, 안 되면 잘라서
+        cam.dz = CAM_ZOOM;
+        try {
+            const track = cam.stream.getVideoTracks()[0];
+            const caps = track && track.getCapabilities ? track.getCapabilities() : null;
+            if (caps && caps.zoom && caps.zoom.max >= 1.2) {
+                const z = Math.min(caps.zoom.max, CAM_ZOOM);
+                await track.applyConstraints({ advanced: [{ zoom: z }] });
+                cam.dz = Math.max(1, CAM_ZOOM / z);
+            }
+        } catch (e) { cam.dz = CAM_ZOOM; }
+        $("cam-frame").style.setProperty("--cam-zoom", String(cam.dz));
         $("cam-frame").classList.toggle("is-mirrored", cam.facing === "user");
         $("cam-shoot").disabled = false;
         await video.play().catch(() => {});
@@ -2316,6 +2338,9 @@ function camCrop(video) {
     let sw = vw, sh = vh;
     if (vw / vh > want) sw = Math.round(vh * want);   // 좌우가 남으면 잘라낸다
     else sh = Math.round(vw / want);                  // 위아래가 남으면 잘라낸다
+    // 촬영 거리 맞춤 — 화면에 당겨 보여 준 만큼 가운데만 쓴다 (CAM_ZOOM 참고)
+    const dz = cam.dz > 1 ? cam.dz : 1;
+    sw = Math.round(sw / dz); sh = Math.round(sh / dz);
     return { sx: Math.round((vw - sw) / 2), sy: Math.round((vh - sh) / 2), sw, sh };
 }
 
