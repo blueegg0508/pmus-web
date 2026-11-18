@@ -1795,6 +1795,13 @@
         quick.appendChild(qStrip);
     }
 
+    // 입술: 틴트 투명도 · 기존 입술 진하기를 맨 위에 (2026-11-20 원장님 — 가장 먼저 만지는 값)
+    var qTopSlot = el("div", "mui-qslot");
+    if (!isBrow) {
+        quick.appendChild(qhead("틴트 투명도 · 기존 입술 진하기"));
+        quick.appendChild(qTopSlot);
+    }
+
     quick.appendChild(qhead("대표 색상"));
     if (qColors) quick.appendChild(qColors);
 
@@ -1821,7 +1828,7 @@
     // 빛 방향 — 매트 ↔ 글로스 바로 아래 (2026-11-20)
     if (!isBrow && $("lipLightRow")) borrow($("lipLightRow"), null, qColorSlot);
 
-    quick.appendChild(qhead(isBrow ? "모양 빠른 조절" : "입술 볼륨 · 투명도"));
+    quick.appendChild(qhead(isBrow ? "모양 빠른 조절" : "입술 볼륨"));
 
     // 빌려 온 행이 들어올 자리 (전환 버튼보다 위)
     var qSlot = el("div", "mui-qslot");
@@ -1860,15 +1867,15 @@
         borrow(rowOf("rngCornerOverL"), "아랫입술 입꼬리 오버립 ");
         // 틴트 투명도. 원래 조절바를 그대로 옮겨 와서 메뉴얼과 값이 이어진다.
         // (라벨을 바꾸지 않으므로 두 화면에서 같은 이름으로 보인다)
-        borrow(rowOf("rngOpacity"), null);
+        borrow(rowOf("rngOpacity"), null, qTopSlot);
         // 기존 입술 진하기 — 틴트를 낮출 때 원래 입술색이 비치는 것을 덮는다 (2026-10-30 현장 피드백)
-        borrow(rowOf("rngNatLip"), "🔅 기존 입술 진하기 ");
+        borrow(rowOf("rngNatLip"), "🔅 기존 입술 진하기 ", qTopSlot);
         // 🩹 입술 경계 지우기 — 진하기를 낮춰도 남는 입술선을 문질러 지운다 (2026-10-30 원장님)
         if ($("btnLipHeal")) {
             var qLipHeal = el("button", "mui-qsym btn-lip-heal", "🩹 입술 경계 지우기");
             qLipHeal.type = "button";
             qLipHeal.addEventListener("click", function () { $("btnLipHeal").click(); });
-            quick.insertBefore(qLipHeal, qSlot.nextSibling);   // 빌려 온 조절바들(맨 끝이 기존 입술 진하기) 바로 다음
+            quick.insertBefore(qLipHeal, qTopSlot.nextSibling);   // 맨 위 칸(투명도 · 기존 입술 진하기) 바로 다음
         }
         // 💧 색소 조색 — 퀵에서는 메뉴얼의 [조색] 탭으로 바로 보낸다
         if ($("cardPigment")) {
