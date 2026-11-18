@@ -371,6 +371,12 @@
                                 <input type="range" id="rngGloss" min="0" max="100" step="5" value="0">
                                 <div class="lip-finish-ends"><span>매트</span><span>글로스</span></div>
                             </div>
+                            <!-- 빛 방향 — 빛이 오는 쪽으로 광택이 옮겨 간다 (2026-11-20 원장님) -->
+                            <div class="ctrl-row lip-finish-row" id="lipLightRow">
+                                <label>빛 방향 <span id="valLight">0°</span></label>
+                                <input type="range" id="rngLight" min="-60" max="60" step="5" value="0">
+                                <div class="lip-finish-ends"><span>왼쪽에서</span><span>정면 위</span><span>오른쪽에서</span></div>
+                            </div>
                             <!-- 대표 색상 — 쿨톤 · 웜톤 셋씩 (2026-11-19 원장님) -->
                             <div class="color-tone-label">쿨톤</div>
                             <div class="color-palette-wrap">

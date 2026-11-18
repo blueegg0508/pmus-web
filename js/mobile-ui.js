@@ -1818,6 +1818,8 @@
     quick.appendChild(qColorSlot);
     // 입술 마무리 — 매트(0) ~ 글로스(100) 조절바를 색 바로 아래에 (2026-11-20)
     if (!isBrow && $("lipFinishRow")) borrow($("lipFinishRow"), null, qColorSlot);
+    // 빛 방향 — 매트 ↔ 글로스 바로 아래 (2026-11-20)
+    if (!isBrow && $("lipLightRow")) borrow($("lipLightRow"), null, qColorSlot);
 
     quick.appendChild(qhead(isBrow ? "모양 빠른 조절" : "입술 볼륨 · 투명도"));
 

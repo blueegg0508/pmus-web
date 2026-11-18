@@ -282,6 +282,8 @@
          *  틴트를 반투명으로 올리면 원래 입술색이 비쳐, 볼륨으로 넓힌 자리(피부 위)와 색이 달라 보였다. */
         let natLip = 100;
         let gloss = 0;
+        /** 빛 방향 (도) — 0 = 정면 위에서, - 왼쪽에서, + 오른쪽에서. 광택이 빛 오는 쪽으로 옮겨 가고 그쪽이 더 밝다 */
+        let glossAngle = 0;
         let blurVal = 3.5;
 
 
@@ -1019,13 +1021,17 @@
                 g.restore();
             };
             const cx = (b.x0 + b.x1) / 2;
+            // 빛 방향: 빛이 오는 쪽으로 빛 덩어리가 옮겨 가고, 그쪽 것은 밝게 · 반대쪽은 어둡게
+            const sx = Math.sin(glossAngle * Math.PI / 180);          // -0.87 ~ 0.87
+            const lx = sx * b.l.w * 0.20, ux = sx * b.u.w * 0.16;
+            const near = function (side) { return Math.max(0.15, Math.min(1.25, 1 + 0.6 * side * sx)); };   // side: -1 왼쪽 · +1 오른쪽
             // 아랫입술: 가운데 볼록한 곳에 크게, 양옆에 작게
-            blob(cx, b.l.y0 + b.l.h * 0.44, b.l.w * 0.30, b.l.h * 0.34, 1);
-            blob(cx - b.l.w * 0.24, b.l.y0 + b.l.h * 0.42, b.l.w * 0.13, b.l.h * 0.24, 0.55);
-            blob(cx + b.l.w * 0.24, b.l.y0 + b.l.h * 0.42, b.l.w * 0.13, b.l.h * 0.24, 0.55);
+            blob(cx + lx, b.l.y0 + b.l.h * 0.44, b.l.w * 0.30, b.l.h * 0.34, 1);
+            blob(cx - b.l.w * 0.24 + lx * 0.6, b.l.y0 + b.l.h * 0.42, b.l.w * 0.13, b.l.h * 0.24, 0.55 * near(-1));
+            blob(cx + b.l.w * 0.24 + lx * 0.6, b.l.y0 + b.l.h * 0.42, b.l.w * 0.13, b.l.h * 0.24, 0.55 * near(1));
             // 윗입술: 양 봉우리 아래
-            blob(cx - b.u.w * 0.16, b.u.y0 + b.u.h * 0.56, b.u.w * 0.15, b.u.h * 0.30, 0.7);
-            blob(cx + b.u.w * 0.16, b.u.y0 + b.u.h * 0.56, b.u.w * 0.15, b.u.h * 0.30, 0.7);
+            blob(cx - b.u.w * 0.16 + ux, b.u.y0 + b.u.h * 0.56, b.u.w * 0.15, b.u.h * 0.30, Math.min(1, 0.7 * near(-1)));
+            blob(cx + b.u.w * 0.16 + ux, b.u.y0 + b.u.h * 0.56, b.u.w * 0.15, b.u.h * 0.30, Math.min(1, 0.7 * near(1)));
             g.globalCompositeOperation = 'multiply';
             g.drawImage(tex.canvas, 0, 0);
             // ③ 입술 안쪽만
@@ -2787,6 +2793,16 @@
                 requestRender();
             });
         });
+        // 빛 방향 조절바
+        (function () {
+            const r = document.getElementById('rngLight'), v = document.getElementById('valLight');
+            if (!r) return;
+            r.addEventListener('input', function () {
+                glossAngle = parseFloat(this.value) || 0;
+                if (v) v.textContent = Math.round(glossAngle) + '°';
+                requestRender();
+            });
+        })();
         // 마무리: 매트(0) ~ 글로스(100) 조절바 — 색 · 모양은 그대로 두고 광택만 바꾼다
         (function () {
             const r = document.getElementById('rngGloss'), v = document.getElementById('valGloss');
@@ -3158,7 +3174,7 @@
             const st = snapshotState();
             st.x = {
                 color: currentColor, tech: currentTech, opacity: opacity, natLip: natLip,
-                fillTint: fillTint, showDesignLine: showDesignLine,
+                fillTint: fillTint, showDesignLine: showDesignLine, light: glossAngle,
                 pig: pigLayers.map(function (l) { return { name: l.name, hex: l.hex, a: l.a }; }),
             };
             return st;
@@ -3175,6 +3191,7 @@
             };
             setRange('rngOpacity', x.opacity);
             setRange('rngNatLip', x.natLip);
+            setRange('rngLight', x.light);
             if (x.tech) {
                 currentTech = x.tech;
                 document.querySelectorAll('.tech-btn').forEach(function (b) {
