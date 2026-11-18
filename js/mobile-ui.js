@@ -1673,7 +1673,6 @@
         if (!up || !lo) return [];
 
         var rows = [
-            overRow("\uD83D\uDC8B 도톰하게 ", [up, lo]),
             overRow("\uD83D\uDD3A 윗입술 볼륨 ", [up]),
             overRow("\uD83D\uDD3B 아랫입술 볼륨 ", [lo])
         ].filter(Boolean);

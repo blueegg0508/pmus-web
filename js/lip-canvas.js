@@ -685,8 +685,10 @@
                 for (let i = from; step > 0 ? i <= to : i >= to; i += step) {
                     const d = Math.abs(i - from);
                     let wgt;
-                    if (d <= a) wgt = Math.sin((Math.PI / 2) * (d / (a || 1)));          // 입꼬리 → 입술산
-                    else { const e = (d - a) / b; wgt = 1 - 0.5 * e * e; }                // 입술산 → 가운데
+                    // 입꼬리와 입술산 사이만 둥글게 밀고, 입꼬리 점 · 입술산 · 가운데는 그대로 둔다 (2026-11-19 원장님:
+                    // "전체가 아니라 양쪽 끝에만 살짝"). 174 처럼 입술산에서 가운데까지 밀면 볼륨 조절과 같아진다.
+                    const u = d / (a || 1);
+                    wgt = d <= a ? Math.pow(Math.sin(Math.PI * u), 1.3) : 0;
                     out[i][1] = pts[i][1] + dir * push * wgt;
                 }
             };
