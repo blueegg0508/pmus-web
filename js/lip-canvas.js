@@ -979,11 +979,11 @@
             return { x0: x0, y0: y0, x1: x1, y1: y1, w: x1 - x0, h: y1 - y0, u: u, l: l };
         }
         /**
-         * 젖은 광택. 흰 선을 그려 넣으면 스티커처럼 보인다. 실제 글로스는 입술이 볼록한 자리에 빛이 맺히고,
-         * 그 빛이 입술 주름을 따라 잘게 끊어진다. 그래서
-         *   ① 빛이 맺힐 자리(아랫입술 가운데 · 윗입술 양 봉우리 아래)에 부드러운 빛 덩어리를 놓고
-         *   ② 사진 속 입술의 밝고 어두운 결을 세게 살린 그림을 곱해 주름 따라 끊어지게 한 뒤
-         *   ③ 입술 안쪽에만 남겨 '스크린' 으로 얹는다 (검은 곳은 아무 영향이 없다).
+         * 젖은 광택. 실제 글로스는 입술이 볼록한 자리에서, 잔주름 · 요철 하나하나가 빛을 받는 면마다
+         * 하얗게 잘게 끊어진 반사가 맺힌다 (2026-11-20 참고 사진). 그래서
+         *   ① 반사가 많이 맺힐 자리(아랫입술 가운데 · 윗입술 양 봉우리 아래)를 빛 덩어리로 정하고
+         *   ② 사진 속 입술에서 잔주름(요철)을 뽑아, 빛 방향을 향한 면만 또렷한 반사로 얹고
+         *   ③ 그 자리 둘레에 은은한 물기를 깐다.
          */
         function renderWetGloss(ctx, w, h, curves, glossVal) {
             const k = Math.min(1, glossVal / 100) * 1.15;
@@ -1032,36 +1032,117 @@
             // 윗입술: 양 봉우리 아래
             blob(cx - b.u.w * 0.16 + ux, b.u.y0 + b.u.h * 0.56, b.u.w * 0.15, b.u.h * 0.30, Math.min(1, 0.7 * near(-1)));
             blob(cx + b.u.w * 0.16 + ux, b.u.y0 + b.u.h * 0.56, b.u.w * 0.15, b.u.h * 0.30, Math.min(1, 0.7 * near(1)));
-            g.globalCompositeOperation = 'multiply';
-            g.drawImage(tex.canvas, 0, 0);
-            // ③ 입술 안쪽만
+            // ── 입술 요철 따라 맺히는 빛 (2026-11-20 원장님 참고 사진) ──────────────────────
+            // 실제 글로스 입술은 '빛 덩어리' 가 아니라, 입술의 잔주름 · 요철 하나하나가 빛을 받는 면에서
+            // 하얗게 잘게 끊어진 반사가 맺힌다. 그래서 사진 속 입술에서 잔주름(요철)을 뽑아 내고,
+            // 그 요철 가운데 '빛이 오는 쪽을 향한 면' 만 골라 또렷한 반사로 얹는다.
+            // 빛 덩어리(zone)는 반사가 많이 맺힐 자리를 정하는 데만 쓴다.
+            const zoneData = g.getImageData(0, 0, rw, rh).data;
+            // 입술 안쪽
             const clip = wetBuffer('clip', rw, rh);
             clip.ctx.clearRect(0, 0, rw, rh);
             clip.ctx.fillStyle = '#fff';
             [curves.closedUpperLoop, curves.closedLowerLoop].forEach(function (lp) { tracePath(clip.ctx, lp, rx, ry); clip.ctx.fill(); });
+            const clipData = clip.ctx.getImageData(0, 0, rw, rh).data;
+            // 입술 경계 · 입 다문 선 바로 곁은 빼고 (그 선을 따라 흰 줄이 생겼다) — 안쪽으로 조금 깎은 판
+            const inner = wetBuffer('clipinner', rw, rh);
+            inner.ctx.clearRect(0, 0, rw, rh);
+            inner.ctx.filter = 'blur(' + Math.max(1, b.h * 0.035).toFixed(1) + 'px)';
+            inner.ctx.drawImage(clip.canvas, 0, 0);
+            inner.ctx.filter = 'none';
+            const innerData = inner.ctx.getImageData(0, 0, rw, rh).data;
+            // 사진 속 입술의 밝기 (사진 좌표로 — 확대 배율은 위에서 거슬러 읽었다)
+            const raw = wetBuffer('raw', rw, rh);
+            raw.ctx.clearRect(0, 0, rw, rh);
+            raw.ctx.drawImage(ctx.canvas, m.a * rx + m.e, m.d * ry + m.f, m.a * rw, m.d * rh, 0, 0, rw, rh);
+            const rd = raw.ctx.getImageData(0, 0, rw, rh).data;
+            const N = rw * rh;
+            const L = new Float32Array(N), B = new Float32Array(N), T = new Float32Array(N);
+            for (let q = 0, o = 0; q < N; q++, o += 4) L[q] = 0.299 * rd[o] + 0.587 * rd[o + 1] + 0.114 * rd[o + 2];
+            // 큰 음영(입술의 둥근 모양)을 빼고 잔주름만 남긴다 — 상자 흐림 두 번 = 부드러운 흐림
+            const rad = Math.max(1, Math.round(b.h * 0.025));
+            const boxBlur = function (src, dst, r) {
+                for (let y = 0; y < rh; y++) {           // 가로
+                    let acc = 0; const row = y * rw;
+                    for (let x = -r; x <= r; x++) acc += src[row + Math.min(rw - 1, Math.max(0, x))];
+                    for (let x = 0; x < rw; x++) {
+                        T[row + x] = acc / (2 * r + 1);
+                        acc += src[row + Math.min(rw - 1, x + r + 1)] - src[row + Math.max(0, x - r)];
+                    }
+                }
+                for (let x = 0; x < rw; x++) {           // 세로
+                    let acc = 0;
+                    for (let y = -r; y <= r; y++) acc += T[Math.min(rh - 1, Math.max(0, y)) * rw + x];
+                    for (let y = 0; y < rh; y++) {
+                        dst[y * rw + x] = acc / (2 * r + 1);
+                        acc += T[Math.min(rh - 1, y + r + 1) * rw + x] - T[Math.max(0, y - r) * rw + x];
+                    }
+                }
+            };
+            boxBlur(L, B, rad); boxBlur(B, B, rad);
+            const HP = new Float32Array(N);
+            let sum = 0, sum2 = 0, cnt = 0;
+            for (let q = 0; q < N; q++) {
+                HP[q] = L[q] - B[q];
+                if (clipData[q * 4 + 3] > 128) { sum += HP[q]; sum2 += HP[q] * HP[q]; cnt++; }
+            }
+            const sd = cnt ? Math.max(1.5, Math.sqrt(Math.max(0, sum2 / cnt - (sum / cnt) * (sum / cnt)))) : 4;
+            // 빛이 오는 쪽 (0° = 정면 위, - 왼쪽, + 오른쪽)
+            const ang = glossAngle * Math.PI / 180;
+            const step = Math.max(1, Math.round(b.h * 0.012));
+            const ox = Math.round(Math.sin(ang) * step), oy = Math.round(-Math.cos(ang) * step);
+            const sstep = function (e0, e1, v) { const t = Math.max(0, Math.min(1, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+            const gl = wetBuffer('glint', rw, rh);
+            const out = gl.ctx.createImageData(rw, rh), od = out.data;
+            for (let y = 1; y < rh - 1; y++) {
+                for (let x = 1; x < rw - 1; x++) {
+                    const q = y * rw + x;
+                    const cl = clipData[q * 4 + 3] / 255;
+                    if (cl <= 0) continue;
+                    const zone = zoneData[q * 4] / 255;                 // 반사가 많이 맺힐 자리 (0 ~ 1)
+                    const bx = Math.min(rw - 1, Math.max(0, x - ox)), by = Math.min(rh - 1, Math.max(0, y - oy));
+                    const face = (HP[by * rw + bx] - HP[q]) / sd;         // 빛 쪽을 향한 경사
+                    const ridge = HP[q] / sd;                             // 도드라진 결
+                    let v = Math.max(sstep(0.55, 1.6, face), 0.85 * sstep(0.9, 2.2, ridge));
+                    // 반사는 빛 덩어리 자리에 몰리고, 그 밖에서는 아주 드물게만
+                    v *= Math.min(1, 0.12 + zone * 1.5);
+                    v *= cl * sstep(0.62, 0.92, innerData[q * 4 + 3] / 255);
+                    if (v <= 0.02) continue;
+                    const o = q * 4;
+                    od[o] = 255; od[o + 1] = 255; od[o + 2] = 255; od[o + 3] = Math.round(Math.min(1, v) * 255);
+                }
+            }
+            gl.ctx.putImageData(out, 0, 0);
+            // 반사 가장자리만 살짝 부드럽게 (사진 좌표 판에서)
+            const gls = wetBuffer('glintsoft', rw, rh);
+            gls.ctx.clearRect(0, 0, rw, rh);
+            gls.ctx.filter = 'blur(' + Math.max(0.5, b.h * 0.004).toFixed(2) + 'px)';
+            gls.ctx.drawImage(gl.canvas, 0, 0);
+            gls.ctx.filter = 'none';
+            // 은은한 물기 — 빛 덩어리를 입술 안쪽으로 오려 넓게 흐린 것
             g.globalCompositeOperation = 'destination-in';
             g.filter = 'blur(1.5px)';
             g.drawImage(clip.canvas, 0, 0);
             g.filter = 'none';
             g.globalCompositeOperation = 'source-over';
-            // 넓게 번지는 물기 — 흐림도 사진 좌표 판에서 미리 걸어 둔다 (판의 흐림은 확대 배율을 무시한다)
             const soft = wetBuffer('hlsoft', rw, rh);
             soft.ctx.clearRect(0, 0, rw, rh);
-            soft.ctx.filter = 'blur(' + Math.max(1, b.h * 0.035).toFixed(1) + 'px)';
+            soft.ctx.filter = 'blur(' + Math.max(1, b.h * 0.05).toFixed(1) + 'px)';
             soft.ctx.drawImage(hl.canvas, 0, 0);
             soft.ctx.filter = 'none';
             ctx.save();
             ctx.filter = 'none';
-            // 촉촉해 보이게 색을 살짝 깊게 한 뒤 빛을 얹는다
+            // 촉촉해 보이게 색을 살짝 깊고 맑게
             ctx.globalCompositeOperation = 'soft-light';
-            ctx.globalAlpha = 0.18 * k;
-            ctx.drawImage(hl.canvas, rx, ry);
-            // 넓게 번지는 물기 + 또렷하게 맺힌 빛 — 두 번 얹는다
-            ctx.globalCompositeOperation = 'screen';
-            ctx.globalAlpha = 0.7 * k;
+            ctx.globalAlpha = 0.22 * k;
             ctx.drawImage(soft.canvas, rx, ry);
-            ctx.globalAlpha = 0.95 * k;
-            ctx.drawImage(hl.canvas, rx, ry);
+            ctx.globalCompositeOperation = 'screen';
+            ctx.globalAlpha = 0.28 * k;
+            ctx.drawImage(soft.canvas, rx, ry);
+            // 요철 따라 맺힌 반사
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.globalAlpha = Math.min(1, 0.95 * k);
+            ctx.drawImage(gls.canvas, rx, ry);
             ctx.restore();
         }
         /** 마무리 단추(매트 · 글로스)를 지금 값에 맞춘다 */
