@@ -322,9 +322,10 @@
         .btn-reset-mini:hover { background: #5A4737; color: #FFF; }
 
         /* 🎨 컬러 칩 & 기법 */
+        .color-tone-label { font-size: 0.74rem; font-weight: 700; color: var(--muted, #a89a92); margin: 2px 0 4px; }
         .color-palette-wrap {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 5px;
             margin-bottom: 8px;
         }

@@ -1524,6 +1524,7 @@
             Array.prototype.forEach.call(chips, function (c) {
                 list.push({
                     hex: c.getAttribute("data-color"), name: c.textContent.trim(),
+                    tone: c.getAttribute("data-tone") || "",
                     pick: function () { c.click(); }
                 });
             });
@@ -1533,9 +1534,15 @@
             };
         }
 
-        var wrap = el("div", "mui-qcolors");
+        var wrap = el("div", "mui-qcolors" + (list.some(function (c) { return c.tone; }) ? " is-toned" : ""));
         var made = [];
+        var lastTone = null;
         list.forEach(function (c) {
+            // 입술: 쿨톤 · 웜톤 이름표를 줄 앞에 (2026-11-19)
+            if (c.tone && c.tone !== lastTone) {
+                lastTone = c.tone;
+                wrap.appendChild(el("div", "mui-qtone", c.tone === "cool" ? "쿨톤" : "웜톤"));
+            }
             var b = el("button", "mui-qcolor");
             b.type = "button";
             var dot = el("i");
