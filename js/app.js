@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=190";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=190";
-import * as License from "./license.js?v=190";
-import * as Custom from "./custom-designs.js?v=190";
-import * as Update from "./update.js?v=190";
-import * as Crm from "./crm-ui.js?v=190";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=191";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=191";
+import * as License from "./license.js?v=191";
+import * as Custom from "./custom-designs.js?v=191";
+import * as Update from "./update.js?v=191";
+import * as Crm from "./crm-ui.js?v=191";
 
-const BUILD = "190";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "191";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -684,6 +684,8 @@ function openSettings(open) {
  * 다 채우면 신청 정보를 기기에 잠깐 담아 두고 카카오 로그인으로 보낸다.
  * 돌아오면 syncTrial() 이 서버(start_trial)로 함께 보내고 지운다.
  */
+const TRIAL_SOURCES = ["유튜브", "인스타그램 광고", "인스타그램 게시물 · 릴스", "스레드", "네이버 블로그", "네이버 · 구글 검색",
+    "카카오톡", "엠버서더 · 지인 소개", "교육 · 세미나", "기타"];
 function renderTrialForm() {
     const prev = License.trialProfile() || {};
     const ref = License.rememberRef() || prev.ref || "";
@@ -698,12 +700,17 @@ function renderTrialForm() {
         // 담당 엠버서더 (2026-11-21) — 목록에서 고르고, 없으면 '엠버서더 없음'. 목록을 못 받으면 예전처럼 직접 입력
         '<label id="tf-amb-box" hidden><span>담당 엠버서더 <b>*</b></span><select id="tf-amb"></select></label>' +
         '<label id="tf-ref-box"><span>소개해 주신 곳 <i>(선택)</i></span><input id="tf-ref" maxlength="40" placeholder="판매처 · 엠버서더 원장님 이름" value="' + esc(ref) + '"></label>' +
+        // 알게 된 경로 (2026-11-20) — 광고 · 채널별 유입을 재려고. 여러 개 고를 수 있다
+        '<div class="tf-src"><span>PMUS 를 어디서 보고 오셨나요? <b>*</b> <i>(여러 개 골라도 돼요)</i></span><div class="tf-src-list" id="tf-src">' +
+        TRIAL_SOURCES.map((v) => '<label class="tf-chip"><input type="checkbox" value="' + esc(v) + '"' +
+            (String(prev.source || "").split(", ").includes(v) ? " checked" : "") + "><span>" + esc(v) + "</span></label>").join("") +
+        "</div></div>" +
         '<div class="trial-consents">' +
         '<label class="tc-all"><input type="checkbox" id="tc-all"> <strong>아래 내용에 모두 동의합니다</strong></label>' +
         '<label><input type="checkbox" id="tc-privacy"> <span><b class="req">[필수]</b> 개인정보 수집 · 이용 동의</span></label>' +
         '<details><summary>내용 보기</summary><p>' +
-        "· 수집 항목: 상호, 성함, 연락처, 카카오 계정(이메일), 기기 코드<br>" +
-        "· 목적: 무료 체험 제공 · 중복 체험 확인, 정식 구매 시 라이선스 발급, 문의 응대<br>" +
+        "· 수집 항목: 상호, 성함, 연락처, 카카오 계정(이메일), 기기 코드, 알게 된 경로<br>" +
+        "· 목적: 무료 체험 제공 · 중복 체험 확인, 정식 구매 시 라이선스 발급, 문의 응대, 홍보 채널별 효과 확인<br>" +
         "· 보유 기간: 체험 종료 후 1년 (정식 구매 시 거래 기록 보존 기간까지) · 동의를 철회하면 바로 파기<br>" +
         "· 동의를 거부할 수 있으나, 거부하시면 무료 체험을 이용하실 수 없습니다.</p></details>" +
         '<label><input type="checkbox" id="tc-third"> <span><b class="opt">[선택]</b> 개인정보 제3자 제공 동의 (판매처)</span></label>' +
@@ -752,9 +759,11 @@ function renderTrialForm() {
         if (!/^01\d{8,9}$/.test(digits) && !/^0\d{8,10}$/.test(digits)) return err("연락처를 정확히 입력해 주세요 (예: 010-1234-5678)", $("tf-phone"));
         const pick = !$("tf-amb-box").hidden;
         if (pick && !$("tf-amb").value) return err("담당 엠버서더를 골라 주세요 — 없으면 맨 아래 「엠버서더 없음」을 고르시면 됩니다", $("tf-amb"));
+        const source = [...document.querySelectorAll("#tf-src input:checked")].map((c) => c.value).join(", ");
+        if (!source) return err("PMUS 를 어디서 보고 오셨는지 하나 이상 골라 주세요", document.querySelector("#tf-src input"));
         if (!$("tc-privacy").checked) return err("[필수] 개인정보 수집 · 이용에 동의해 주셔야 체험을 시작할 수 있습니다", $("tc-privacy"));
         License.saveTrialProfile({
-            shop, name, phone: digits, ref: pick ? $("tf-amb").value : $("tf-ref").value.trim(),
+            shop, name, phone: digits, ref: pick ? $("tf-amb").value : $("tf-ref").value.trim(), source,
             consent_privacy: true, consent_third: $("tc-third").checked, consent_marketing: $("tc-mkt").checked,
         });
         location.href = License.kakaoLoginUrl();
