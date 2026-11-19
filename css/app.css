@@ -1807,7 +1807,7 @@ html.ed-staff body.sim-fullscreen.settings-open .settings-toggle { left: 0; righ
 .trial-form > label { display: grid; gap: 4px; font-size: 13px; font-weight: 700; color: var(--text, var(--text)); }
 .trial-form > label b { color: var(--accent-2); }
 .trial-form > label i { font-style: normal; font-weight: 500; color: var(--muted, var(--muted)); font-size: 12px; }
-.trial-form input:not([type="checkbox"]) {
+.trial-form input:not([type="checkbox"]), .trial-form select {
     width: 100%; box-sizing: border-box; padding: 11px 12px; border-radius: 10px;
     border: 1px solid var(--line-2); background: var(--surface); color: var(--text); font: inherit; font-size: 15px; font-weight: 500;
 }

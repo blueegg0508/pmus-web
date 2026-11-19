@@ -83,7 +83,7 @@ export const FEATURES = {
     crm:  { label: "고객 관리",       ready: false },   // 실험판에서 만드는 중
 };
 
-const PLAN_LABEL = { year: "1년 이용권", perpetual: "영구 이용권", trial: "체험판" };
+const PLAN_LABEL = { m3: "3개월 이용권", m6: "6개월 이용권", year: "12개월 이용권", perpetual: "영구 이용권", trial: "체험판" };
 
 /**
  * 라이선스가 해당 기능을 허용하는지.
@@ -434,6 +434,29 @@ export function rememberRef() {
         if (r && /^[\w가-힣.-]{1,60}$/.test(r)) localStorage.setItem(KEY_TRIAL_REF, r);
         return localStorage.getItem(KEY_TRIAL_REF) || "";
     } catch (e) { return ""; }
+}
+
+/**
+ * 엠버서더 목록 (2026-11-21 라이선스 개편) — 체험 신청 때 담당 엠버서더를 고른다.
+ * 수파베이스 rpc/ambassadors 가 판매처 표에서 2대(엠버서더)의 번호와 이름만 내준다 (연락처는 내주지 않는다).
+ * 서버에 아직 준비가 안 됐거나 인터넷이 안 되면 지난번 목록, 그것도 없으면 null (→ 직접 입력 칸).
+ * [{ id, label }]
+ */
+export async function ambassadors() {
+    const KEY = "pmus.ambassadors";
+    try {
+        const r = await fetch(SB_URL + "/rest/v1/rpc/ambassadors", {
+            method: "POST",
+            headers: { apikey: SB_KEY, "content-type": "application/json" },
+            body: "{}", cache: "no-store",
+        });
+        if (r.ok) {
+            const list = (await r.json()).filter((x) => x && x.id && x.label);
+            try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) { /* 개인 모드 */ }
+            return list;
+        }
+    } catch (e) { /* 아래 지난번 목록 */ }
+    try { const old = JSON.parse(localStorage.getItem(KEY) || "null"); return Array.isArray(old) && old.length ? old : null; } catch (e) { return null; }
 }
 
 /**

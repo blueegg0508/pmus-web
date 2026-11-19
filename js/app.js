@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=189";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=189";
-import * as License from "./license.js?v=189";
-import * as Custom from "./custom-designs.js?v=189";
-import * as Update from "./update.js?v=189";
-import * as Crm from "./crm-ui.js?v=189";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=190";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=190";
+import * as License from "./license.js?v=190";
+import * as Custom from "./custom-designs.js?v=190";
+import * as Update from "./update.js?v=190";
+import * as Crm from "./crm-ui.js?v=190";
 
-const BUILD = "189";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "190";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -695,7 +695,9 @@ function renderTrialForm() {
         '<label><span>상호 <b>*</b></span><input id="tf-shop" maxlength="60" placeholder="예) ○○브로우 강남점" value="' + esc(prev.shop) + '"></label>' +
         '<label><span>원장님 성함 <b>*</b></span><input id="tf-name" maxlength="30" placeholder="예) 김○○" value="' + esc(prev.name) + '"></label>' +
         '<label><span>연락처 <b>*</b></span><input id="tf-phone" type="tel" inputmode="tel" maxlength="16" placeholder="010-1234-5678" value="' + esc(prev.phone) + '"></label>' +
-        '<label><span>소개해 주신 곳 <i>(선택)</i></span><input id="tf-ref" maxlength="40" placeholder="판매처 · 엠버서더 원장님 이름" value="' + esc(ref) + '"></label>' +
+        // 담당 엠버서더 (2026-11-21) — 목록에서 고르고, 없으면 '엠버서더 없음'. 목록을 못 받으면 예전처럼 직접 입력
+        '<label id="tf-amb-box" hidden><span>담당 엠버서더 <b>*</b></span><select id="tf-amb"></select></label>' +
+        '<label id="tf-ref-box"><span>소개해 주신 곳 <i>(선택)</i></span><input id="tf-ref" maxlength="40" placeholder="판매처 · 엠버서더 원장님 이름" value="' + esc(ref) + '"></label>' +
         '<div class="trial-consents">' +
         '<label class="tc-all"><input type="checkbox" id="tc-all"> <strong>아래 내용에 모두 동의합니다</strong></label>' +
         '<label><input type="checkbox" id="tc-privacy"> <span><b class="req">[필수]</b> 개인정보 수집 · 이용 동의</span></label>' +
@@ -719,6 +721,21 @@ function renderTrialForm() {
         "<small>이미 구매하셨다면 아래에 등록 키를 넣어 주세요.</small>" +
         "</div>";
 
+    // 엠버서더 목록 — 판매처가 나눠 준 주소(?ref=번호 또는 이름)로 들어왔으면 그 엠버서더를 미리 골라 둔다
+    License.ambassadors().then((list) => {
+        if (!list || !$("tf-amb")) return;
+        const low = (v) => String(v || "").trim().toLowerCase();
+        const r = low(ref);
+        const hit = r === "none" ? { id: "none" } : (list.find((a) => low(a.id) === r || low(a.label) === r)
+            || (r.length > 1 ? list.find((a) => low(a.label).includes(r)) : null));
+        $("tf-amb").innerHTML = '<option value="">엠버서더를 골라 주세요</option>' +
+            list.map((a) => '<option value="' + esc(a.id) + '">' + esc(a.label) + "</option>").join("") +
+            '<option value="none">엠버서더 없음 (직접 찾아왔어요)</option>';
+        if (hit) $("tf-amb").value = hit.id;
+        $("tf-amb-box").hidden = false;
+        $("tf-ref-box").hidden = true;
+    });
+
     const ids = ["tc-privacy", "tc-third", "tc-mkt"];
     $("tc-all").addEventListener("change", (e) => ids.forEach((i) => { $(i).checked = e.target.checked; }));
     ids.forEach((i) => $(i).addEventListener("change", () => { $("tc-all").checked = ids.every((x) => $(x).checked); }));
@@ -733,9 +750,11 @@ function renderTrialForm() {
         if (!shop) return err("상호를 입력해 주세요", $("tf-shop"));
         if (!name) return err("원장님 성함을 입력해 주세요", $("tf-name"));
         if (!/^01\d{8,9}$/.test(digits) && !/^0\d{8,10}$/.test(digits)) return err("연락처를 정확히 입력해 주세요 (예: 010-1234-5678)", $("tf-phone"));
+        const pick = !$("tf-amb-box").hidden;
+        if (pick && !$("tf-amb").value) return err("담당 엠버서더를 골라 주세요 — 없으면 맨 아래 「엠버서더 없음」을 고르시면 됩니다", $("tf-amb"));
         if (!$("tc-privacy").checked) return err("[필수] 개인정보 수집 · 이용에 동의해 주셔야 체험을 시작할 수 있습니다", $("tc-privacy"));
         License.saveTrialProfile({
-            shop, name, phone: digits, ref: $("tf-ref").value.trim(),
+            shop, name, phone: digits, ref: pick ? $("tf-amb").value : $("tf-ref").value.trim(),
             consent_privacy: true, consent_third: $("tc-third").checked, consent_marketing: $("tc-mkt").checked,
         });
         location.href = License.kakaoLoginUrl();
