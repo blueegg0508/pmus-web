@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=192";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=192";
-import * as License from "./license.js?v=192";
-import * as Custom from "./custom-designs.js?v=192";
-import * as Update from "./update.js?v=192";
-import * as Crm from "./crm-ui.js?v=192";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=193";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=193";
+import * as License from "./license.js?v=193";
+import * as Custom from "./custom-designs.js?v=193";
+import * as Update from "./update.js?v=193";
+import * as Crm from "./crm-ui.js?v=193";
 
-const BUILD = "192";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "193";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -339,7 +339,7 @@ async function mountSimulator(kind, cfg) {
     // 기존 컨트롤의 이벤트 핸들러가 살아 있는 상태로 이동시킬 수 있다.
     const sa = safeAreaInsets();
     let doc = `<!DOCTYPE html>
-<html lang="ko" data-skin="${shopSet.theme ? "midnight" : currentSkin()}"><head><meta charset="utf-8">
+<html lang="ko" translate="no" class="notranslate" data-skin="${shopSet.theme ? "midnight" : currentSkin()}"><head><meta charset="utf-8"><meta name="google" content="notranslate">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>:root{--sa-top:${sa.top}px;--sa-bottom:${sa.bottom}px;--sa-left:${sa.left}px;--sa-right:${sa.right}px}</style>${i18nHead}
 <script>(function(){
