@@ -30,7 +30,16 @@
         }
     })();
     var lang = window.__I18N_LANG;
-    if (!lang) { try { lang = localStorage.getItem(KEY) || "ko"; } catch (e) { lang = "ko"; } }
+    if (!lang) { try { lang = localStorage.getItem(KEY) || ""; } catch (e) { lang = ""; } }
+    // 랜딩페이지(window.__I18N_AUTO)는 고른 적이 없으면 브라우저 언어를 따른다 — 앱은 늘 한국어로 시작
+    if (!lang && window.__I18N_AUTO) {
+        var nav = (navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""]);
+        for (var ni = 0; ni < nav.length && !lang; ni++) {
+            var code = String(nav[ni] || "").toLowerCase().slice(0, 2);
+            if (LANGS.some(function (l) { return l[0] === code; })) lang = code;
+        }
+    }
+    if (!lang) lang = "ko";
     if (!LANGS.some(function (l) { return l[0] === lang; })) lang = "ko";
 
     var HANGUL = /[가-힣]/;
@@ -146,6 +155,14 @@
                 if (c.tagName === "LI-T") { if (go(c) === false) return false; continue; }   // 아이콘 감싸개 — 안쪽 글자만
                 if (!INLINE.test(c.tagName)) return false;
                 var tag = c.tagName.toLowerCase();
+                // class · style 말고 다른 속성(id · data-…)이 있으면 스크립트가 그 원소를 찾아 쓴다 — 통째 바꾸지 않는다
+                // (tools/i18n-extract.mjs 의 blockCanon 과 같은 규칙)
+                for (var ai = 0; ai < c.attributes.length; ai++) {
+                    var an = c.attributes[ai].name;
+                    if (an === "style") continue;
+                    if (an === "class" && tag === "span") continue;
+                    return false;
+                }
                 if (tag === "br") { out += "<br>"; continue; }
                 var cls = tag === "span" ? (c.getAttribute("class") || "").trim().replace(/\s+/g, " ") : "";
                 out += "<" + tag + (cls ? ' class="' + cls + '"' : "") + ">";
@@ -258,7 +275,7 @@
         dict: function () { return dict; },
         /** 언어를 바꾸고 다시 연다 */
         set: function (code) {
-            try { if (code === "ko") localStorage.removeItem(KEY); else localStorage.setItem(KEY, code); } catch (e) { /* 저장 못 함 */ }
+            try { localStorage.setItem(KEY, code); } catch (e) { /* 저장 못 함 */ }
             location.reload();
         },
     };
@@ -267,6 +284,13 @@
 
     document.documentElement.lang = lang;
     document.documentElement.setAttribute("data-lang", lang);
+    // 일본어 · 중국어는 띄어쓰기가 없다 — 한국어용 '단어째 줄바꿈'(word-break: keep-all)이 걸린 곳에서
+    // 한 줄이 화면 밖으로 넘친다. 이 두 언어에서는 글자 단위로 줄을 바꾼다.
+    if (lang === "ja" || lang === "zh") {
+        var cjk = document.createElement("style");
+        cjk.textContent = "html[data-lang] *{word-break:normal!important;line-break:strict}";
+        (document.head || document.documentElement).appendChild(cjk);
+    }
     function go(d) {
         setDict(d);
         patch();
