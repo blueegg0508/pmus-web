@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=191";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=191";
-import * as License from "./license.js?v=191";
-import * as Custom from "./custom-designs.js?v=191";
-import * as Update from "./update.js?v=191";
-import * as Crm from "./crm-ui.js?v=191";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=192";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=192";
+import * as License from "./license.js?v=192";
+import * as Custom from "./custom-designs.js?v=192";
+import * as Update from "./update.js?v=192";
+import * as Crm from "./crm-ui.js?v=192";
 
-const BUILD = "191";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "192";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -289,6 +289,21 @@ function bailToSettings(msg) {
     if (msg) toast(msg, 4000);
 }
 
+let i18nJsText = null;
+/** 편집 화면(iframe) <head> 에 넣을 언어팩 — 고른 언어 · 사전 · i18n.js */
+async function i18nFrameHead() {
+    const I = window.PMUS_I18N;
+    if (!I || I.lang === "ko") return "";
+    try { await I.ready; } catch (e) { /* 사전을 못 받았으면 한국어로 */ }
+    const d = I.dict();
+    if (!d) return "";
+    if (i18nJsText === null) i18nJsText = await fetchText("js/i18n.js").catch(() => "");
+    if (!i18nJsText) return "";
+    // </script> 가 글자 속에 있으면 문서가 끊기므로 < 를 바꿔 둔다
+    const json = JSON.stringify(d).replace(/</g, "\\u003c");
+    return `<script>window.__I18N_LANG=${JSON.stringify(I.lang)};window.__I18N_DICT=${json};<\/script><script>${i18nJsText}<\/script>`;
+}
+
 async function mountSimulator(kind, cfg) {
     // 파일을 받아오는 동안에도 화면을 벗어날 수 있다. 받아온 뒤 한 번 더 본다.
     const my = renderToken;
@@ -304,6 +319,8 @@ async function mountSimulator(kind, cfg) {
         // 이모지 → 선 아이콘 (앱 화면과 같은 표)
         fetchText("js/line-icons.js"),
     ]);
+    // 언어팩 (2026-11-20) — 편집 화면에도 같은 사전을 실어 보낸다. 한국어면 아무것도 싣지 않는다.
+    const i18nHead = await i18nFrameHead();
 
     // 이번 마운트의 번호. **문서 문자열을 만들기 전에** 넣어야 한다.
     // CFG 는 아래에서 JSON 으로 굳어 iframe 안에 박히므로, 그 뒤에 넣으면
@@ -324,7 +341,7 @@ async function mountSimulator(kind, cfg) {
     let doc = `<!DOCTYPE html>
 <html lang="ko" data-skin="${shopSet.theme ? "midnight" : currentSkin()}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<style>:root{--sa-top:${sa.top}px;--sa-bottom:${sa.bottom}px;--sa-left:${sa.left}px;--sa-right:${sa.right}px}</style>
+<style>:root{--sa-top:${sa.top}px;--sa-bottom:${sa.bottom}px;--sa-left:${sa.left}px;--sa-right:${sa.right}px}</style>${i18nHead}
 <script>(function(){
 function s(k,m){try{window.parent.postMessage({type:"mui:err",kind:k,msg:String(m).slice(0,240)},"*")}catch(e){}}
 window.addEventListener("error",function(e){var t=e.target;
@@ -3540,6 +3557,20 @@ function bindShopSettings() {
         await applyShopTheme();
         toast("모든 설정을 기본값으로 되돌렸습니다");
     });
+
+    // 언어 (2026-11-20) — 누르면 다시 연다 (i18n.js)
+    const langBox = $("shop-lang");
+    const I18N = window.PMUS_I18N;
+    if (langBox && I18N) {
+        I18N.langs.forEach(([code, name]) => {
+            const b = document.createElement("button");
+            b.type = "button"; b.dataset.v = code; b.textContent = name;
+            b.lang = code;
+            b.classList.toggle("is-on", code === I18N.lang);
+            b.addEventListener("click", () => { if (code !== I18N.lang) I18N.set(code); });
+            langBox.appendChild(b);
+        });
+    }
 
     $("shop-btn").addEventListener("click", () => { loadAllFonts(); paintColors(); paintFonts(); applyShopLogo(); sheet.hidden = false; });
     $("shop-close").addEventListener("click", () => { sheet.hidden = true; });

@@ -1911,6 +1911,8 @@ label.design-card { cursor: pointer; }
 .shop-seg3 { grid-auto-flow: row; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .shop-stamp-help { margin: 12px 0 8px; }
 .shop-seg button.is-on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #241812); font-weight: 700; }
+/* 언어 — 그 나라 글자로 적힌 단추 아홉 개 */
+.shop-lang button { font-size: 14px; }
 /* 매장 로고는 가로로 긴 것이 많다 — 높이를 기준으로 맞춘다 */
 .app-logo.is-shop { width: 44px; height: 44px; max-height: 44px; object-fit: contain; border-radius: 6px; }
 /* 테스트 버전에 따로 있던 스킨 단추는 설정의 '화면 색' 으로 합쳤다 */
