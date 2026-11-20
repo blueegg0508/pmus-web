@@ -1917,3 +1917,8 @@ label.design-card { cursor: pointer; }
 .app-logo.is-shop { width: 44px; height: 44px; max-height: 44px; object-fit: contain; border-radius: 6px; }
 /* 테스트 버전에 따로 있던 스킨 단추는 설정의 '화면 색' 으로 합쳤다 */
 .skin-btn { display: none !important; }
+
+/* 번역본 규정 맨 위 — 효력은 한국어 원문 (2026-11-21) */
+.policy-note { display: grid; gap: 8px; margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--line-2, #443b47); border-radius: 10px; background: var(--surface-2, #241f27); }
+.policy-note p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text, #f3ece6); }
+.policy-note .btn { justify-self: start; }

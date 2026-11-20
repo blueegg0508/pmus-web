@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=193";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=193";
-import * as License from "./license.js?v=193";
-import * as Custom from "./custom-designs.js?v=193";
-import * as Update from "./update.js?v=193";
-import * as Crm from "./crm-ui.js?v=193";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=194";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=194";
+import * as License from "./license.js?v=194";
+import * as Custom from "./custom-designs.js?v=194";
+import * as Update from "./update.js?v=194";
+import * as Crm from "./crm-ui.js?v=194";
 
-const BUILD = "193";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "194";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -1050,6 +1050,46 @@ async function showPrevKey() {
 
 /** 결제 · 환불 규정 — policy.html 의 #policy 를 가져와 보여 준다 */
 let policyLoaded = false;
+/** 번역본 규정 맨 위 안내 — 효력은 한국어 원문 (2026-11-21 원장님 요청). 그 나라 말로 적어 두고 번역하지 않는다. */
+const POLICY_NOTE = {
+    en: ["This translation is for reference only. If it differs from the Korean original, the Korean original prevails.", "View Korean original", "View translation"],
+    ja: ["この翻訳は参考用です。韓国語の原文と内容が異なる場合は、韓国語の原文が優先されます。", "韓国語の原文を見る", "翻訳を見る"],
+    zh: ["本译文仅供参考。如与韩文原文不一致，以韩文原文为准。", "查看韩文原文", "查看译文"],
+    es: ["Esta traducción es solo de referencia. En caso de discrepancia con el original en coreano, prevalece el texto en coreano.", "Ver original en coreano", "Ver traducción"],
+    fr: ["Cette traduction est fournie à titre indicatif. En cas de divergence avec l'original coréen, le texte coréen fait foi.", "Voir l'original coréen", "Voir la traduction"],
+    pt: ["Esta tradução é apenas para referência. Em caso de divergência com o original em coreano, prevalece o texto em coreano.", "Ver original em coreano", "Ver tradução"],
+    ru: ["Этот перевод носит справочный характер. При расхождении с оригиналом на корейском языке преимущественную силу имеет корейский текст.", "Оригинал на корейском", "Перевод"],
+    ar: ["هذه الترجمة للاستئناس فقط. في حال وجود أي اختلاف عن الأصل الكوري، يُعتمد النص الكوري.", "عرض الأصل الكوري", "عرض الترجمة"],
+};
+function showPolicy(html) {
+    const box = $("policy-body");
+    const I = window.PMUS_I18N;
+    const note = I && POLICY_NOTE[I.lang];
+    if (!note) { box.innerHTML = html; return; }
+    box.innerHTML = "";
+    const bar = document.createElement("div");
+    bar.className = "policy-note";
+    bar.setAttribute("data-no-i18n", "");
+    bar.dir = I.lang === "ar" ? "rtl" : "auto";
+    const p = document.createElement("p");
+    p.textContent = note[0];
+    const btn = document.createElement("button");
+    btn.type = "button"; btn.className = "btn btn-ghost btn-sm";
+    btn.textContent = note[1];
+    bar.appendChild(p); bar.appendChild(btn);
+    const text = document.createElement("div");
+    box.appendChild(bar); box.appendChild(text);
+    let original = false;
+    const paint = () => {
+        // 원문은 번역 장치가 손대지 않게 표시를 달고 통째로 다시 넣는다
+        if (original) { text.setAttribute("data-no-i18n", ""); text.lang = "ko"; } else { text.removeAttribute("data-no-i18n"); text.removeAttribute("lang"); }
+        text.innerHTML = html;
+        btn.textContent = original ? note[2] : note[1];
+    };
+    btn.addEventListener("click", () => { original = !original; paint(); });
+    paint();
+}
+
 async function openPolicy() {
     $("policy-sheet").hidden = false;
     if (policyLoaded) return;
@@ -1057,7 +1097,7 @@ async function openPolicy() {
         const html = await fetch("policy.html?v=" + BUILD).then((r) => r.text());
         const doc = new DOMParser().parseFromString(html, "text/html");
         const el = doc.getElementById("policy");
-        if (el) { $("policy-body").innerHTML = el.innerHTML; policyLoaded = true; }
+        if (el) { showPolicy(el.innerHTML); policyLoaded = true; }
     } catch (e) {
         $("policy-body").textContent = "규정을 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.";
     }

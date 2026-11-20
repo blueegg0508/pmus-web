@@ -158,7 +158,7 @@
         return out.replace(/\s+/g, " ").trim();
     }
     function doBlock(el) {
-        if (el.__i18nDone || !el.closest || !el.closest("[data-i18n-blocks]")) return;
+        if (el.__i18nDone || !el.closest || !el.closest("[data-i18n-blocks]") || el.closest("[data-no-i18n]")) return;
         var c = blockCanon(el);
         if (!c || !HANGUL.test(c)) return;
         var v = null;
