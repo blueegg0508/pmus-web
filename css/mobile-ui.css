@@ -1412,3 +1412,32 @@ html.mui-on .mui-stage > .mui-vtag.is-on { display: block !important; }
 .mui-hint.is-flash { color: var(--accent-2, var(--accent-2)); font-weight: 700; }
 .mui-absave { margin-top: 8px; }
 .lip-heal-block { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+
+/* ── 눕힌 폰 (2026-11-24 원장님: "핸드폰 가로모드도 태블릿처럼 — 아이폰 · 안드로이드") ──
+   mobile-ui.js layoutLand() 가 가로 + 높이 500px 이하에서 .mui-land-phone 을 붙인다.
+   높이가 360~430px 뿐이라 사진 위 두 줄(사진·디자인 변경 · 시술 전/디자인/비교 · 이동 대상 칩)을 얇게, 한 줄로 */
+html.mui-on.mui-land-phone { --panel-w: clamp(280px, 42vw, 390px); }
+html.mui-on.mui-land-phone .mui-topbar { padding-top: 4px; padding-bottom: 4px; gap: 6px; }
+html.mui-on.mui-land-phone .mui-topbar button,
+html.mui-on.mui-land-phone .mui-settings { min-height: 30px; padding-top: 3px; padding-bottom: 3px; font-size: 11.5px; }
+html.mui-on.mui-land-phone .mui-chips { flex-wrap: nowrap !important; overflow-x: auto; scrollbar-width: none; padding-top: 3px; padding-bottom: 3px; gap: 6px; }
+html.mui-on.mui-land-phone .mui-chips::-webkit-scrollbar { display: none; }
+html.mui-on.mui-land-phone .mui-chips > * { flex: 0 0 auto; min-height: 28px; padding: 3px 10px !important; font-size: 11.5px !important; white-space: nowrap; }
+html.mui-on.mui-land-phone .mui-hint { display: none; }
+html.mui-on.mui-land-phone .mui-modebar button { min-height: 36px; font-size: 13px; }
+html.mui-on.mui-land-phone .mui-sheet { font-size: 13px; }
+html.mui-on.mui-land-phone .mui-topbar .mui-seg button { font-size: 11.5px !important; padding: 4px 8px !important; min-height: 30px !important; }
+html.mui-on.mui-land-phone .mui-topbar .mui-actions button { font-size: 11.5px !important; padding: 4px 7px !important; min-height: 30px !important; min-width: 30px !important; }
+html.mui-on.mui-land-phone .mui-topbar .mui-settings { font-size: 11.5px !important; padding: 4px 9px !important; min-height: 30px !important; }
+/* 눕힌 폰은 위 줄 폭이 좁다 — 가운데 맞춤 대신 [사진·디자인 변경] [보기 전환(넘치면 밀어서)] [되돌리기 · 초기화] 차례로 */
+html.mui-on.mui-land-phone .mui-topbar { grid-template-columns: auto minmax(0, 1fr) auto !important; }
+html.mui-on.mui-land-phone .mui-topbar > .mui-seg { justify-self: start; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+html.mui-on.mui-land-phone .mui-topbar > .mui-seg::-webkit-scrollbar { display: none; }
+/* 눕힌 폰 오른쪽 패널 — 좁아서 조절바 이름이 한 글자씩 세로로 꺾였다. 패널을 조금 넓히고 「잠금」 글자는 자물쇠 그림만 */
+html.mui-on.mui-land-phone { --panel-w: clamp(300px, 46vw, 420px); }
+html.mui-on.mui-land-phone .mui-sheet .ctrl-row label { font-size: 12.5px; }
+html.mui-on.mui-land-phone .mui-sheet .mui-lock { font-size: 0 !important; padding: 4px 6px !important; min-width: 30px; }
+html.mui-on.mui-land-phone .mui-sheet .mui-lock svg { width: 15px; height: 15px; }
+html.mui-on.mui-land-phone .mui-sheet .mui-step-btn,
+html.mui-on.mui-land-phone .mui-sheet .mui-favstar { min-width: 28px !important; min-height: 28px !important; padding: 2px !important; }
+html.mui-on.mui-land-phone .mui-sheet .ctrl-row label > li-t { white-space: nowrap; font-size: 12px; }

@@ -47,6 +47,11 @@
         var inFrame = spec.indexOf("f:") === 0, sel = inFrame ? spec.slice(2) : spec;
         var doc = inFrame ? frameDoc() : document;
         if (!doc) return null;
+        if (sel.indexOf("row:") === 0) {         // 조절바 한 줄 (이름표 + 막대)
+            var inp = doc.querySelector(sel.slice(4));
+            var row = inp && (inp.closest(".ctrl-row") || inp);
+            return row && visible(row) ? row : null;
+        }
         var list = doc.querySelectorAll(sel);
         for (var i = 0; i < list.length; i++) if (visible(list[i])) return list[i];
         return null;
@@ -63,7 +68,9 @@
     /** 편집 화면이 열렸는지 — kind 를 주면 그 부위(brow · lip) 편집 화면인지까지 */
     function editorOpen(kind) {
         var d = frameDoc();
-        if (!(document.body.classList.contains("sim-fullscreen") && d && d.querySelector(".mui-shell"))) return false;
+        // 설정 화면(사진 · 디자인 변경)이 편집 화면 위에 떠 있으면(settings-open) 편집 화면이 안 보이는 것으로 본다
+        var b = document.body.classList;
+        if (!(b.contains("sim-fullscreen") && !b.contains("settings-open") && d && d.querySelector(".mui-shell"))) return false;
         if (kind === "lip") return !!d.getElementById("lipCanvas");
         if (kind === "brow") return !d.getElementById("lipCanvas");
         return true;
@@ -111,6 +118,9 @@
               text: part === "lip" ? "시술 부위에서 「입술」을 눌러 보세요." : "시술 부위에서 「눈썹」을 눌러 보세요.",
               before: function () { if (editorOpen() && !open()) clickIf("f:.mui-settings"); },
               done: open },
+            // 앞 작업이 있으면 어느 사진 위에서 이어갈지 고르는 칸이 먼저 나온다 (없으면 건너뜀)
+            { ch: ch, title: "이어서 편집", target: "#carry-go", act: "click", optional: 3500, text: "앞 작업이 얹힌 사진으로 이어서 편집합니다. 위에서 사진을 고르고 「이 사진으로 편집하기」를 눌러 주세요.",
+              done: open },
             { ch: ch, title: "편집 방식 고르기", target: '[data-edit="quick"]', act: "click", text: "「퀵」은 고객님 앞에서 바로 조절할 때 씁니다. 「퀵」을 누르면 편집 화면이 열립니다.",
               done: open },
         ];
@@ -128,7 +138,12 @@
             return startSteps("brow").concat(partSteps("brow")).concat([
                 { ch: "눈썹", title: "디자인 고르기", target: "f:.mui-qdesigns", act: "click", wait: "편집 화면을 여는 중입니다…", text: "디자인을 옆으로 넘겨 보고, 마음에 드는 디자인을 눌러 보세요." },
                 { ch: "눈썹", title: "눈썹 색", target: "f:.mui-qcolors", act: "click", text: "대표 색상 중 하나를 눌러 보세요. 바로 얼굴에 입혀집니다." },
-                { ch: "눈썹", title: "진하기 조절", target: "f:#rngOpacity", act: "input", text: "조절바를 좌우로 움직여 진하기를 맞춰 보세요." },
+                { ch: "눈썹", title: "눈썹 투명도", target: "f:#rngOpacity", act: "input", text: "「눈썹 투명도」 조절바를 좌우로 움직여 진하기를 맞춰 보세요." },
+                { ch: "눈썹", title: "기존 눈썹 흐리기", target: "f:row:#rngNatBrow", act: "input", text: "원래 눈썹이 진한 고객님은 「기존 눈썹 진하기」를 낮춰 원래 눈썹을 흐리게 합니다. 조절바를 왼쪽으로 움직여 보세요." },
+                { ch: "눈썹", title: "세로 두께", target: "f:row:#rngHeight", act: "input", text: "「세로 두께」 조절바로 눈썹을 도톰하게 · 얇게 맞춰 보세요." },
+                { ch: "눈썹", title: "눈썹 기장", target: "f:row:#rngWidth", act: "input", text: "「눈썹 기장」 조절바로 눈썹 꼬리까지의 길이를 맞춰 보세요." },
+                { ch: "눈썹", title: "꼬리 높이", target: "f:row:#rngRot", act: "input", text: "「꼬리 높이」 조절바로 꼬리를 올리거나 내려 인상을 바꿔 보세요." },
+                { ch: "눈썹", title: "눈썹산 위치", target: "f:row:#rngPeak", act: "input", text: "「눈썹산 위치」로 가장 높은 곳을 앞뒤로 옮겨 보세요. 화면의 기준선을 보며 맞춥니다." },
                 { ch: "눈썹", title: "전후 비교", target: "f:.mui-seg", act: "click", text: "「시술 전」 · 「예상 디자인」을 눌러 고객님께 전후를 보여 드립니다. 눌러 보세요." },
             ]).concat(saveSteps("눈썹")).concat([
                 { ch: "마무리", title: "눈썹 튜토리얼 완료!", text: "눈썹 결과물을 만들어 저장해 보셨습니다. 맨 위 「사진 · 디자인 변경」을 누르면 처음 화면으로 돌아갑니다. 입술 튜토리얼과 다시 보기는 [버전] → 「튜토리얼 진행하기」에서 고르실 수 있습니다." },
@@ -136,10 +151,13 @@
         },
         lip: function () {
             return startSteps("lip").concat(partSteps("lip")).concat([
-                { ch: "입술", title: "이어서 편집", target: "#carry-go", act: "click", optional: 3500, text: "앞에서 만든 눈썹이 얹힌 사진으로 입술을 이어서 편집합니다. 「이 사진으로 편집하기」를 눌러 주세요.",
-                  done: function () { return editorOpen("lip"); } },
                 { ch: "입술", title: "입술 색", target: "f:.mui-qcolors", act: "click", wait: "입술 편집 화면을 여는 중입니다…", text: "입술 색을 하나 골라 보세요." },
                 { ch: "입술", title: "틴트 조절", target: "f:#rngOpacity", act: "input", text: "조절바로 틴트 투명도를 맞춰 보세요." },
+                { ch: "입술", title: "시술 기법", target: "f:.mui-qtech", act: "click", text: "「내추럴」 · 「풀립」 · 「틴트립」 중 하나를 눌러 시술 기법에 따라 달라지는 모습을 보세요." },
+                { ch: "입술", title: "기존 입술 흐리기", target: "f:row:#rngNatLip", act: "input", text: "원래 입술색이 진하면 「기존 입술 진하기」를 낮춥니다. 조절바를 왼쪽으로 움직여 보세요." },
+                { ch: "입술", title: "입꼬리 오버립", target: "f:row:#rngCornerOverU", act: "input", text: "「윗입술 입꼬리 오버립」으로 입꼬리 쪽만 살짝 넓혀 보세요." },
+                { ch: "입술", title: "좌우 대칭", target: "f:.mui-qsym", act: "click", text: "「좌우 대칭 맞추기」를 누르면 짝이 안 맞는 입술선을 한 번에 맞춥니다. 눌러 보세요." },
+                { ch: "입술", title: "시술선 보기", target: "f:#btnToggleDesignLine", act: "click", text: "「시술선」을 누르면 시술할 경계선이 보입니다. 고객님께 선을 설명할 때 씁니다. 눌러 보세요." },
                 { ch: "입술", title: "전후 비교", target: "f:.mui-seg", act: "click", text: "「시술 전」 · 「예상 디자인」으로 입술 전후를 비교해 보세요." },
             ]).concat(saveSteps("입술")).concat([
                 { ch: "마무리", title: "입술 튜토리얼 완료!", text: "입술 결과물을 만들어 저장해 보셨습니다. 맨 위 「사진 · 부위 변경」을 누르면 처음 화면으로 돌아갑니다. 눈썹 튜토리얼과 다시 보기는 [버전] → 「튜토리얼 진행하기」에서 고르실 수 있습니다." },
@@ -149,7 +167,7 @@
     var STEPS = COURSES.brow(), PART = "brow";
 
     // ── 화면 ──
-    var ui = null, idx = 0, timer = null, unbind = null, runId = 0;
+    var ui = null, idx = 0, timer = null, unbind = null, runId = 0, minimized = false;
     function make(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
     function chapterCount(name) { return STEPS.filter(function (s) { return s.ch === name; }).length; }
 
@@ -187,18 +205,40 @@
         s[1].style.cssText = "left:" + (x + w) + "px;top:" + y + "px;width:" + Math.max(0, W - x - w) + "px;height:" + h + "px";
         ui.ring.style.cssText = "display:block;left:" + x + "px;top:" + y + "px;width:" + w + "px;height:" + h + "px";
         ui.card.classList.remove("is-center");
+        // 눕힌 화면의 편집 단계 — 왼쪽은 사진, 오른쪽은 조절 패널. 안내 창은 사진 아래쪽 귀퉁이에 (눈썹 · 눈이 있는 위쪽을 가리지 않게)
+        if (ui.root.classList.contains("is-editor") && W > H) {
+            // 눈썹은 사진 위쪽, 입술은 아래쪽이 중요하다 — 눈썹 코스는 아래 귀퉁이, 입술 코스는 위 귀퉁이
+            if (PART === "lip") { ui.card.style.top = "calc(env(safe-area-inset-top, 0px) + 6px)"; ui.card.style.bottom = ""; }
+            else { ui.card.style.top = ""; ui.card.style.bottom = "calc(env(safe-area-inset-bottom, 0px) + 8px)"; }
+            ui.card.style.width = Math.max(240, Math.min(400, Math.round(W * 0.52) - 16)) + "px";
+            return;
+        }
+        ui.card.style.width = "";
         // 카드는 비춘 곳의 반대쪽 (위가 넓으면 위, 아니면 아래)
-        if (y + h / 2 > H / 2) { ui.card.style.top = "calc(env(safe-area-inset-top, 0px) + 46px)"; ui.card.style.bottom = ""; }
+        if (y + h / 2 > H / 2) { ui.card.style.top = ui.root.classList.contains("is-editor") ? "calc(env(safe-area-inset-top, 0px) + 6px)" : "calc(env(safe-area-inset-top, 0px) + 46px)"; ui.card.style.bottom = ""; }
         else { ui.card.style.bottom = "max(12px, env(safe-area-inset-bottom))"; ui.card.style.top = ""; }
     }
 
     function render(step, el, waiting) {
         var c = ui.card;
+        c.classList.toggle("is-min", minimized && !!step.target);
+        // 편집 화면 안을 비출 때는 얼굴 사진이 보여야 한다 — 안내 창을 작게, 덮는 막을 옅게 (2026-11-24 원장님)
+        var inEditor = !!(step.target && step.target.indexOf("f:") === 0);
+        ui.root.classList.toggle("is-editor", inEditor);
         c.innerHTML = "";
         var n = idx + 1, total = STEPS.length;
         var head = make("div", "tut-head");
         head.appendChild(make("span", "tut-ch", step.ch));
         head.appendChild(make("span", "tut-count", T("단계 {n} / {total}", { n: n, total: total })));
+        // 안내 창 접기 — 사진을 넓게 보고 싶을 때 한 줄로 (다음 단계에서도 접힌 채)
+        var fold = make("button", "tut-fold", minimized ? "펼치기" : "접기");
+        fold.type = "button";
+        fold.addEventListener("click", function () {
+            minimized = !minimized;
+            c.classList.toggle("is-min", minimized);
+            fold.textContent = T(minimized ? "펼치기" : "접기");
+        });
+        head.appendChild(fold);
         c.appendChild(head);
         var bar = make("div", "tut-bar"); var fill = make("i"); fill.style.width = Math.round(n / total * 100) + "%"; bar.appendChild(fill);
         c.appendChild(bar);
@@ -206,7 +246,7 @@
         c.appendChild(make("p", "tut-text", waiting ? (step.wait || "잠시만 기다려 주세요…") : step.text));
         if (idx === 0) {
             var main = PART === "lip" ? "입술" : "눈썹";
-            c.appendChild(make("p", "tut-plan", T(main === "입술" ? "시작 {a}단계 · 입술 {b}단계 · 마무리 — 모두 {total}단계, 2분 정도 걸립니다." : "시작 {a}단계 · 눈썹 {b}단계 · 마무리 — 모두 {total}단계, 2분 정도 걸립니다.",
+            c.appendChild(make("p", "tut-plan", T(main === "입술" ? "시작 {a}단계 · 입술 {b}단계 · 마무리 — 모두 {total}단계, 3분 정도 걸립니다." : "시작 {a}단계 · 눈썹 {b}단계 · 마무리 — 모두 {total}단계, 3분 정도 걸립니다.",
                 { a: chapterCount("시작"), b: chapterCount(main), total: total })));
         }
         if (step.act && el && !waiting) c.appendChild(make("p", "tut-hint", step.act === "input" ? "👆 빛나는 조절바를 움직여 보세요" : "👆 빛나는 곳을 눌러 보세요"));
@@ -302,15 +342,26 @@
         if (ui) return;
         PART = part === "lip" ? "lip" : "brow";
         STEPS = COURSES[PART]();
-        // 편집 화면이 열려 있으면 처음 화면으로 돌아간 뒤 시작한다
-        if (editorOpen()) clickIf("f:.mui-settings");
+        // 편집 화면이 열려 있으면 처음 화면으로 돌아간 뒤 시작한다 — 다 닫힐 때까지 기다린다
+        // (닫히는 중에 시작하면 '편집 화면이 열렸다' 로 보고 눈썹 · 입술 고르기 단계를 건너뛴다)
         ui = build();
+        if (editorOpen()) {
+            clickIf("f:.mui-settings");
+            var waited = 0, my = ++runId;
+            var t = setInterval(function () {
+                waited += 100;
+                if (my !== runId) { clearInterval(t); return; }
+                if (!editorOpen() || waited > 4000) { clearInterval(t); go(0); }
+            }, 100);
+            place(null);
+            return;
+        }
         go(0);
     }
 
     // ── 튜토리얼 고르기 — 처음 켰을 때(아니요 있음) · 버전 화면에서(닫기) ──
     function ask(fromMenu) {
-        if (document.querySelector(".tut-ask")) return;
+        if (document.querySelector(".tut-ask") || ui) return;      // 튜토리얼을 하는 중에는 묻지 않는다
         var box = make("div", "tut-ask");
         box.style.zIndex = Z;
         var card = make("div", "tut-ask-card");
@@ -322,7 +373,7 @@
             var b = make("button", "tut-course"); b.type = "button";
             b.appendChild(make("b", null, c[1]));
             var done = false; try { done = localStorage.getItem(KEY + "." + c[0]) === "done"; } catch (e) {}
-            b.appendChild(make("span", null, T(done ? "{n}단계 · 약 2분 · 완료함" : "{n}단계 · 약 2분", { n: c[2] })));
+            b.appendChild(make("span", null, T(done ? "{n}단계 · 약 3분 · 완료함" : "{n}단계 · 약 3분", { n: c[2] })));
             b.addEventListener("click", function () { box.remove(); start(c[0]); });
             pick.appendChild(b);
         });
@@ -344,6 +395,7 @@
         var tries = 0;
         var t = setInterval(function () {
             if (++tries > 240) { clearInterval(t); return; }            // 2분 안에 안 되면 다음에
+            if (ui) { clearInterval(t); return; }                         // 이미 튜토리얼을 시작했다
             var ph = $("step-photo");
             if (!ph || ph.hidden || !visible(ph)) return;
             var sheets = document.querySelectorAll(".lic-sheet, .pwa-sheet, #cam");

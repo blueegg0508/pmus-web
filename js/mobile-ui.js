@@ -345,9 +345,14 @@
 
     /* 가로 화면(태블릿을 눕혔을 때): 왼쪽 사진, 오른쪽 퀵·메뉴얼 패널.
      * 시트를 아래에서 끌어올리는 대신 오른쪽에 붙박아 둔다. */
-    function isLand() { return window.innerWidth > window.innerHeight && window.innerWidth >= 900; }
+    // 폰도 눕히면 태블릿처럼 (2026-11-24 원장님: "핸드폰 가로모드도 태블릿과 같이 — 아이폰 · 안드로이드 모두")
+    // 예전에는 900px 이상만 — 아이폰(844 · 852) · 갤럭시(780 안팎)를 눕히면 세로 화면 그대로 납작하게 나왔다.
+    function isLand() { return window.innerWidth > window.innerHeight && window.innerWidth >= 560; }
+    /** 눕힌 폰 — 높이가 낮아 위쪽 줄 · 글자를 줄인다 */
+    function isLandPhone() { return isLand() && window.innerHeight <= 500; }
     function layoutLand() {
         document.documentElement.classList.toggle("mui-land", isLand());
+        document.documentElement.classList.toggle("mui-land-phone", isLandPhone());
     }
     layoutLand();
     window.addEventListener("resize", layoutLand);
