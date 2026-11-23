@@ -1922,3 +1922,42 @@ label.design-card { cursor: pointer; }
 .policy-note { display: grid; gap: 8px; margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--line-2, #443b47); border-radius: 10px; background: var(--surface-2, #241f27); }
 .policy-note p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--text, #f3ece6); }
 .policy-note .btn { justify-self: start; }
+
+/* ── 튜토리얼 (2026-11-24, js/tutorial.js) — 게임처럼 빛나는 곳을 따라 누른다 ── */
+.tut-root { position: fixed; inset: 0; pointer-events: none; }
+.tut-shade { position: fixed; background: rgba(6, 4, 8, .72); pointer-events: auto; transition: all .18s ease; }
+.tut-ring { position: fixed; border-radius: 12px; border: 2px solid var(--accent); box-shadow: 0 0 0 4px rgba(var(--accent-rgb, 201, 154, 114), .28), 0 0 24px rgba(var(--accent-rgb, 201, 154, 114), .55); pointer-events: none; animation: tutPulse 1.4s ease-in-out infinite; transition: all .18s ease; }
+@keyframes tutPulse { 50% { box-shadow: 0 0 0 9px rgba(var(--accent-rgb, 201, 154, 114), .12), 0 0 30px rgba(var(--accent-rgb, 201, 154, 114), .7); } }
+@media (prefers-reduced-motion: reduce) { .tut-ring { animation: none; } }
+.tut-card { position: fixed; left: 50%; transform: translateX(-50%); width: min(420px, calc(100vw - 24px)); pointer-events: auto;
+  background: var(--surface, #1b171d); color: var(--text, #f3ece6); border: 1px solid var(--line-2, #443b47); border-radius: 16px; padding: 16px 16px 14px; box-shadow: 0 12px 40px rgba(0, 0, 0, .5); }
+.tut-card.is-center { top: 50%; transform: translate(-50%, -50%); }
+.tut-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.tut-ch { background: var(--accent); color: var(--on-accent, #241812); font-weight: 800; border-radius: 99px; padding: 2px 10px; }
+.tut-count { color: var(--muted, #a89a92); font-weight: 700; }
+.tut-bar { height: 4px; border-radius: 99px; background: var(--surface-3, #322b35); margin: 10px 0 12px; overflow: hidden; }
+.tut-bar i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .25s ease; }
+.tut-title { margin: 0 0 6px; font-size: 17px; font-weight: 800; }
+.tut-text { margin: 0; font-size: 14.5px; line-height: 1.55; color: var(--text-2, #ddd3cc); }
+.tut-plan { margin: 10px 0 0; font-size: 13px; color: var(--accent-2, #ebcba9); }
+.tut-hint { margin: 10px 0 0; font-size: 13px; font-weight: 700; color: var(--accent-2, #ebcba9); }
+.tut-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+.tut-btn { min-height: 42px; padding: 0 16px; border-radius: 10px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; border: 1px solid var(--line-2, #443b47); background: var(--surface-2, #241f27); color: var(--text, #f3ece6); }
+.tut-btn.tut-next { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #241812); }
+.tut-btn.tut-next.is-quiet { background: transparent; color: var(--muted, #a89a92); border-color: var(--line-2, #443b47); font-weight: 600; }
+.tut-btn.tut-extra { margin-right: auto; border-color: var(--accent); color: var(--accent-2, #ebcba9); }
+.tut-btn:disabled { opacity: .45; cursor: default; }
+.tut-skip { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 10px; pointer-events: auto; font: inherit; font-size: 12px; color: #fff; background: rgba(0, 0, 0, .45); border: 1px solid rgba(255, 255, 255, .25); border-radius: 99px; padding: 5px 11px; cursor: pointer; }
+.tut-ask { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; background: rgba(6, 4, 8, .74); }
+.tut-ask-card { width: min(400px, 100%); background: var(--surface, #1b171d); color: var(--text, #f3ece6); border: 1px solid var(--line-2, #443b47); border-radius: 18px; padding: 22px 18px 16px; text-align: center; box-shadow: 0 16px 48px rgba(0, 0, 0, .55); }
+.tut-ask-badge { display: inline-block; font-size: 11.5px; font-weight: 800; letter-spacing: .12em; color: var(--accent-2, #ebcba9); border: 1px solid var(--accent); border-radius: 99px; padding: 3px 10px; }
+.tut-ask-card h3 { margin: 12px 0 6px; font-size: 19px; font-weight: 800; }
+.tut-ask-card p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-2, #ddd3cc); }
+.tut-ask-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0 4px; }
+.tut-course { display: grid; gap: 4px; padding: 16px 10px; border-radius: 14px; border: 1.5px solid var(--accent); background: var(--sel-bg, var(--surface-2, #241f27)); color: var(--text, #f3ece6); font: inherit; cursor: pointer; }
+.tut-course b { font-size: 16px; }
+.tut-course span { font-size: 12px; color: var(--muted, #a89a92); }
+.tut-course:focus-visible, .tut-btn:focus-visible, .tut-skip:focus-visible { outline: 2px solid var(--accent-2, #ebcba9); outline-offset: 2px; }
+.tut-ask-btns { display: flex; justify-content: center; margin-top: 10px; }
+.tut-ask-foot { margin-top: 10px !important; font-size: 12px !important; color: var(--muted, #a89a92) !important; }
+.ver-tutorial { margin-bottom: 8px; }
