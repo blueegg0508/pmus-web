@@ -15,8 +15,8 @@
  * =========================================================================
  */
 
-import * as Store from "./crm-store.js?v=198";
-import * as Remind from "./remind.js?v=198";
+import * as Store from "./crm-store.js?v=199";
+import * as Remind from "./remind.js?v=199";
 
 const $ = (id) => document.getElementById(id);
 
@@ -116,7 +116,7 @@ function bindBackup() {
         try {
             const data = JSON.parse(await f.text());
             const n = (data.customers || []).length, ph = (data.photos || []).length;
-            if (!confirm("백업 파일의 고객 " + n + "명 · 사진 " + ph + "장을 불러올까요?\n같은 고객 기록은 백업 파일 내용으로 덮어씁니다. 지금 있는 다른 고객은 그대로 남습니다.")) return;
+            if (!(await window.pmusConfirm("백업 파일의 고객 " + n + "명 · 사진 " + ph + "장을 불러올까요?\n같은 고객 기록은 백업 파일 내용으로 덮어씁니다. 지금 있는 다른 고객은 그대로 남습니다."))) return;
             const r = await Store.importAll(data);
             alert("불러왔습니다 — 고객 " + r.customers + "명 · 방문 " + r.visits + "건 · 사진 " + r.photos + "장");
             try { await paintList(); await paintPlanCount(); } catch (err) { /* 목록 다시 그리기 실패 */ }
@@ -501,7 +501,7 @@ async function saveEdit() {
 
 async function removeCustomer() {
     if (!editing) return;
-    const ok = window.confirm([
+    const ok = await window.pmusConfirm([
         editing.name + " 고객을 지울까요?",
         "",
         "시술 이력과 사진까지 남김없이 지워집니다.",
@@ -710,7 +710,7 @@ function bindZoomGestures() {
 
 async function removeZoomed() {
     if (!zoomed) return;
-    const ok = window.confirm("이 경과 사진을 지울까요?");
+    const ok = await window.pmusConfirm("이 경과 사진을 지울까요?");
     if (!ok) return;
     const { visitId, photoId } = zoomed;
     closeZoom();

@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=198";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=198";
-import * as License from "./license.js?v=198";
-import * as Custom from "./custom-designs.js?v=198";
-import * as Update from "./update.js?v=198";
-import * as Crm from "./crm-ui.js?v=198";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=199";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=199";
+import * as License from "./license.js?v=199";
+import * as Custom from "./custom-designs.js?v=199";
+import * as Update from "./update.js?v=199";
+import * as Crm from "./crm-ui.js?v=199";
 
-const BUILD = "198";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "199";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -321,6 +321,8 @@ async function mountSimulator(kind, cfg) {
     ]);
     // 언어팩 (2026-11-20) — 편집 화면에도 같은 사전을 실어 보낸다. 한국어면 아무것도 싣지 않는다.
     const i18nHead = await i18nFrameHead();
+    // 앱 안 알림창 (주소가 안 보이는 확인 · 경고 창) — 편집 화면에도 같은 것을
+    const dialogJs = await fetchText("js/dialog.js").catch(() => "");
 
     // 이번 마운트의 번호. **문서 문자열을 만들기 전에** 넣어야 한다.
     // CFG 는 아래에서 JSON 으로 굳어 iframe 안에 박히므로, 그 뒤에 넣으면
@@ -355,6 +357,7 @@ window.__blReport=s;})();<\/script>
 <body>
 ${fillTemplate(shopRecolor(markup), cfg)}
 <script>${iconJs}<\/script>
+<script>${dialogJs}<\/script>
 <script>window.CFG = ${JSON.stringify(cfg)};<\/script>
 <script>${helperJs}<\/script>
 <script>${js}<\/script>
@@ -2136,7 +2139,7 @@ async function buildDesignGrid() {
             del.title = "삭제";
             del.addEventListener("click", async (e) => {
                 e.stopPropagation();      // 카드 선택으로 번지지 않게
-                if (!confirm(`'${d.label}' 디자인을 삭제할까요?`)) return;
+                if (!(await window.pmusConfirm(`'${d.label}' 디자인을 삭제할까요?`))) return;
                 await Custom.remove(d.id);
                 if (state.design === d.key) state.design = DEFAULT_DESIGN;
                 await buildDesignGrid();
@@ -3587,7 +3590,7 @@ function bindShopSettings() {
     const resetAll = $("shop-reset-all");
     if (resetAll) resetAll.addEventListener("click", async () => {
         let ok = false;
-        try { ok = window.confirm("로고 · 화면 색 · 글꼴 · 글자 크기 · 시작 방식을 모두 처음 상태로 되돌릴까요?"); } catch (e) { ok = false; }
+        try { ok = await window.pmusConfirm("로고 · 화면 색 · 글꼴 · 글자 크기 · 시작 방식을 모두 처음 상태로 되돌릴까요?"); } catch (e) { ok = false; }
         if (!ok) return;
         shopSet = { logo: null, theme: null, start: "quick", resume: 2, font: "default", size: 1, stamp: "tl" };
         try { localStorage.removeItem(SHOP_KEY); } catch (e) { /* 못 지워도 화면은 되돌린다 */ }

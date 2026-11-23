@@ -4163,9 +4163,9 @@
             };
         }
 
-        document.getElementById('btnClearHistory').onclick = function() {
+        document.getElementById('btnClearHistory').onclick = async function() {
             if (historyItems.length === 0) return;
-            if (confirm('저장된 립 디자인 히스토리 내역을 모두 비우시겠습니까?')) {
+            if (await (window.pmusConfirm || window.confirm)('저장된 립 디자인 히스토리 내역을 모두 비우시겠습니까?')) {
                 historyItems.length = 0;
                 syncGlobalMemoryCache([]);
                 try {

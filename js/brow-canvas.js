@@ -3068,9 +3068,9 @@
 
         const btnClearHistory = document.getElementById('btnClearHistory');
         if (btnClearHistory) {
-            btnClearHistory.onclick = function() {
+            btnClearHistory.onclick = async function() {
                 if (historyItems.length === 0) return;
-                if (confirm('저장된 눈썹 디자인 상담 히스토리 내역을 모두 비우시겠습니까?')) {
+                if (await (window.pmusConfirm || window.confirm)('저장된 눈썹 디자인 상담 히스토리 내역을 모두 비우시겠습니까?')) {
                     historyItems.length = 0;
                     syncGlobalMemoryCache([]);
                     try {

@@ -138,12 +138,12 @@
             return startSteps("brow").concat(partSteps("brow")).concat([
                 { ch: "눈썹", title: "디자인 고르기", target: "f:.mui-qdesigns", act: "click", wait: "편집 화면을 여는 중입니다…", text: "디자인을 옆으로 넘겨 보고, 마음에 드는 디자인을 눌러 보세요." },
                 { ch: "눈썹", title: "눈썹 색", target: "f:.mui-qcolors", act: "click", text: "대표 색상 중 하나를 눌러 보세요. 바로 얼굴에 입혀집니다." },
-                { ch: "눈썹", title: "눈썹 투명도", target: "f:#rngOpacity", act: "input", text: "「눈썹 투명도」 조절바를 좌우로 움직여 진하기를 맞춰 보세요." },
-                { ch: "눈썹", title: "기존 눈썹 흐리기", target: "f:row:#rngNatBrow", act: "input", text: "원래 눈썹이 진한 고객님은 「기존 눈썹 진하기」를 낮춰 원래 눈썹을 흐리게 합니다. 조절바를 왼쪽으로 움직여 보세요." },
-                { ch: "눈썹", title: "세로 두께", target: "f:row:#rngHeight", act: "input", text: "「세로 두께」 조절바로 눈썹을 도톰하게 · 얇게 맞춰 보세요." },
-                { ch: "눈썹", title: "눈썹 기장", target: "f:row:#rngWidth", act: "input", text: "「눈썹 기장」 조절바로 눈썹 꼬리까지의 길이를 맞춰 보세요." },
-                { ch: "눈썹", title: "꼬리 높이", target: "f:row:#rngRot", act: "input", text: "「꼬리 높이」 조절바로 꼬리를 올리거나 내려 인상을 바꿔 보세요." },
-                { ch: "눈썹", title: "눈썹산 위치", target: "f:row:#rngPeak", act: "input", text: "「눈썹산 위치」로 가장 높은 곳을 앞뒤로 옮겨 보세요. 화면의 기준선을 보며 맞춥니다." },
+                { ch: "눈썹", title: "눈썹 투명도", goal: -1, target: "f:#rngOpacity", act: "input", text: "「눈썹 투명도」 조절바를 좌우로 움직여 진하기를 맞춰 보세요." },
+                { ch: "눈썹", title: "기존 눈썹 흐리기", goal: -1, target: "f:row:#rngNatBrow", act: "input", text: "원래 눈썹이 진한 고객님은 「기존 눈썹 진하기」를 낮춰 원래 눈썹을 흐리게 합니다. 조절바를 왼쪽으로 움직여 보세요." },
+                { ch: "눈썹", title: "세로 두께", goal: 1, target: "f:row:#rngHeight", act: "input", text: "「세로 두께」 조절바로 눈썹을 도톰하게 · 얇게 맞춰 보세요." },
+                { ch: "눈썹", title: "눈썹 기장", goal: 1, target: "f:row:#rngWidth", act: "input", text: "「눈썹 기장」 조절바로 눈썹 꼬리까지의 길이를 맞춰 보세요." },
+                { ch: "눈썹", title: "꼬리 높이", goal: 1, target: "f:row:#rngRot", act: "input", text: "「꼬리 높이」 조절바로 꼬리를 올리거나 내려 인상을 바꿔 보세요." },
+                { ch: "눈썹", title: "눈썹산 위치", goal: 1, target: "f:row:#rngPeak", act: "input", text: "「눈썹산 위치」로 가장 높은 곳을 앞뒤로 옮겨 보세요. 화면의 기준선을 보며 맞춥니다." },
                 { ch: "눈썹", title: "전후 비교", target: "f:.mui-seg", act: "click", text: "「시술 전」 · 「예상 디자인」을 눌러 고객님께 전후를 보여 드립니다. 눌러 보세요." },
             ]).concat(saveSteps("눈썹")).concat([
                 { ch: "마무리", title: "눈썹 튜토리얼 완료!", text: "눈썹 결과물을 만들어 저장해 보셨습니다. 맨 위 「사진 · 디자인 변경」을 누르면 처음 화면으로 돌아갑니다. 입술 튜토리얼과 다시 보기는 [버전] → 「튜토리얼 진행하기」에서 고르실 수 있습니다." },
@@ -152,10 +152,10 @@
         lip: function () {
             return startSteps("lip").concat(partSteps("lip")).concat([
                 { ch: "입술", title: "입술 색", target: "f:.mui-qcolors", act: "click", wait: "입술 편집 화면을 여는 중입니다…", text: "입술 색을 하나 골라 보세요." },
-                { ch: "입술", title: "틴트 조절", target: "f:#rngOpacity", act: "input", text: "조절바로 틴트 투명도를 맞춰 보세요." },
+                { ch: "입술", title: "틴트 조절", goal: -1, target: "f:#rngOpacity", act: "input", text: "조절바로 틴트 투명도를 맞춰 보세요." },
                 { ch: "입술", title: "시술 기법", target: "f:.mui-qtech", act: "click", text: "「내추럴」 · 「풀립」 · 「틴트립」 중 하나를 눌러 시술 기법에 따라 달라지는 모습을 보세요." },
-                { ch: "입술", title: "기존 입술 흐리기", target: "f:row:#rngNatLip", act: "input", text: "원래 입술색이 진하면 「기존 입술 진하기」를 낮춥니다. 조절바를 왼쪽으로 움직여 보세요." },
-                { ch: "입술", title: "입꼬리 오버립", target: "f:row:#rngCornerOverU", act: "input", text: "「윗입술 입꼬리 오버립」으로 입꼬리 쪽만 살짝 넓혀 보세요." },
+                { ch: "입술", title: "기존 입술 흐리기", goal: -1, target: "f:row:#rngNatLip", act: "input", text: "원래 입술색이 진하면 「기존 입술 진하기」를 낮춥니다. 조절바를 왼쪽으로 움직여 보세요." },
+                { ch: "입술", title: "입꼬리 오버립", goal: 1, target: "f:row:#rngCornerOverU", act: "input", text: "「윗입술 입꼬리 오버립」으로 입꼬리 쪽만 살짝 넓혀 보세요." },
                 { ch: "입술", title: "좌우 대칭", target: "f:.mui-qsym", act: "click", text: "「좌우 대칭 맞추기」를 누르면 짝이 안 맞는 입술선을 한 번에 맞춥니다. 눌러 보세요." },
                 { ch: "입술", title: "시술선 보기", target: "f:#btnToggleDesignLine", act: "click", text: "「시술선」을 누르면 시술할 경계선이 보입니다. 고객님께 선을 설명할 때 씁니다. 눌러 보세요." },
                 { ch: "입술", title: "전후 비교", target: "f:.mui-seg", act: "click", text: "「시술 전」 · 「예상 디자인」으로 입술 전후를 비교해 보세요." },
@@ -219,6 +219,25 @@
         else { ui.card.style.bottom = "max(12px, env(safe-area-inset-bottom))"; ui.card.style.top = ""; }
     }
 
+    /** 「여기까지」 표시 — 조절바 위, 목표 값 자리 */
+    function placeGoal() {
+        var g = goalInfo, m = ui.goal;
+        if (!g || !g.sl.isConnected) { if (m) m.style.display = "none"; return; }
+        if (!m) {
+            m = ui.goal = make("div", "tut-goal");
+            m.appendChild(make("span", null, "여기까지"));
+            m.appendChild(make("i"));
+            ui.root.appendChild(m);
+        }
+        var r = rectOf(g.sl), f = (g.to - g.min) / (g.max - g.min);
+        var thumb = 11;                                   // 손잡이 반지름만큼 양끝이 안쪽
+        var x = r.x + thumb + f * (r.w - thumb * 2);
+        m.style.display = "block";
+        m.style.left = Math.round(x) + "px";
+        m.style.top = Math.round(r.y - 30) + "px";
+        m.classList.toggle("is-left", g.dir < 0);
+    }
+
     function render(step, el, waiting) {
         var c = ui.card;
         c.classList.toggle("is-min", minimized && !!step.target);
@@ -249,7 +268,9 @@
             c.appendChild(make("p", "tut-plan", T(main === "입술" ? "시작 {a}단계 · 입술 {b}단계 · 마무리 — 모두 {total}단계, 3분 정도 걸립니다." : "시작 {a}단계 · 눈썹 {b}단계 · 마무리 — 모두 {total}단계, 3분 정도 걸립니다.",
                 { a: chapterCount("시작"), b: chapterCount(main), total: total })));
         }
-        if (step.act && el && !waiting) c.appendChild(make("p", "tut-hint", step.act === "input" ? "👆 빛나는 조절바를 움직여 보세요" : "👆 빛나는 곳을 눌러 보세요"));
+        if (step.act && el && !waiting) c.appendChild(make("p", "tut-hint", step.goal
+            ? (step.goal > 0 ? "👉 조절바를 오른쪽 「여기까지」 표시까지 밀어 보세요" : "👈 조절바를 왼쪽 「여기까지」 표시까지 밀어 보세요")
+            : step.act === "input" ? "👆 빛나는 조절바를 움직여 보세요" : "👆 빛나는 곳을 눌러 보세요"));
         var row = make("div", "tut-btns");
         if (step.extra && !waiting) {
             var ex = make("button", "tut-btn tut-extra", step.extra.label); ex.type = "button";
@@ -274,14 +295,54 @@
         if (unbind) { try { unbind(); } catch (e) {} unbind = null; }
     }
 
+    /** 조절바 목표 — 지금 값에서 한쪽으로 범위의 1/4 쯤 (끝에 너무 붙으면 반대쪽으로) */
+    var goalInfo = null;
+    function sliderOf(el) { return el && (el.matches && el.matches('input[type="range"]') ? el : el.querySelector && el.querySelector('input[type="range"]')); }
+    function makeGoal(step, el) {
+        var sl = sliderOf(el);
+        if (!sl || !step.goal) return null;
+        var min = parseFloat(sl.min) || 0, max = parseFloat(sl.max), v = parseFloat(sl.value);
+        if (!(max > min)) return null;
+        var span = max - min, dir = step.goal, to = v + dir * span * 0.25;
+        if (to > max - span * 0.04 || to < min + span * 0.04) { dir = -dir; to = v + dir * span * 0.25; }
+        to = Math.max(min + span * 0.04, Math.min(max - span * 0.04, to));
+        return { sl: sl, min: min, max: max, dir: dir, to: to, tol: span * 0.04 };
+    }
+    function reached(g) {
+        var v = parseFloat(g.sl.value);
+        return g.dir > 0 ? v >= g.to - g.tol : v <= g.to + g.tol;
+    }
+    /** 잘하셨습니다! — 2초 보여 주고 다음 단계로 */
+    var celebrating = false;
+    function success() {
+        if (celebrating) return;
+        celebrating = true;
+        var my = runId;
+        clearTimers();
+        if (ui.goal) ui.goal.style.display = "none";
+        ui.ring.classList.add("is-done");
+        var c = ui.card;
+        c.classList.remove("is-min");
+        c.innerHTML = "";
+        var box = make("div", "tut-yay");
+        box.appendChild(make("b", null, "잘하셨습니다! 👏"));
+        box.appendChild(make("span", null, STEPS[idx].title));
+        c.appendChild(box);
+        setTimeout(function () {
+            celebrating = false;
+            if (ui) ui.ring.classList.remove("is-done");
+            if (my === runId) go(idx + 1);
+        }, 2000);
+    }
     /** 대상에 동작을 걸어 두고, 하면 다음 단계로 */
     function bindAction(step, el) {
         var doc = el.ownerDocument, type = step.act === "input" ? "input" : "click";
+        goalInfo = type === "input" ? makeGoal(step, el) : null;
         var h = function (ev) {
             if (!el.contains(ev.target) && ev.target !== el) return;
-            var my = runId;
-            setTimeout(function () { if (my === runId) go(idx + 1); }, type === "input" ? 700 : 450);
+            if (goalInfo && !reached(goalInfo)) return;          // 아직 「여기까지」 표시에 못 갔다
             unbind && unbind(); unbind = null;
+            setTimeout(success, type === "input" ? 250 : 350);
         };
         doc.addEventListener(type, h, true);
         unbind = function () { doc.removeEventListener(type, h, true); };
@@ -296,8 +357,10 @@
         if (step.before) { try { step.before(); } catch (e) {} }
         if (step.done && step.done() && idx < STEPS.length - 1) { go(idx + 1); return; }
         var el = step.target ? find(step.target) : null, bound = false, lastWaiting = null, lastScroll = 0;
+        goalInfo = null;
+        if (ui.goal) ui.goal.style.display = "none";
         var tick = function () {
-            if (my !== runId) return;
+            if (my !== runId || celebrating) return;
             // 해야 할 일이 이미 됐으면 (사진을 넣었다 · 편집 화면이 열렸다) 저절로 다음 단계로
             if (step.done && step.done()) { go(idx + 1); return; }
             if (step.target) {
@@ -321,6 +384,7 @@
                 }
             }
             place(el);
+            placeGoal();
             if (waiting !== lastWaiting) { render(step, el, waiting); lastWaiting = waiting; }
             if (step.ready) {
                 var nx = ui.card.querySelector(".tut-next");
@@ -332,6 +396,7 @@
     }
 
     function finish(how) {
+        celebrating = false;
         clearTimers();
         runId++;
         try { if (how === "done") localStorage.setItem(KEY + "." + PART, "done"); if (!localStorage.getItem(KEY)) localStorage.setItem(KEY, how === "done" ? "done" : "no"); } catch (e) {}

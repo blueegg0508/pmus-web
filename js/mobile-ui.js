@@ -687,10 +687,10 @@
     // 앱을 껐다 켜야 했다. 지우기 전에 한 번 물어본다.
     var btnWipe = el("button", "mui-wipe", "전체 초기화");
     btnWipe.type = "button";
-    btnWipe.addEventListener("click", function () {
+    btnWipe.addEventListener("click", async function () {
         var ok = false;
         try {
-            ok = window.confirm([
+            ok = await (window.pmusConfirm || window.confirm)([
                 "모든 작업을 초기화하고 처음으로 돌아갈까요?",
                 "",
                 "저장한 결과물과 지금까지의 편집이 모두 지워집니다.",
@@ -1497,11 +1497,11 @@
     }
 
     /** 저장된 결과물을 한꺼번에 사진첩에 넣는다. */
-    function saveAll() {
+    async function saveAll() {
         var h = history();
         var items = h ? h.items() : [];
         if (items.length === 0) { alert("저장된 결과물이 없습니다."); return; }
-        if (!confirm(items.length + "장을 모두 사진첩에 저장할까요?")) return;
+        if (!(await (window.pmusConfirm || window.confirm)(items.length + "장을 모두 사진첩에 저장할까요?"))) return;
 
         // 한 장씩 순서대로 넘긴다. 앱 셸이 줄을 세워 하나씩 처리한다.
         items.forEach(function (it, i) {
