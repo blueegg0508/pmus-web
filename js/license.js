@@ -437,6 +437,30 @@ export function rememberRef() {
 }
 
 /**
+ * 엠버서더 모집 링크 (2026-11-24) — 앱을 열자마자 ?ref= 를 기억한다 (체험 신청 화면까지 가지 않아도).
+ * 아이폰은 홈 화면 앱이 사파리와 저장소를 따로 쓴다 — 설치 화면에서 '홈 화면에 추가' 할 때
+ * 앱 시작 주소에 같은 ?ref= 가 붙도록 매니페스트를 바꿔 끼운다. (안드로이드는 저장소를 같이 써서 그대로 둔다)
+ */
+(function keepRefForIOS() {
+    let r = "";
+    try { r = new URLSearchParams(location.search).get("ref") || ""; } catch (e) { return; }
+    rememberRef();
+    if (!r || !/^[\w가-힣.-]{1,60}$/.test(r)) return;
+    const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const link = document.querySelector('link[rel="manifest"]');
+    if (!ios || !link) return;
+    fetch(link.href).then((x) => x.json()).then((m) => {
+        const abs = (u) => new URL(u, link.href).href;
+        const start = new URL(m.start_url || "./", link.href);
+        start.searchParams.set("ref", r);
+        m.start_url = start.href;
+        m.scope = abs(m.scope || "./");
+        (m.icons || []).forEach((i) => { i.src = abs(i.src); });
+        link.href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(m));
+    }).catch(() => { /* 못 바꾸면 사파리가 지금 주소(?ref 포함)로 추가한다 */ });
+})();
+
+/**
  * 엠버서더 목록 (2026-11-21 라이선스 개편) — 체험 신청 때 담당 엠버서더를 고른다.
  * 수파베이스 rpc/ambassadors 가 판매처 표에서 2대(엠버서더)의 번호와 이름만 내준다 (연락처는 내주지 않는다).
  * 서버에 아직 준비가 안 됐거나 인터넷이 안 되면 지난번 목록, 그것도 없으면 null (→ 직접 입력 칸).
