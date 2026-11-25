@@ -290,6 +290,9 @@
         let curDeep = 0;
         /** ↘️ 꼬리 내리기 — 앞머리·산은 그대로 두고 산~꼬리만 아래(+) / 위(-) 로 휜다. 눈썹 폭의 % */
         let curTail = 0;
+        /** ⛰️ 산 두께 (-50~100) · 🔺 산 모양 (-100 둥글게 ~ 100 각지게) — 아랫선은 그대로, 윗선만 (2026-11-25) */
+        let curArch = 0;
+        let curArchShape = 0;
         /** 🧽 디자인 지우개 — 눈썹마다 지운 자리 [u, v, r] (눈썹 상자 기준 비율, 가운데가 0) */
         let eraseMarks = { left: [], right: [] };
         let eraseMode = false;
@@ -305,7 +308,7 @@
         // 왼쪽·오른쪽 눈썹 따로 맞추기 — 타고난 비대칭 얼굴은 같은 값이면 오히려 어색하다.
         // 아래는 '함께' 값에 더하는 차이다. [왼쪽]/[오른쪽] 을 고른 채 조절바를 움직이면
         // 그쪽 차이만 바뀌고, [함께] 로 움직이면 두 눈썹이 그 차이를 지닌 채 같이 바뀐다.
-        function zeroSide() { return { scale: 0, width: 0, height: 0, rot: 0, spacing: 0, vert: 0, opacity: 0, round: 0, peak: 0, head: 0, tail: 0, deep: 0 }; }
+        function zeroSide() { return { scale: 0, width: 0, height: 0, rot: 0, spacing: 0, vert: 0, opacity: 0, round: 0, peak: 0, head: 0, tail: 0, deep: 0, arch: 0, archShape: 0 }; }
 
         // ⛰️ 눈썹산 위치 — 눈썹 폭의 % 만큼 산을 앞(-) / 뒤(+) 로 옮긴다. 앞머리·꼬리 끝은 그대로.
         let curPeak = 0;
@@ -422,6 +425,123 @@
             out._pad = pad;
             if (shapeCache.size > 16) shapeCache.clear();
             shapeCache.set(ck, out);
+            return out;
+        }
+        /**
+         * ⛰️ 산 두께 · 🔺 산 모양 (2026-11-25 브로우리스트 김유미 원장님 — 주로 남성 눈썹)
+         *   "남자는 산 부분 두께가 두꺼워져야 할 때가 있고, 여자는 산이 더 얇아져야 할 때도 있다.
+         *    아래로는 넓어지면 안 되고, 앞쪽도 두꺼워지면 안 된다. 눈썹산도 둥글고 뾰족하고."
+         * 그래서 세로줄마다 아랫선은 제자리에 두고 윗선만 움직인다.
+         *   · 산 두께 (arch, -50~100): 산을 가운데로 윗선을 올린다(+) / 내린다(-).
+         *     앞머리 쪽은 산에서 60% 만 가도 0 이 된다 — 앞머리는 그대로.
+         *   · 산 모양 (archShape, -100~100): + 각지게 — 산 꼭짓점 높이는 그대로 두고 어깨를 눌러 꺾인 각을,
+         *     - 둥글게 — 어깨를 채워 둥근 아치를 만든다. (둥근 곡선 ↔ 삼각형 곡선의 차이만큼 옮긴다)
+         * 위로 늘어난 만큼 위아래 여백(_pad)을 붙여 돌려준다 (drawBrowImg 가 여백을 알고 그린다).
+         */
+        const archCache = new Map();
+        function archWarp(src, g, tailLeft, key) {
+            const A = g.arch || 0, S = g.archShape || 0;
+            if (!A && !S) return src;
+            const ck = key + '|' + g.peak + '|' + g.head + '|' + g.tail + '|' + g.deep + '|' + A + '|' + S;
+            if (archCache.has(ck)) return archCache.get(ck);
+            const w = src.width, H0 = src.height, pad0 = src._pad || 0;
+            let d;
+            try {
+                const c = document.createElement('canvas'); c.width = w; c.height = H0;
+                const cx = c.getContext('2d', { willReadFrequently: true });
+                cx.drawImage(src, 0, 0);
+                d = cx.getImageData(0, 0, w, H0).data;
+            } catch (e) { return src; }
+            let maxA = 0;
+            for (let i = 3; i < d.length; i += 4) if (d[i] > maxA) maxA = d[i];
+            const thr = maxA * 0.3;
+            const top = new Float32Array(w).fill(-1), bot = new Float32Array(w).fill(-1);
+            let x0 = -1, x1 = -1;
+            for (let x = 0; x < w; x++) {
+                for (let y = 0; y < H0; y++) if (d[(y * w + x) * 4 + 3] > thr) { top[x] = y; break; }
+                if (top[x] < 0) continue;
+                for (let y = H0 - 1; y >= 0; y--) if (d[(y * w + x) * 4 + 3] > thr) { bot[x] = y + 1; break; }
+                if (x0 < 0) x0 = x; x1 = x;
+            }
+            if (x0 < 0 || x1 - x0 < 8) return src;
+            const span = x1 - x0;
+            // 털 사이 빈 세로줄 — 양옆 값으로 메운다 (빈 줄만 안 움직이면 그 자리가 세로로 끊겨 보인다)
+            [top, bot].forEach(function (arr) {
+                let last = -1;
+                for (let x = x0; x <= x1; x++) {
+                    if (arr[x] >= 0) {
+                        if (last >= 0 && x - last > 1) for (let j = last + 1; j < x; j++) arr[j] = arr[last] + (arr[x] - arr[last]) * (j - last) / (x - last);
+                        last = x;
+                    }
+                }
+            });
+            // 털 결 때문에 들쭉날쭉한 윗선 · 아랫선을 고르게 편다
+            // 세로줄마다 들쭉날쭉하면 그 자리에서 털이 끊겨 보인다 — 폭의 10% 창으로 두 번 고른다
+            const k = Math.max(3, Math.round(span * 0.1));
+            const sm = (arr) => {
+                const o = new Float32Array(w).fill(-1);
+                for (let x = x0; x <= x1; x++) {
+                    let s = 0, n = 0;
+                    for (let j = -k; j <= k; j++) { const v = arr[x + j]; if (v >= 0 && x + j >= x0 && x + j <= x1) { s += v; n++; } }
+                    o[x] = n ? s / n : -1;
+                }
+                return o;
+            };
+            const T = sm(sm(top)), B = sm(sm(bot));
+            // 산 = 가운데쪽(양 끝 15% 제외)에서 윗선이 가장 높은 곳 (산 위치 조절을 한 뒤의 그림에서 다시 찾는다)
+            let p = Math.round((x0 + x1) / 2), best = Infinity;
+            for (let x = Math.round(x0 + span * 0.15); x <= x1 - span * 0.15; x++) if (T[x] >= 0 && T[x] < best) { best = T[x]; p = x; }
+            const tp = Math.max(4, B[p] - T[p]);
+            const headEnd = tailLeft ? x1 : x0, tailEnd = tailLeft ? x0 : x1;
+            const rHead = Math.max(4, Math.abs(headEnd - p)), rTail = Math.max(4, Math.abs(tailEnd - p));
+            const ss = (a, b, t) => { const u = clampN((t - a) / (b - a), 0, 1); return u * u * (3 - 2 * u); };
+            // 산 모양의 기준 — 산 양옆 어깨 두 점(앞머리 쪽 55%, 꼬리 쪽 70% 지점)과 산 꼭짓점을 지나는
+            //   각지게: 두 직선이 산에서 꺾인다 (1 - v)      둥글게: 꼭대기가 평평한 둥근 지붕 (1 - v²)
+            // 원래 윗선에서 이 모양 쪽으로 |S|% 만큼 옮긴다. 어깨 두 점과 꼭짓점 높이는 그대로다.
+            const rh = Math.max(4, rHead * 0.55), rt = Math.max(4, rTail * 0.7);
+            const xa = tailLeft ? Math.min(w - 1, Math.round(p + rh)) : Math.max(0, Math.round(p - rh));   // 앞머리 쪽 어깨
+            const xb = tailLeft ? Math.max(0, Math.round(p - rt)) : Math.min(w - 1, Math.round(p + rt));   // 꼬리 쪽 어깨
+            const Ta = T[xa] >= 0 ? T[xa] : T[p], Tb = T[xb] >= 0 ? T[xb] : T[p];
+            const newTop = new Float32Array(w);
+            let lift = 0;
+            for (let x = 0; x < w; x++) {
+                if (T[x] < 0 || B[x] < 0) { newTop[x] = NaN; continue; }   // 위로 올린 윗선은 0 보다 작을 수 있어 -1 을 표시로 못 쓴다
+                const headSide = tailLeft ? x > p : x < p;
+                const u = Math.abs(x - p) / (headSide ? rHead : rTail);
+                // 두께: 산에서 가장 크게, 앞머리 쪽은 60% 지점에서 0, 꼬리 쪽은 끝 무렵 0
+                const wA = 1 - ss(0, headSide ? 0.6 : 0.9, u);
+                let nt = T[x] - (A / 100) * tp * 0.6 * wA;                 // 위로 = y 가 줄어든다
+                if (S) {
+                    const r = headSide ? rh : rt, v = Math.abs(x - p) / r;
+                    if (v < 1) {
+                        const edge = headSide ? Ta : Tb;
+                        const L = T[p] + (edge - T[p]) * v;                   // 꼭짓점 → 어깨 직선 (= 각진 모양)
+                        const target = S > 0 ? L : T[p] + (edge - T[p]) * v * v;   // 둥글게: 꼭대기가 평평한 지붕
+                        nt += (Math.abs(S) / 100) * (target - T[x]);
+                        // 일자에 가까운 남성 눈썹은 어깨만 눌러서는 각이 안 선다 — 꼭짓점을 천막처럼 살짝 세운다
+                        if (S > 0) nt -= (S / 100) * tp * 0.2 * (1 - v);
+                    }
+                }
+                const th = B[x] - T[x];
+                nt = Math.min(nt, B[x] - Math.max(2, th * 0.3));        // 너무 얇아지지 않게 (아랫선은 그대로)
+                newTop[x] = nt;
+                if (T[x] - nt > lift) lift = T[x] - nt;
+            }
+            const P = Math.ceil(lift) + 2;
+            const out = warpPixels(src, w, H0 + P * 2, (xd, yd) => {
+                const xi = Math.min(w - 1, Math.max(0, Math.floor(xd)));
+                const y = yd - P;
+                const nt = newTop[xi];
+                if (nt !== nt) return [xd, y];          // NaN = 눈썹이 없는 세로줄
+                const b = B[xi];
+                if (y >= b) return [xd, y];
+                // 아랫선(b)을 고정점으로, 윗선 T 를 새 윗선 nt 로 늘이거나 줄인다
+                const f = (b - T[xi]) / Math.max(1, b - nt);
+                return [xd, b - (b - y) * f];
+            });
+            out._pad = pad0 + P;
+            if (archCache.size > 16) archCache.clear();
+            archCache.set(ck, out);
             return out;
         }
         /** 지운 자리를 뺀 그림 (지운 게 없으면 그대로) */
@@ -617,6 +737,8 @@
                 head: clampN(curHead + (a.head || 0), 0, 100),
                 deep: clampN(curDeep + (a.deep || 0), 0, 100),
                 tail: clampN(curTail + (a.tail || 0), -20, 40),
+                arch: clampN(curArch + (a.arch || 0), -50, 100),
+                archShape: clampN(curArchShape + (a.archShape || 0), -100, 100),
                 x: (isL ? leftPos.x - ((curSpacing + a.spacing) / 2.0) : rightPos.x + ((curSpacing + a.spacing) / 2.0)) + grow * Math.cos(rr),
                 y: (isL ? leftPos.y : rightPos.y) + grow * Math.sin(rr),
                 rot: rot,
@@ -903,6 +1025,8 @@
                 curHead: curHead,
                 curDeep: curDeep,
                 curTail: curTail,
+                curArch: curArch,
+                curArchShape: curArchShape,
                 // 붓질은 같은 배열에 점을 더해 가므로 꼭 복사해 둔다 (아니면 '이전 상태' 도 같이 바뀌어 되돌리기가 안 된다)
                 eraseMarks: { left: eraseMarks.left.slice(), right: eraseMarks.right.slice() },
                 healMarks: healMarks.slice(),
@@ -992,6 +1116,8 @@
                 curHead = (st.curHead !== undefined) ? st.curHead : 100;
                 curDeep = st.curDeep || 0;
                 curTail = st.curTail || 0;
+                curArch = st.curArch || 0;
+                curArchShape = st.curArchShape || 0;
                 eraseMarks = st.eraseMarks ? JSON.parse(JSON.stringify(st.eraseMarks)) : { left: [], right: [] };
                 healMarks = st.healMarks ? JSON.parse(JSON.stringify(st.healMarks)) : [];
                 sideAdj = st.sideAdj ? JSON.parse(JSON.stringify(st.sideAdj)) : { left: zeroSide(), right: zeroSide() };
@@ -1142,6 +1268,12 @@
             setVal('rngHead', sd ? curHead + (sideAdj[sd].head || 0) : curHead, '%');
             setVal('rngDeep', sd ? curDeep + (sideAdj[sd].deep || 0) : curDeep, '%');
             setVal('rngTail', sd ? curTail + (sideAdj[sd].tail || 0) : curTail, '%');
+            setVal('rngArch', sd ? curArch + (sideAdj[sd].arch || 0) : curArch, '%');
+            {
+                const sv2 = sd ? curArchShape + (sideAdj[sd].archShape || 0) : curArchShape;
+                const el = document.getElementById('rngArchShape'); if (el) el.value = sv2;
+                const vEl = document.getElementById('valArchShape'); if (vEl) vEl.innerText = archShapeLabel(sv2);
+            }
             updateEraseUi();
             {
                 const pv = sv(curPeak, 'peak');
@@ -1520,8 +1652,8 @@
                 if (isLReady && isRReady) {
                     // 왼쪽 그림은 꼬리가 왼쪽, 오른쪽 그림은 꼬리가 오른쪽
                     const kL = 'L' + curHex + gL.round + (rawLImg.src || '').length, kR = 'R' + curHex + gR.round + (rawRImg.src || '').length;
-                    const drawLImg = applyErase(shapeExtra(peakWarp(getProcessedEyebrow(rawLImg, curHex, gL.round), rawLImg, gL.peak, true, kL), rawLImg, gL, true, kL), eraseMarks.left);
-                    const drawRImg = applyErase(shapeExtra(peakWarp(getProcessedEyebrow(rawRImg, curHex, gR.round), rawRImg, gR.peak, false, kR), rawRImg, gR, false, kR), eraseMarks.right);
+                    const drawLImg = applyErase(archWarp(shapeExtra(peakWarp(getProcessedEyebrow(rawLImg, curHex, gL.round), rawLImg, gL.peak, true, kL), rawLImg, gL, true, kL), gL, true, kL), eraseMarks.left);
+                    const drawRImg = applyErase(archWarp(shapeExtra(peakWarp(getProcessedEyebrow(rawRImg, curHex, gR.round), rawRImg, gR.peak, false, kR), rawRImg, gR, false, kR), gR, false, kR), eraseMarks.right);
 
                     // 왼쪽 눈썹
                     ctx.save();
@@ -1858,6 +1990,8 @@
             return { zoom: curImgZoom, panX: curImgPanX, panY: curImgPanY };
         };
 
+        /** 🔺 산 모양 값 글자 — 0 기본 · - 둥글게 · + 각지게 */
+        function archShapeLabel(v) { v = Math.round(v); return !v ? '기본' : v < 0 ? '둥글게 ' + (-v) : '각지게 ' + v; }
         function peakLabel(v) {
             v = Math.round(v);
             return v === 0 ? '기본' : (v < 0 ? '앞으로 ' + (-v) + '%' : '뒤로 ' + v + '%');
@@ -2165,7 +2299,7 @@
             };
 
             // 🌱 앞머리 진하기 · ↘️ 꼬리 내리기 — [왼쪽]/[오른쪽] 을 고르면 그쪽만
-            [['rngHead', 'head', '%'], ['rngTail', 'tail', '%'], ['rngDeep', 'deep', '%']].forEach(function (d) {
+            [['rngHead', 'head', '%'], ['rngTail', 'tail', '%'], ['rngDeep', 'deep', '%'], ['rngArch', 'arch', '%'], ['rngArchShape', 'archShape', '']].forEach(function (d) {
                 const el = document.getElementById(d[0]);
                 if (!el) return;
                 bindSliderHistory(el);
@@ -2175,8 +2309,10 @@
                     const side = sliderSide();
                     if (d[1] === 'head') { if (side) sideAdj[side].head = v - curHead; else curHead = v; }
                     else if (d[1] === 'deep') { if (side) sideAdj[side].deep = v - curDeep; else curDeep = v; }
+                    else if (d[1] === 'arch') { if (side) sideAdj[side].arch = v - curArch; else curArch = v; }
+                    else if (d[1] === 'archShape') { if (side) sideAdj[side].archShape = v - curArchShape; else curArchShape = v; }
                     else { if (side) sideAdj[side].tail = v - curTail; else curTail = v; }
-                    document.getElementById('val' + d[0].replace('rng', '')).innerText = v + d[2];
+                    document.getElementById('val' + d[0].replace('rng', '')).innerText = d[1] === 'archShape' ? archShapeLabel(v) : v + d[2];
                     requestDraw();
                 };
             });
@@ -2293,7 +2429,7 @@
                 curScale = 100; curWidth = 100; curHeight = 100;
                 curRot = 0; curSpacing = 0; curVert = 0; curOpacity = 85; curNatBrow = 100;
                 curRound = 0; curLRot = 0; curRRot = 0; curPeak = 0;
-                curHead = 100; curDeep = 0; curTail = 0; eraseMarks = { left: [], right: [] }; healMarks = [];
+                curHead = 100; curDeep = 0; curTail = 0; curArch = 0; curArchShape = 0; eraseMarks = { left: [], right: [] }; healMarks = [];
                 sideAdj = { left: zeroSide(), right: zeroSide() };
 
                 curBright = 100; curContrast = 100; curSaturate = 100;

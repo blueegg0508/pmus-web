@@ -745,6 +745,8 @@
                         "rngRound",     // 꼬리 상단 두께
                         "rngRot",       // 꼬리 높이
                         "rngTail",      // 꼬리 내리기 (앞머리·산은 그대로)
+                        "rngArch",      // 산 두께 (윗선만, 앞머리 · 아랫선 그대로)
+                        "rngArchShape", // 산 모양 (둥글게 ↔ 각지게)
                         "rngHead",      // 앞머리 진하기
                         "rngDeep",      // 산~꼬리 진하기 (산부터 꼬리 끝으로 갈수록 진하게)
                         "rngOpacity",   // 눈썹 투명도
@@ -1947,6 +1949,24 @@
         borrow(rowOf("rngVert"), "↕️ 위아래 ");
         // 눈썹산 위치 — 골격에 따라 같은 디자인도 산이 달라 보인다. 눈동자 끝·눈꼬리 기준선을 보며 맞춘다.
         borrow(rowOf("rngPeak"), "⛰️ 눈썹산 위치 ");
+        // 남성 눈썹 — 산 두께 · 산 모양 (2026-11-25 김유미 원장님). 남성 디자인을 고르면 빠른 조절에 바로 보이고,
+        // 여성 디자인일 때는 메뉴얼 [형태] 탭에만 둔다 (여성은 가끔 쓴다).
+        var qMale = el("div", "mui-qmale");
+        qMale.appendChild(qhead("남성 눈썹산 · 두께 · 모양"));
+        var qMaleSlot = el("div", "mui-qslot");
+        qMale.appendChild(qMaleSlot);
+        quick.insertBefore(qMale, qSlot.nextSibling);
+        borrow(rowOf("rngArch"), null, qMaleSlot);
+        borrow(rowOf("rngArchShape"), null, qMaleSlot);
+        var syncMale = function () {
+            var key = (window.CFG && window.CFG.design_key) || "";
+            qMale.hidden = !/^male_/.test(String(key));
+        };
+        syncMale();
+        window.addEventListener("message", function (ev) {
+            var d = ev.data;
+            if (d && d.type === "mui:brow" && d.key) { window.CFG.design_key = d.key; syncMale(); }
+        });
     } else {
         fullnessRows().forEach(function (r) {
             qSlot.appendChild(r); qExtra.push(r);
