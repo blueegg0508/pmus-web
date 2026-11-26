@@ -513,7 +513,6 @@
             const dirT = tailLeft ? -1 : 1;
             const pS = Math.round(clampN(headEnd + dirT * span * clampN(0.68 + (g.peak || 0) / 100, 0.5, 0.85), x0, x1));
             const rhS = Math.max(4, Math.abs(headEnd - pS) * 0.55), rTailS = Math.max(4, Math.abs(tailEnd - pS));
-            const xaS = Math.round(clampN(pS - dirT * rhS, x0, x1));
             const pA = S > 0 ? Math.round(p + (pS - p) * Math.min(1, S / 50)) : p;
             const rHeadA = Math.max(4, Math.abs(headEnd - pA)), rTailA = Math.max(4, Math.abs(tailEnd - pA));
             const dA = new Float32Array(w);
@@ -538,7 +537,12 @@
             }
             const T2 = new Float32Array(w);
             for (let x = 0; x < w; x++) T2[x] = T[x] >= 0 ? T[x] - dA[x] : -1;
-            const Ta2 = T2[xaS] >= 0 ? T2[xaS] : T2[pS];
+            // 모양의 중심: 각지게는 눈매 끝 위(pS), 둥글게는 원래 산(p) — 둥글게까지 pS 로 잡으면 두께 봉우리(p)와
+            //   어긋나 그 사이 윗선이 오목하게 파인다 (2026-11-27 원장님 "둥글게 100 에서 오목하게 파들어간다")
+            const pc = S > 0 ? pS : p;
+            const rhc = S > 0 ? rhS : Math.max(4, rHead * 0.55), rTc = S > 0 ? rTailS : rTail;
+            const xac = Math.round(clampN(pc - dirT * rhc, x0, x1));
+            const Ta2 = T2[xac] >= 0 ? T2[xac] : T2[pc];
             const xEnd = tailLeft ? x0 + Math.round(span * 0.03) : x1 - Math.round(span * 0.03);
             const TbEnd = T2[xEnd] >= 0 ? T2[xEnd] : T2[p];
             for (let x = 0; x < w; x++) {
@@ -550,19 +554,22 @@
                     //   각지게(+) — 산에서 꼬리 끝까지 윗선을 곧은 내리막으로, 꼬리 끝은 조금 더 낮춰 경사가 가팔라지며 뾰족해진다.
                     //               앞머리 쪽은 절반만 곧게 (미간 → 산 능선).
                     //   둥글게(-) — 산 양쪽 어깨를 채워 둥근 아치 (꼭대기가 평평하게 이어진다).
-                    const k = Math.abs(S) / 100, P0 = T2[pS] >= 0 ? T2[pS] : T2[p];
-                    if (tailLeft ? x > pS : x < pS) {
-                        const v = Math.abs(x - pS) / rhS;
+                    //   둥글게는 '채우기만' 한다 — 윗선을 아래로 끌어내리지 않아 어디서도 오목하게 파이지 않는다.
+                    const k = Math.abs(S) / 100, P0 = T2[pc] >= 0 ? T2[pc] : T2[p];
+                    let dlt = 0;
+                    if (tailLeft ? x > pc : x < pc) {
+                        const v = Math.abs(x - pc) / rhc;
                         if (v < 1) {
                             const tgt = S > 0 ? P0 + (Ta2 - P0) * v : P0 + (Ta2 - P0) * v * v;
-                            nt += k * (S > 0 ? 0.5 : 0.8) * (tgt - nt);
+                            dlt = k * (S > 0 ? 0.5 : 0.8) * (tgt - nt);
                         }
                     } else {
-                        const v = clampN(Math.abs(x - pS) / rTailS, 0, 1);
+                        const v = clampN(Math.abs(x - pc) / rTc, 0, 1);
                         const tgt = S > 0 ? P0 + (TbEnd + tp * 0.22 - P0) * v      // 곧은 내리막 + 꼬리 끝 살짝 낮게 = 가파른 경사
                                           : P0 + (TbEnd - P0) * v * v;              // 둥근 아치
-                        nt += k * (tgt - nt);
+                        dlt = k * (tgt - nt);
                     }
+                    nt += S < 0 ? Math.min(0, dlt) : dlt;
                 }
                 const th = B[x] - T[x];
                 nt = Math.min(nt, B[x] - Math.max(2, th * 0.3));        // 너무 얇아지지 않게 (아랫선은 그대로)
