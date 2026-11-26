@@ -770,7 +770,7 @@
                 head: clampN(curHead + (a.head || 0), 0, 100),
                 deep: clampN(curDeep + (a.deep || 0), 0, 100),
                 tail: clampN(curTail + (a.tail || 0), -20, 40),
-                arch: clampN(curArch + (a.arch || 0), -50, 100),
+                arch: clampN(curArch + (a.arch || 0), 0, 100),
                 archShape: clampN(curArchShape + (a.archShape || 0), -100, 100),
                 x: (isL ? leftPos.x - ((curSpacing + a.spacing) / 2.0) : rightPos.x + ((curSpacing + a.spacing) / 2.0)) + grow * Math.cos(rr),
                 y: (isL ? leftPos.y : rightPos.y) + grow * Math.sin(rr),
