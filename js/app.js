@@ -10,14 +10,14 @@
  * =========================================================================
  */
 
-import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=206";
-import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=206";
-import * as License from "./license.js?v=206";
-import * as Custom from "./custom-designs.js?v=206";
-import * as Update from "./update.js?v=206";
-import * as Crm from "./crm-ui.js?v=206";
+import { initFaceLandmarker, detectFaceGeometry, detectLipLandmarks, standardLipLandmarks, detectEyeLandmarks, detectHairline, detectPose, engineStatus } from "./face-detect.js?v=207";
+import { buildEyebrowConfig, lastCanvasRequest } from "./prepare-eyebrow.js?v=207";
+import * as License from "./license.js?v=207";
+import * as Custom from "./custom-designs.js?v=207";
+import * as Update from "./update.js?v=207";
+import * as Crm from "./crm-ui.js?v=207";
 
-const BUILD = "206";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
+const BUILD = "207";                   // 에셋 캐시 무효화용 (수정 시 올릴 것)
 /**
  * 작업용 사진의 최대 변 길이.
  *
@@ -522,6 +522,7 @@ async function runSaveQueue() {
     }
 
     saveRunning = false;
+    if (ok) License.countUsage("saves", ok);   // 활용도 지표 — 결과 저장
     if (!plugins || !plugins.GallerySaver) return;
     if (failed === 0) toast(ok === 1 ? "사진첩에 저장했습니다" : `${ok}장을 사진첩에 저장했습니다`);
     else if (ok === 0) toast("저장에 실패했습니다");
@@ -580,6 +581,7 @@ window.addEventListener("message", (e) => {
         if (d.gen !== mountGen) return;
 
         if (readyWatchdog) { clearTimeout(readyWatchdog); readyWatchdog = null; }
+        License.countUsage("sims");       // 활용도 지표 — 시뮬레이션
         frameHeightLocked = true;
         document.body.classList.add("sim-fullscreen");
         $("sim-frame").style.height = "";   // CSS(100dvh !important)가 맡는다
@@ -857,6 +859,15 @@ const PART_LABEL = { brow: "눈썹", lip: "입술", eyeline: "아이라인", hai
 async function checkRevocation() {
     const was = state.lic && state.lic.active;
     if (!(await License.syncRevocations())) return;
+    // 발급 키 불러오기 (2026-11-27) — 새로 발급 · 재발급 · 기간 추가된 키가 있으면 저절로 바꿔 끼운다
+    try {
+        const pr = await License.pullLicense({ auto: true });
+        if (pr.ok && pr.changed) {
+            await refreshLicense();
+            toast((was ? "새 등록 키로 바꿨습니다 — " : "등록 완료 — ") + (pr.payload.shop || ""), 3600);
+            return;
+        }
+    } catch (e) { /* 인터넷이 없으면 다음에 */ }
     const lic = await License.getLicense();
     if (!!lic.active !== !!was || lic.revoked) {
         if (!lic.active) unmountSimulator();
@@ -1127,6 +1138,16 @@ function watchTrial() {
 }
 
 function bindLicenseUI() {
+    // 활용도 지표 (2026-11-27) — 앱 연 횟수 · 편집 화면을 본 시간(분)을 세고, 30분마다 · 낮 12시 · 저녁 8시에 보낸다
+    License.countUsage("opens");
+    setInterval(() => {
+        if (document.visibilityState === "visible" && state.mountedKind) License.countUsage("mins");
+        const kst = new Date(Date.now() + 9 * 3600000);
+        const h = kst.getUTCHours(), m = kst.getUTCMinutes();
+        if ((h === 11 || h === 19) && (m === 50 || m === 57)) License.sendUsage(true);   // 서버가 모으기(12시 · 20시) 조금 전에
+        else License.sendUsage(false);
+    }, 60000);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") License.sendUsage(false); });
     // 사용 중지 확인 — 처음, 앱으로 돌아올 때, 인터넷이 다시 연결될 때, 30분마다
     setTimeout(checkRevocation, 1500);
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkRevocation(); });
@@ -1165,6 +1186,35 @@ function bindLicenseUI() {
         await refreshLicense();
         toast(`이전 등록 키로 돌아왔습니다 — ${res.payload.shop}`);
     });
+
+    // 발급 키 불러오기 — 등록 화면과 라이선스 정보 창 두 곳
+    const pullNow = async (btn, fromSheet) => {
+        if (btn.disabled) return;
+        btn.disabled = true;
+        const label = btn.textContent;
+        btn.textContent = "불러오는 중…";
+        let res;
+        try { res = await License.pullLicense(); } finally { btn.disabled = false; btn.textContent = label; }
+        if (res.ok && res.changed) {
+            $("lic-error").hidden = true;
+            if (fromSheet) $("lic-sheet").hidden = true;
+            await refreshLicense();
+            toast((fromSheet ? "새 등록 키로 바꿨습니다 — " : "등록 완료 — ") + (res.payload.shop || ""), 3600);
+            return;
+        }
+        if (res.ok) { toast("이미 최신 등록 키를 쓰고 있습니다"); return; }
+        if (fromSheet) { toast(res.reason || "불러오지 못했습니다", 3600); return; }
+        showLicError(res.reason || "불러오지 못했습니다", res.detail);
+        if (res.needsKakao && res.token) {
+            const b = document.createElement("button");
+            b.type = "button"; b.className = "btn kakao-btn"; b.style.marginTop = "10px";
+            b.textContent = "카카오로 로그인하고 등록하기";
+            b.addEventListener("click", () => { License.savePendingToken(res.token); location.href = License.kakaoLoginUrl(); });
+            $("lic-error").appendChild(b);
+        }
+    };
+    $("lic-pull").addEventListener("click", () => pullNow($("lic-pull"), false));
+    $("lic-pull2").addEventListener("click", () => pullNow($("lic-pull2"), true));
 
     $("lic-activate").addEventListener("click", async () => {
         const token = $("lic-token").value;
@@ -1290,6 +1340,7 @@ async function designListForQuick() {
 async function swapBrowDesign(key) {
     if (state.mode !== "brow" || !state.photo || !key) return;
     if (key === state.design) return;
+    License.countUsage("designs");        // 활용도 지표 — 디자인 바꿔 보기
 
     const prev = state.design;
     state.design = key;
@@ -1986,6 +2037,7 @@ async function usePhoto(img, dataUrl) {
         state.brows = null;
         state.bases = [];                 // 남의 사진 작업이 남으면 안 된다
         state.baseChoice = null;
+        License.countUsage("photos");     // 활용도 지표 — 새 상담
 
         $("preview-img").src = dataUrl;
         $("photo-size").textContent = `${img.naturalWidth} × ${img.naturalHeight}`;
@@ -2153,6 +2205,7 @@ async function buildDesignGrid() {
             btn.classList.add("is-active");
             state.design = d.key;
             if (!state.photo) return;
+            License.countUsage("designs");    // 활용도 지표
             // 앞 작업이 있으면 밑그림을 고르고 '편집하기' 를 눌러야 넘어간다
             if (needsBasePick()) {
                 $("carry-picker").scrollIntoView({ behavior: "smooth", block: "center" });

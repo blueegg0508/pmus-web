@@ -434,6 +434,11 @@ body.sim-fullscreen.settings-open .settings-toggle { display: flex; }
 
 #lic-activate { width: 100%; }
 
+/* 발급 키 불러오기 (2026-11-27) — 입금 확인 뒤 발급되면 기기 코드로 서버에서 받아 온다 */
+.lic-pull { margin-bottom: 16px; }
+#lic-pull { width: 100%; }
+.lic-pull-help { margin: 8px 2px 0; font-size: 11.5px; line-height: 1.55; color: var(--muted); }
+
 /* 등록 키 변경을 실수로 눌렀을 때 — 이전 키로 바로 돌아가기 */
 .lic-prev {
     border: 1px solid var(--accent);
@@ -1074,6 +1079,7 @@ body.sim-fullscreen.settings-open .settings-toggle { display: flex; }
 body.is-free .lic-device,
 body.is-free .lic-label,
 body.is-free #lic-token,
+body.is-free .lic-pull,
 body.is-free #lic-activate { display: none !important; }
 
 body.is-free .lic-card { text-align: center; }

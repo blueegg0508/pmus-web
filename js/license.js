@@ -858,6 +858,126 @@ export async function activate(token) {
     return { ok: true, payload: res.payload };
 }
 
+/* -------------------------------------------------------------------
+ * 발급 키 불러오기 (2026-11-27 원장님)
+ * 입금 확인 뒤 라이선스 관리에서 발급하면 그 키가 서버(license_tokens)로 올라간다.
+ * 앱은 이 기기 코드로 발급된 최신 키를 받아 스스로 등록한다 — 키를 카톡으로 주고받지 않는다.
+ * 재발급 · 기간 추가 · 기능 추가로 새 키가 나오면 앱을 열 때마다 저절로 바꿔 끼운다.
+ * 서버 함수: license/supabase-autofetch.sql 의 rpc/fetch_license
+ * ------------------------------------------------------------------- */
+const KEY_PULL_AT = "blic.pullAt";
+/**
+ * @param {{auto?: boolean}} o  auto = 앱이 알아서 부르는 것 (조용히, 30분에 한 번까지)
+ * @returns {{ok:true, changed:boolean, payload?:object} | {ok:false, none?:boolean, offline?:boolean, reason?:string, detail?:string}}
+ */
+export async function pullLicense(o = {}) {
+    const ed = await edition();
+    if (ed.staff || ed.free) return { ok: false, reason: "" };
+    if (o.auto) {
+        const last = parseInt(localStorage.getItem(KEY_PULL_AT) || "0", 10);
+        if (Date.now() - last < 30 * 60 * 1000) return { ok: false, reason: "" };
+    }
+    const deviceCode = await getDeviceCode();
+    let list;
+    try {
+        const ctrl = typeof AbortController === "function" ? new AbortController() : null;
+        const timer = ctrl ? setTimeout(() => ctrl.abort(), 8000) : 0;
+        const r = await fetch(SB_URL + "/rest/v1/rpc/fetch_license", {
+            method: "POST",
+            headers: { apikey: SB_KEY, "content-type": "application/json" },
+            body: JSON.stringify({ p_dev: deviceCode }),
+            cache: "no-store",
+            signal: ctrl ? ctrl.signal : undefined,
+        });
+        if (timer) clearTimeout(timer);
+        if (!r.ok) throw new Error("fetch_license " + r.status);
+        list = await r.json();
+        try { localStorage.setItem(KEY_PULL_AT, String(Date.now())); } catch (e) { /* 개인 모드 */ }
+    } catch (e) {
+        return { ok: false, offline: true, reason: "인터넷 연결을 확인해 주세요", detail: "발급 키를 불러오려면 인터넷에 연결되어 있어야 합니다" };
+    }
+    if (!Array.isArray(list) || !list.length) {
+        return { ok: false, none: true, reason: "아직 이 기기로 발급된 등록 키가 없습니다", detail: "입금 확인 뒤 발급이 끝났다는 안내를 받으시면 다시 눌러 주세요" };
+    }
+    // 지금 쓰는 키보다 나중에 발급된 키만 바꿔 끼운다
+    const cur = (await Preferences.get({ key: KEY_TOKEN })).value;
+    let curIat = 0;
+    if (cur) {
+        const v = await verifyToken(cur, deviceCode);
+        if (v.ok) curIat = v.payload.iat || 0;
+    }
+    let lastFail = null;
+    for (const row of list) {
+        const t = row && row.token;
+        if (!t) continue;
+        if (cur && String(t).trim() === String(cur).trim()) return { ok: true, changed: false };
+        const v = await verifyToken(t, deviceCode);
+        if (!v.ok) { lastFail = v; continue; }
+        if (curIat && (v.payload.iat || 0) <= curIat) return { ok: true, changed: false };
+        // 묶음 할인 키는 카카오 로그인이 필요해 저절로는 등록하지 않는다
+        if (o.auto && v.payload.grp) return { ok: false, reason: "" };
+        const res = await activate(t);
+        if (res.ok) return { ok: true, changed: true, payload: res.payload };
+        lastFail = res;
+        if (res.needsKakao) return Object.assign({ token: t }, res);
+    }
+    return Object.assign({ ok: false }, lastFail || { reason: "불러온 등록 키를 쓸 수 없습니다" });
+}
+
+/* -------------------------------------------------------------------
+ * 활용도 지표 (2026-11-27 원장님) — 원장님들이 프로그램을 얼마나 쓰시는지 횟수만 센다.
+ * 앱 연 횟수 · 새 상담(사진) · 시뮬레이션 · 디자인 바꾸기 · 결과 저장 · 편집 화면 본 시간(분).
+ * 고객 사진 · 이름 같은 내용은 세지도 보내지도 않는다. 날짜별로 이 기기에 모았다가
+ * 서버 rpc/usage_report 로 보낸다 (license/supabase-usage.sql). 낮 12시 · 저녁 8시에 서버가 모아 사용지수를 매긴다.
+ * ------------------------------------------------------------------- */
+const KEY_USAGE = "pmus.usage";
+const KEY_USAGE_SENT = "pmus.usageSent";
+function kstDay(t = Date.now()) {
+    return new Date(t + 9 * 3600000).toISOString().slice(0, 10);    // 한국 날짜
+}
+/** 하나 센다. evt: opens · photos · sims · designs · saves · mins */
+export function countUsage(evt, n = 1) {
+    try {
+        const all = JSON.parse(localStorage.getItem(KEY_USAGE) || "{}");
+        const day = kstDay();
+        const d = all[day] || (all[day] = {});
+        d[evt] = (d[evt] || 0) + n;
+        // 14일 넘은 날은 지운다
+        const old = kstDay(Date.now() - 14 * 86400000);
+        Object.keys(all).forEach((k) => { if (k < old) delete all[k]; });
+        localStorage.setItem(KEY_USAGE, JSON.stringify(all));
+    } catch (e) { /* 개인 모드 */ }
+}
+/** 모은 횟수를 서버로 보낸다. force 가 아니면 30분에 한 번까지 */
+export async function sendUsage(force) {
+    try {
+        const ed = await edition();
+        if (ed.staff || ed.free) return;
+        const last = parseInt(localStorage.getItem(KEY_USAGE_SENT) || "0", 10);
+        if (!force && Date.now() - last < 30 * 60 * 1000) return;
+        const all = JSON.parse(localStorage.getItem(KEY_USAGE) || "{}");
+        if (!Object.keys(all).length) return;
+        const deviceCode = await getDeviceCode();
+        let lic = "trial";
+        const tok = (await Preferences.get({ key: KEY_TOKEN })).value;
+        if (tok) {
+            const v = await verifyToken(tok, deviceCode);
+            if (v.ok && v.payload.lic && v.payload.plan !== "trial") lic = v.payload.lic;
+        }
+        // 최근 7일만 보낸다
+        const from = kstDay(Date.now() - 7 * 86400000);
+        const days = {};
+        Object.keys(all).forEach((k) => { if (k >= from) days[k] = all[k]; });
+        const r = await fetch(SB_URL + "/rest/v1/rpc/usage_report", {
+            method: "POST",
+            headers: { apikey: SB_KEY, "content-type": "application/json" },
+            body: JSON.stringify({ p_lic: lic, p_dev: deviceCode, p_days: days }),
+            cache: "no-store",
+        });
+        if (r.ok) localStorage.setItem(KEY_USAGE_SENT, String(Date.now()));
+    } catch (e) { /* 인터넷이 없으면 다음에 */ }
+}
+
 // 등록 키 변경을 실수로 눌러도 다시 붙여 넣지 않게, 지우기 전 키를 따로 기억해 둔다 (2026-11-17)
 const KEY_PREV_TOKEN = "blic.prevToken";
 
@@ -865,6 +985,8 @@ export async function deactivate() {
     const cur = (await Preferences.get({ key: KEY_TOKEN })).value;
     if (cur) await Preferences.set({ key: KEY_PREV_TOKEN, value: cur });
     await Preferences.remove({ key: KEY_TOKEN });
+    // 다른 키를 넣으려고 지운 참이니, 발급 키 자동 불러오기가 바로 되돌려 끼우지 않게 30분 쉰다
+    try { localStorage.setItem(KEY_PULL_AT, String(Date.now())); } catch (e) { /* 개인 모드 */ }
 }
 
 /** 바로 전에 쓰던 등록 키가 이 기기에서 아직 유효하면 { shop, exp } — 없거나 못 쓰면 null */

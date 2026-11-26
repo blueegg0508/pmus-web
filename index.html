@@ -14,17 +14,17 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="PMUS">
 <script>try { var sk = localStorage.getItem("pmus.skin"); if (sk) document.documentElement.setAttribute("data-skin", sk); } catch (e) {}</script>
-<link rel="stylesheet" href="css/skins.css?v=206">
-<script src="js/i18n.js?v=206"></script>
-<script src="js/line-icons.js?v=206" defer></script>
-<script src="js/dialog.js?v=206"></script>
-<script src="js/tutorial.js?v=206" defer></script>
-<link rel="stylesheet" href="css/app.css?v=206">
+<link rel="stylesheet" href="css/skins.css?v=207">
+<script src="js/i18n.js?v=207"></script>
+<script src="js/line-icons.js?v=207" defer></script>
+<script src="js/dialog.js?v=207"></script>
+<script src="js/tutorial.js?v=207" defer></script>
+<link rel="stylesheet" href="css/app.css?v=207">
 </head>
 <body>
 
 <header class="app-bar">
-    <img src="assets/logo.png?v=206" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
+    <img src="assets/logo.png?v=207" alt="PMUS" class="app-logo" onerror="this.style.display='none'">
     <h1 class="app-title">PMUS 반영구 시뮬레이터</h1>
     <div class="app-bar-end">
         <button id="skin-btn" class="diag-btn skin-btn" type="button" title="화면 디자인" aria-label="화면 디자인 바꾸기">🎨</button>
@@ -37,7 +37,7 @@
 <!-- ── 라이선스 활성화 화면 ───────────────────────────────────────── -->
 <section id="license-gate" class="step license-gate" hidden>
     <div class="lic-card">
-        <img src="assets/logo-full.png?v=206" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
+        <img src="assets/logo-full.png?v=207" alt="PMUS — Permanent Makeup Simulator" class="lic-logo">
         <h2 class="lic-title">라이선스 등록</h2>
         <p class="lic-desc" id="lic-message">
             이 앱을 사용하려면 라이선스 등록이 필요합니다.<br>
@@ -50,6 +50,10 @@
             <button class="btn btn-ghost btn-sm" id="lic-copy-device">복사</button>
         </div>
 
+        <div class="lic-pull">
+            <button type="button" class="btn btn-primary" id="lic-pull">발급 키 불러오기</button>
+            <p class="lic-pull-help">입금 확인 뒤 발급이 끝났다는 안내를 받으시면 이 버튼만 누르세요. 등록 키를 붙여 넣지 않아도 됩니다.</p>
+        </div>
         <label class="lic-label" for="lic-token">발급받은 등록 키</label>
         <textarea id="lic-token" class="lic-input" rows="4"
                   placeholder="전달받은 등록 키를 그대로 붙여넣으세요"
@@ -173,6 +177,7 @@
         <h3 class="lic-sheet-title">라이선스 정보</h3>
         <dl id="lic-detail" class="lic-detail"></dl>
         <div class="lic-sheet-actions">
+            <button class="btn btn-ghost btn-sm" id="lic-pull2">새 발급 불러오기</button>
             <button class="btn btn-ghost btn-sm" id="lic-change">등록 키 변경</button>
             <button class="btn btn-primary btn-sm" id="lic-close">닫기</button>
         </div>
@@ -611,7 +616,7 @@
     </div>
 </div>
 
-<script type="module" src="js/pwa.js?v=206"></script>
-<script type="module" src="js/app.js?v=206"></script>
+<script type="module" src="js/pwa.js?v=207"></script>
+<script type="module" src="js/app.js?v=207"></script>
 </body>
 </html>
