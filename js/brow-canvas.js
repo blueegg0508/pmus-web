@@ -504,13 +504,32 @@
             const Ta = T[xa] >= 0 ? T[xa] : T[p], Tb = T[xb] >= 0 ? T[xb] : T[p];
             const newTop = new Float32Array(w);
             let lift = 0;
+            // 산 두께 (2026-11-26 원장님 "산봉우리처럼 서지 말고, 미간에서 시작한 눈썹이 대각선으로 능선처럼 이어지게"):
+            //   앞머리 쪽은 앞머리 끝 0 → 산 100% 로 '곧게' 늘린다 (윗선이 미간에서 산까지 비스듬한 직선 능선).
+            //   꼬리 쪽은 산에서 꼬리 끝으로 부드럽게 줄인다. 산에서 꺾이는 자리는 폭의 6% 로 한 번 더 고르게 편다.
+            const dA = new Float32Array(w);
+            for (let x = 0; x < w; x++) {
+                if (T[x] < 0 || B[x] < 0) continue;
+                const headSide = tailLeft ? x > p : x < p;
+                const u = Math.abs(x - p) / (headSide ? rHead : rTail);
+                const wA = headSide ? clampN(1 - u, 0, 1) : 1 - ss(0, 0.95, u);
+                dA[x] = (A / 100) * tp * 0.6 * wA;
+            }
+            if (A) {
+                const kk = Math.max(2, Math.round(span * 0.06));
+                for (let pass = 0; pass < 2; pass++) {
+                    const c = dA.slice();
+                    for (let x = x0; x <= x1; x++) {
+                        let sum = 0, n = 0;
+                        for (let j = -kk; j <= kk; j++) { const xx = x + j; if (xx >= x0 && xx <= x1) { sum += c[xx]; n++; } }
+                        dA[x] = n ? sum / n : c[x];
+                    }
+                }
+            }
             for (let x = 0; x < w; x++) {
                 if (T[x] < 0 || B[x] < 0) { newTop[x] = NaN; continue; }   // 위로 올린 윗선은 0 보다 작을 수 있어 -1 을 표시로 못 쓴다
                 const headSide = tailLeft ? x > p : x < p;
-                const u = Math.abs(x - p) / (headSide ? rHead : rTail);
-                // 두께: 산에서 가장 크게, 앞머리 쪽은 60% 지점에서 0, 꼬리 쪽은 끝 무렵 0
-                const wA = 1 - ss(0, headSide ? 0.6 : 0.9, u);
-                let nt = T[x] - (A / 100) * tp * 0.6 * wA;                 // 위로 = y 가 줄어든다
+                let nt = T[x] - dA[x];                                      // 위로 = y 가 줄어든다
                 if (S) {
                     const r = headSide ? rh : rt, v = Math.abs(x - p) / r;
                     if (v < 1) {
