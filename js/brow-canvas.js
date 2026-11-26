@@ -507,11 +507,20 @@
             // 산 두께 (2026-11-26 원장님 "산봉우리처럼 서지 말고, 미간에서 시작한 눈썹이 대각선으로 능선처럼 이어지게"):
             //   앞머리 쪽은 앞머리 끝 0 → 산 100% 로 '곧게' 늘린다 (윗선이 미간에서 산까지 비스듬한 직선 능선).
             //   꼬리 쪽은 산에서 꼬리 끝으로 부드럽게 줄인다. 산에서 꺾이는 자리는 폭의 6% 로 한 번 더 고르게 편다.
+            // 산 모양의 꺾이는 자리 (2026-11-27 원장님): 윗선이 가장 높은 곳(p)은 남성 일자 눈썹에서 가운데 ~ 앞머리 쪽에 잡혀
+            //   각이 미간 쪽으로 쏠린다. 각지게는 눈매 끝 위 — 앞머리에서 눈썹 길이의 68% (산 위치 조절만큼 옮김) 에서 꺾는다.
+            //   각지게를 올린 만큼 두께 능선의 꼭대기도 그 자리로 옮겨, 미간 → 눈매 끝 위까지 긴 대각선 능선이 된다.
+            const dirT = tailLeft ? -1 : 1;
+            const pS = Math.round(clampN(headEnd + dirT * span * clampN(0.68 + (g.peak || 0) / 100, 0.5, 0.85), x0, x1));
+            const rhS = Math.max(4, Math.abs(headEnd - pS) * 0.55), rTailS = Math.max(4, Math.abs(tailEnd - pS));
+            const xaS = Math.round(clampN(pS - dirT * rhS, x0, x1));
+            const pA = S > 0 ? Math.round(p + (pS - p) * Math.min(1, S / 50)) : p;
+            const rHeadA = Math.max(4, Math.abs(headEnd - pA)), rTailA = Math.max(4, Math.abs(tailEnd - pA));
             const dA = new Float32Array(w);
             for (let x = 0; x < w; x++) {
                 if (T[x] < 0 || B[x] < 0) continue;
-                const headSide = tailLeft ? x > p : x < p;
-                const u = Math.abs(x - p) / (headSide ? rHead : rTail);
+                const headSide = tailLeft ? x > pA : x < pA;
+                const u = Math.abs(x - pA) / (headSide ? rHeadA : rTailA);
                 const wA = headSide ? clampN(1 - u, 0, 1) : 1 - ss(0, 0.95, u);
                 // 2026-11-26: 예전 70 이 새 100 (최대) — 더 두꺼우면 부자연스럽다. 얇게(-) 쪽은 그대로
                 dA[x] = (A / 100) * tp * (A > 0 ? 0.42 : 0.6) * wA;
@@ -529,7 +538,7 @@
             }
             const T2 = new Float32Array(w);
             for (let x = 0; x < w; x++) T2[x] = T[x] >= 0 ? T[x] - dA[x] : -1;
-            const Ta2 = T2[xa] >= 0 ? T2[xa] : T2[p];
+            const Ta2 = T2[xaS] >= 0 ? T2[xaS] : T2[pS];
             const xEnd = tailLeft ? x0 + Math.round(span * 0.03) : x1 - Math.round(span * 0.03);
             const TbEnd = T2[xEnd] >= 0 ? T2[xEnd] : T2[p];
             for (let x = 0; x < w; x++) {
@@ -541,15 +550,15 @@
                     //   각지게(+) — 산에서 꼬리 끝까지 윗선을 곧은 내리막으로, 꼬리 끝은 조금 더 낮춰 경사가 가팔라지며 뾰족해진다.
                     //               앞머리 쪽은 절반만 곧게 (미간 → 산 능선).
                     //   둥글게(-) — 산 양쪽 어깨를 채워 둥근 아치 (꼭대기가 평평하게 이어진다).
-                    const k = Math.abs(S) / 100, P0 = T2[p];
-                    if (headSide) {
-                        const v = Math.abs(x - p) / rh;
+                    const k = Math.abs(S) / 100, P0 = T2[pS] >= 0 ? T2[pS] : T2[p];
+                    if (tailLeft ? x > pS : x < pS) {
+                        const v = Math.abs(x - pS) / rhS;
                         if (v < 1) {
                             const tgt = S > 0 ? P0 + (Ta2 - P0) * v : P0 + (Ta2 - P0) * v * v;
                             nt += k * (S > 0 ? 0.5 : 0.8) * (tgt - nt);
                         }
                     } else {
-                        const v = clampN(Math.abs(x - p) / rTail, 0, 1);
+                        const v = clampN(Math.abs(x - pS) / rTailS, 0, 1);
                         const tgt = S > 0 ? P0 + (TbEnd + tp * 0.22 - P0) * v      // 곧은 내리막 + 꼬리 끝 살짝 낮게 = 가파른 경사
                                           : P0 + (TbEnd - P0) * v * v;              // 둥근 아치
                         nt += k * (tgt - nt);
