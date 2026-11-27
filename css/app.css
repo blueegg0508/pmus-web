@@ -2000,3 +2000,7 @@ label.design-card { cursor: pointer; }
 .tut-yay { display: grid; gap: 4px; text-align: center; padding: 10px 4px; }
 .tut-yay b { font-size: 20px; color: var(--accent-2, #ebcba9); }
 .tut-yay span { font-size: 13px; color: var(--muted, #a89a92); }
+/* 박수 — 3초 (2026-11-27 원장님) */
+.tut-yay.is-clap b { font-size: 24px; animation: tut-clap .5s ease-out 0s 3 alternate; display: inline-block; }
+@keyframes tut-clap { from { transform: scale(1); } to { transform: scale(1.12); } }
+@media (prefers-reduced-motion: reduce) { .tut-yay.is-clap b { animation: none; } }

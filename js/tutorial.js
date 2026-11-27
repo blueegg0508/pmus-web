@@ -44,6 +44,7 @@
     /** "#id" · ".cls" 는 앱 화면, "f:…" 는 편집 화면 안 */
     function find(spec) {
         if (!spec) return null;
+        if (typeof spec === "function") { var fe = spec(); return fe && visible(fe) ? fe : null; }
         var inFrame = spec.indexOf("f:") === 0, sel = inFrame ? spec.slice(2) : spec;
         var doc = inFrame ? frameDoc() : document;
         if (!doc) return null;
@@ -101,7 +102,7 @@
             { ch: "시작", title: part === "lip" ? "PMUS 입술 튜토리얼" : "PMUS 눈썹 튜토리얼",
               text: part === "lip"
                 ? "고객 사진 한 장으로 입술 시술 후 모습을 만들어 봅니다. 빛나는 곳을 직접 눌러 따라 하세요. 언제든 오른쪽 위 「건너뛰기」로 그만둘 수 있습니다."
-                : "고객 사진 한 장으로 눈썹 시술 후 모습을 만들어 봅니다. 빛나는 곳을 직접 눌러 따라 하세요. 언제든 오른쪽 위 「건너뛰기」로 그만둘 수 있습니다." },
+                : "고객 사진 한 장으로 디자인 고르기 · 색 · 세부 조절 · 좌우 따로 조절 · 비교 · 저장까지 차례로 해 봅니다. 빛나는 곳을 직접 눌러 따라 하시고, 잘하시면 박수가 나온 뒤 다음 단계로 넘어갑니다. 언제든 오른쪽 위 「건너뛰기」로 그만둘 수 있습니다." },
             { ch: "시작", title: "고객 사진 넣기", target: "#btn-gallery", text: "「앨범에서 선택」이나 「카메라로 촬영」으로 고객 사진을 넣습니다. 연습할 때는 아래 「예시 사진으로 하기」를 눌러도 됩니다.",
               extra: { label: "예시 사진으로 하기", run: useSamplePhoto },
               done: photoIn, ready: photoIn },
@@ -133,21 +134,164 @@
             { ch: ch, title: "결과 저장", target: "f:#btnDownloadAfter", act: "click", text: "누르면 지금 화면 그대로 폰 사진첩에 저장됩니다. 눌러 보세요." },
         ];
     }
+
+    /* ── 눈썹 코스 (2026-11-27 원장님 26단계 · 수치) ─────────────────────────
+     * clap: 잘하셨습니다 박수를 3초 보여 주고 다음 단계로 (없으면 짧게 ✓ 만)
+     * check: 이것이 참이 되면 해낸 것 · slider: { id, to } 조절바를 그 값까지 (「여기까지」 표시)
+     * ------------------------------------------------------------------- */
+    function fwin() { var f = $("sim-frame"); try { return f && f.contentWindow; } catch (e) { return null; } }
+    function fq(sel) { var d = frameDoc(); return d ? d.querySelector(sel) : null; }
+    function fval(id) { var d = frameDoc(), e = d && d.getElementById(id); return e ? parseFloat(e.value) : NaN; }
+    function designKey() { var w = fwin(); try { return (w && w.CFG && w.CFG.design_key) || ""; } catch (e) { return ""; } }
+    function sheetMode() {
+        var sh = fq(".mui-sheet");
+        if (!sh) return "";
+        return sh.classList.contains("is-quick") ? "quick" : sh.classList.contains("is-fav") ? "fav" : "manual";
+    }
+    function browColor() { var e = fq("#selectColorPreset"); return e ? String(e.value).toUpperCase() : ""; }
+    function splitPct() {
+        var e = fq('[style*="--split"]');
+        if (!e) return NaN;
+        return parseFloat(e.style.getPropertyValue("--split"));
+    }
+    /** 퀵 디자인 — 보이면 그 디자인, 다른 탭이 열려 있으면 그 디자인의 탭 */
+    function qDesign(key, tab) {
+        return function () {
+            var c = fq('.mui-qdesign[data-key="' + key + '"]');
+            if (c && visible(c)) return c;
+            return fq('.mui-idx-tabs [data-tab="' + tab + '"]') || fq(".mui-qdesigns");
+        };
+    }
+    function lockBtn(id) {
+        return function () {
+            var d = frameDoc(), inp = d && d.getElementById(id);
+            var row = inp && (inp.closest(".ctrl-row") || inp.parentNode);
+            return row ? row.querySelector(".mui-lock") : null;
+        };
+    }
+    function histCompareBtn() {
+        var d = frameDoc();
+        if (!d) return null;
+        var l = d.querySelectorAll(".mui-histbtn");
+        for (var i = 0; i < l.length; i++) if (/비교/.test(l[i].textContent) || l[i].textContent.indexOf(T("비교 보기")) >= 0) return l[i];
+        return null;
+    }
+    var B = "눈썹";
+    /** 조절바를 값까지 */
+    function sl(id, to, title, text, clap) {
+        return { ch: B, title: title, target: "f:row:#" + id, slider: { id: id, to: to }, text: text, clap: !!clap };
+    }
+    /** 메뉴얼 → 저장 탭 → 고화질 저장 */
+    function saveHQ(clap, title) {
+        return [
+            { ch: B, title: "메뉴얼로 가기", target: "f:.mui-modebar button:nth-child(2)", act: "click", text: "시트 맨 위 「메뉴얼」을 눌러 보세요.",
+              done: function () { return sheetMode() === "manual"; } },
+            { ch: B, title: "저장 탭", target: 'f:.mui-tabs button[data-tab="save"]', act: "click", text: "「저장」 탭을 눌러 보세요." },
+            { ch: B, title: title || "고화질 저장", target: "f:#btnDownloadAfter", act: "click", clap: clap,
+              text: "「예상 디자인 고화질 저장」을 눌러 지금 디자인을 사진첩에 저장해 보세요." },
+        ];
+    }
+    function toQuick() {
+        return { ch: B, title: "퀵으로 가기", target: "f:.mui-modebar button:nth-child(1)", act: "click", text: "시트 맨 위 「퀵」을 눌러 보세요.",
+                 done: function () { return sheetMode() === "quick"; } };
+    }
+    function browSteps() {
+        var seenTabs = {}, seenColors = {};
+        return [
+            // 2. 디자인 둘러보기 — 자연결 · 그라데이션 · 콤보 · 남성 탭을 눌러 보고 디자인 하나 고르기
+            { ch: B, title: "디자인 탭 둘러보기", target: "f:.mui-idx-tabs", wait: "편집 화면을 여는 중입니다…",
+              text: "디자인 줄 위의 「자연결」 · 「그라데이션」 · 「콤보」 · 「남성」 탭을 하나씩 눌러 디자인을 둘러보세요.",
+              before: function () { seenTabs = {}; },
+              check: function () {
+                  var on = fq(".mui-idx-tabs .mui-idx-tab.is-on");
+                  if (on) seenTabs[on.getAttribute("data-tab")] = 1;
+                  return !!(seenTabs.natural && seenTabs.gradation && seenTabs.combo && seenTabs.male);
+              } },
+            { ch: B, title: "디자인 눌러 보기", target: "f:.mui-qdesigns", act: "click",
+              text: "마음에 드는 디자인을 하나 눌러 보세요. 얼굴 위에 바로 입혀집니다." },
+            // 3. 오른쪽 점선 — 세로 두께까지 내렸다가 다시 올라오기
+            { ch: B, title: "오른쪽 점선으로 내리기", target: "f:.mui-quick", text: "조절 칸 오른쪽의 점선을 따라 손가락으로 쓸어 「세로 두께」가 보일 때까지 내려 보세요.",
+              wait: "편집 화면을 여는 중입니다…",
+              check: function () {
+                  var p = fq(".mui-quick"), h = fq("#rngHeight");
+                  if (!p || !h) return false;
+                  var pr = p.getBoundingClientRect(), hr = h.getBoundingClientRect();
+                  return p.scrollTop > 20 && hr.top < pr.bottom - 10 && hr.bottom > pr.top;
+              } },
+            { ch: B, title: "다시 맨 위로", target: "f:.mui-quick", clap: true, text: "이번에는 점선을 따라 맨 위까지 다시 올라와 보세요.",
+              check: function () { var p = fq(".mui-quick"); return !!p && p.scrollTop < 8; } },
+            // 4. 그라데이션 · 세미아치
+            { ch: B, title: "그라데이션 · 세미아치", target: qDesign("female_semiarch_gradation.png", "gradation"), clap: true,
+              text: "위 디자인 줄에서 「그라데이션」 탭 → 「세미아치」를 눌러 보세요.",
+              check: function () { return designKey() === "female_semiarch_gradation.png"; } },
+            // 5 · 6. 대표 색상
+            { ch: B, title: "대표 색상 둘러보기", target: "f:.mui-qcolors", text: "대표 색상 네 가지를 한 번씩 눌러 색을 비교해 보세요.",
+              before: function () { seenColors = {}; },
+              check: function () {
+                  var c = browColor(); if (c) seenColors[c] = 1;
+                  return Object.keys(seenColors).length >= 4;
+              } },
+            { ch: B, title: "다크브라운", target: "f:.mui-qcolors", clap: true, text: "「다크브라운」을 눌러 보세요.",
+              check: function () { return browColor() === "#3D2B1F"; } },
+            // 7. 투명도 60% · 8. 잠금
+            sl("rngOpacity", 60, "눈썹 투명도 60%", "「눈썹 투명도」를 60%까지 내려 보세요. 옆의 − + 로 한 칸씩 맞출 수도 있습니다.", true),
+            { ch: B, title: "잠금으로 고정", target: lockBtn("rngOpacity"), clap: true,
+              text: "「눈썹 투명도」 옆 「잠금」을 눌러 고정해 보세요. 잠그면 다른 조절이나 디자인을 바꿔도 이 값이 그대로 있습니다.",
+              check: function () { var d = frameDoc(), i = d && d.getElementById("rngOpacity"); return !!i && i.dataset.locked === "1"; } },
+            // 9 ~ 14
+            sl("rngNatBrow", 10, "기존 눈썹 지우기 10%", "「기존 눈썹 진하기」를 10%까지 내려 고객님의 원래 눈썹을 지워 보세요.", true),
+            sl("rngSpacing", 40, "눈썹 간격 40", "「눈썹 간격」을 40까지 움직여 보세요.", true),
+            sl("rngWidth", 120, "눈썹 기장 120%", "「눈썹 기장」을 120%까지 늘려 보세요."),
+            sl("rngWidth", 100, "다시 100%", "이번에는 「눈썹 기장」을 다시 100%까지 줄여 보세요.", true),
+            sl("rngHeight", 110, "세로 두께 110%", "「세로 두께」를 110%까지 올려 보세요.", true),
+            sl("rngRot", 4, "꼬리 높이 4°", "「꼬리 높이」를 4°까지 올려 보세요."),
+            sl("rngRot", -2.5, "꼬리 높이 −2.5°", "이번에는 「꼬리 높이」를 −2.5°까지 내려 보세요.", true),
+            sl("rngTail", -8, "꼬리 내리기 −8%", "「꼬리 내리기」를 −8%까지 움직여 보세요."),
+            sl("rngTail", 0, "다시 0%", "이번에는 「꼬리 내리기」를 다시 0%까지 가 보세요.", true),
+            // 15. 오른쪽 눈썹만
+            { ch: B, title: "오른쪽 눈썹만", target: "f:#btnBrowMoveRight", act: "click", text: "「오른쪽」을 눌러 보세요. 이제 조절바가 오른쪽 눈썹만 바꿉니다." },
+            sl("rngTail", 2, "오른쪽 꼬리 내리기 2%", "오른쪽 눈썹의 「꼬리 내리기」를 2%까지 가 보세요."),
+            sl("rngSpacing", -55, "오른쪽 간격 −55", "「눈썹 간격」을 −55까지 가 보세요."),
+            sl("rngHeight", 105, "오른쪽 세로 두께 105%", "「세로 두께」를 105%까지 가 보세요."),
+            sl("rngPeak", 2, "오른쪽 눈썹산 위치 2%", "「눈썹산 위치」를 뒤로 2%까지 가 보세요.", true),
+            // 16. 함께
+            { ch: B, title: "다시 함께", target: "f:#btnBrowMoveBoth", act: "click", text: "「함께」를 눌러 두 눈썹을 다시 같이 조절하도록 돌려 놓으세요." },
+            // 17. 비교 — 오른쪽으로 갔다가 가운데로
+            { ch: B, title: "비교 보기", target: "f:.mui-seg button:nth-child(3)", act: "click", text: "위쪽 「비교」를 눌러 보세요. 시술 전과 디자인이 반반 나옵니다." },
+            { ch: B, title: "오른쪽으로 밀기", target: "f:.mui-split", text: "가운데 세로 선을 오른쪽 끝 쪽으로 밀어 보세요.",
+              check: function () { return splitPct() >= 80; } },
+            { ch: B, title: "다시 가운데로", target: "f:.mui-split", clap: true, text: "이번에는 세로 선을 다시 가운데로 가져와 보세요.",
+              check: function () { var v = splitPct(); return v >= 40 && v <= 60; } },
+            // 18. 디자인 → 메뉴얼 → 저장 → 고화질 저장
+            { ch: B, title: "디자인 보기", target: "f:.mui-seg button:nth-child(2)", act: "click", text: "위쪽 「예상 디자인」을 다시 눌러 보세요." },
+        ].concat(saveHQ(true)).concat([
+            // 19. 퀵 → 자연결 · 일자
+            toQuick(),
+            { ch: B, title: "자연결 · 일자", target: qDesign("female_straight_natural.png", "natural"), clap: true,
+              text: "디자인 줄에서 「자연결」 탭 → 「일자」를 눌러 보세요.",
+              check: function () { return designKey() === "female_straight_natural.png"; } },
+            // 20 ~ 22
+            { ch: B, title: "리얼블랙", target: "f:.mui-qcolors", text: "색을 「리얼블랙」으로 바꿔 보세요.",
+              check: function () { return browColor() === "#000000"; } },
+            sl("rngTail", -4, "꼬리 내리기 −4%", "「꼬리 내리기」를 −4%까지 가 보세요."),
+            sl("rngHead", 65, "앞머리 진하기 65%", "「앞머리 진하기」를 65%까지 내려 보세요."),
+        ]).concat(saveHQ(false, "고화질 저장 (두 번째)")).concat([
+            // 24. 퀵 → 그라데이션 · 아치 → 저장
+            toQuick(),
+            { ch: B, title: "그라데이션 · 아치", target: qDesign("female_arch_gradation.png", "gradation"),
+              text: "디자인 줄에서 「그라데이션」 탭 → 「아치」를 눌러 보세요.",
+              check: function () { return designKey() === "female_arch_gradation.png"; } },
+        ]).concat(saveHQ(true, "고화질 저장 (세 번째)")).concat([
+            // 25 · 26. 비교 보기 → 전체 이미지 저장
+            { ch: B, title: "비교 보기", target: histCompareBtn, act: "click", text: "저장 탭의 「비교 보기」를 눌러 보세요. 저장한 디자인 세 가지가 나란히 나옵니다." },
+            { ch: B, title: "전체 이미지 저장", target: "f:.mui-compare-save", act: "click", clap: true, final: true,
+              text: "「전체 이미지 저장」을 눌러 세 디자인을 한 장으로 저장해 보세요." },
+            { ch: "마무리", title: "눈썹 튜토리얼 완료!", text: "수고하셨습니다! 디자인 고르기부터 좌우 조절 · 비교 · 저장까지 모두 해 보셨습니다. 맨 위 「사진 · 디자인 변경」을 누르면 처음 화면으로 돌아갑니다. 다시 보기는 [버전] → 「튜토리얼 진행하기」에서 고르실 수 있습니다." },
+        ]);
+    }
     var COURSES = {
         brow: function () {
-            return startSteps("brow").concat(partSteps("brow")).concat([
-                { ch: "눈썹", title: "디자인 고르기", target: "f:.mui-qdesigns", act: "click", wait: "편집 화면을 여는 중입니다…", text: "디자인을 옆으로 넘겨 보고, 마음에 드는 디자인을 눌러 보세요." },
-                { ch: "눈썹", title: "눈썹 색", target: "f:.mui-qcolors", act: "click", text: "대표 색상 중 하나를 눌러 보세요. 바로 얼굴에 입혀집니다." },
-                { ch: "눈썹", title: "눈썹 투명도", goal: -1, target: "f:#rngOpacity", act: "input", text: "「눈썹 투명도」 조절바를 좌우로 움직여 진하기를 맞춰 보세요." },
-                { ch: "눈썹", title: "기존 눈썹 흐리기", goal: -1, target: "f:row:#rngNatBrow", act: "input", text: "원래 눈썹이 진한 고객님은 「기존 눈썹 진하기」를 낮춰 원래 눈썹을 흐리게 합니다. 조절바를 왼쪽으로 움직여 보세요." },
-                { ch: "눈썹", title: "세로 두께", goal: 1, target: "f:row:#rngHeight", act: "input", text: "「세로 두께」 조절바로 눈썹을 도톰하게 · 얇게 맞춰 보세요." },
-                { ch: "눈썹", title: "눈썹 기장", goal: 1, target: "f:row:#rngWidth", act: "input", text: "「눈썹 기장」 조절바로 눈썹 꼬리까지의 길이를 맞춰 보세요." },
-                { ch: "눈썹", title: "꼬리 높이", goal: 1, target: "f:row:#rngRot", act: "input", text: "「꼬리 높이」 조절바로 꼬리를 올리거나 내려 인상을 바꿔 보세요." },
-                { ch: "눈썹", title: "눈썹산 위치", goal: 1, target: "f:row:#rngPeak", act: "input", text: "「눈썹산 위치」로 가장 높은 곳을 앞뒤로 옮겨 보세요. 화면의 기준선을 보며 맞춥니다." },
-                { ch: "눈썹", title: "전후 비교", target: "f:.mui-seg", act: "click", text: "「시술 전」 · 「예상 디자인」을 눌러 고객님께 전후를 보여 드립니다. 눌러 보세요." },
-            ]).concat(saveSteps("눈썹")).concat([
-                { ch: "마무리", title: "눈썹 튜토리얼 완료!", text: "눈썹 결과물을 만들어 저장해 보셨습니다. 맨 위 「사진 · 디자인 변경」을 누르면 처음 화면으로 돌아갑니다. 입술 튜토리얼과 다시 보기는 [버전] → 「튜토리얼 진행하기」에서 고르실 수 있습니다." },
-            ]);
+            return startSteps("brow").concat(partSteps("brow")).concat(browSteps());
         },
         lip: function () {
             return startSteps("lip").concat(partSteps("lip")).concat([
@@ -242,7 +386,7 @@
         var c = ui.card;
         c.classList.toggle("is-min", minimized && !!step.target);
         // 편집 화면 안을 비출 때는 얼굴 사진이 보여야 한다 — 안내 창을 작게, 덮는 막을 옅게 (2026-11-24 원장님)
-        var inEditor = !!(step.target && step.target.indexOf("f:") === 0);
+        var inEditor = !!(step.target && (typeof step.target === "function" || step.target.indexOf("f:") === 0));
         ui.root.classList.toggle("is-editor", inEditor);
         c.innerHTML = "";
         var n = idx + 1, total = STEPS.length;
@@ -265,9 +409,11 @@
         c.appendChild(make("p", "tut-text", waiting ? (step.wait || "잠시만 기다려 주세요…") : step.text));
         if (idx === 0) {
             var main = PART === "lip" ? "입술" : "눈썹";
-            c.appendChild(make("p", "tut-plan", T(main === "입술" ? "시작 {a}단계 · 입술 {b}단계 · 마무리 — 모두 {total}단계, 3분 정도 걸립니다." : "시작 {a}단계 · 눈썹 {b}단계 · 마무리 — 모두 {total}단계, 3분 정도 걸립니다.",
+            c.appendChild(make("p", "tut-plan", T(main === "입술" ? "시작 {a}단계 · 입술 {b}단계 · 마무리 — 모두 {total}단계, 3분 정도 걸립니다." : "시작 {a}단계 · 눈썹 {b}단계 · 마무리 — 모두 {total}단계, 10분 정도 걸립니다.",
                 { a: chapterCount("시작"), b: chapterCount(main), total: total })));
         }
+        if (step.slider && el && !waiting) c.appendChild(make("p", "tut-hint", T("👉 조절바를 「여기까지」 표시({v})까지 움직여 보세요 — 옆의 − + 로 한 칸씩 맞출 수 있습니다", { v: step.slider.to })));
+        else if (step.check && el && !waiting && !step.act) c.appendChild(make("p", "tut-hint", "👆 빛나는 곳에서 해 보세요"));
         if (step.act && el && !waiting) c.appendChild(make("p", "tut-hint", step.goal
             ? (step.goal > 0 ? "👉 조절바를 오른쪽 「여기까지」 표시까지 밀어 보세요" : "👈 조절바를 왼쪽 「여기까지」 표시까지 밀어 보세요")
             : step.act === "input" ? "👆 빛나는 조절바를 움직여 보세요" : "👆 빛나는 곳을 눌러 보세요"));
@@ -276,12 +422,13 @@
             var ex = make("button", "tut-btn tut-extra", step.extra.label); ex.type = "button";
             ex.addEventListener("click", step.extra.run); row.appendChild(ex);
         }
-        if (idx > 0 && !step.act) {
+        if (idx > 0 && !step.act && !step.slider && !step.check) {
             var back = make("button", "tut-btn tut-back", "이전"); back.type = "button";
             back.addEventListener("click", function () { go(idx - 1); }); row.appendChild(back);
         }
         var last = idx === total - 1;
-        var nx = make("button", "tut-btn tut-next" + (step.act ? " is-quiet" : ""), last ? "완료" : idx === 0 ? "시작하기" : step.act ? "넘어가기" : "다음");
+        var doing = !!(step.act || step.slider || step.check);
+        var nx = make("button", "tut-btn tut-next" + (doing ? " is-quiet" : ""), last ? "완료" : idx === 0 ? "시작하기" : doing ? "넘어가기" : "다음");
         nx.type = "button";
         var okNow = !step.ready || step.ready();
         nx.disabled = !okNow;
@@ -324,15 +471,17 @@
         var c = ui.card;
         c.classList.remove("is-min");
         c.innerHTML = "";
-        var box = make("div", "tut-yay");
-        box.appendChild(make("b", null, "잘하셨습니다! 👏"));
-        box.appendChild(make("span", null, STEPS[idx].title));
+        var st = STEPS[idx], clap = !!st.clap;
+        var box = make("div", "tut-yay" + (clap ? " is-clap" : ""));
+        box.appendChild(make("b", null, clap ? (st.final ? "잘하셨습니다! 👏👏👏 수고하셨습니다" : "잘하셨습니다! 👏👏👏") : "좋아요 ✓"));
+        box.appendChild(make("span", null, st.title));
         c.appendChild(box);
+        // 박수는 3초 보여 주고 (2026-11-27 원장님), 표시 없는 단계는 짧게 확인만
         setTimeout(function () {
             celebrating = false;
             if (ui) ui.ring.classList.remove("is-done");
             if (my === runId) go(idx + 1);
-        }, 2000);
+        }, clap ? 3000 : 900);
     }
     /** 대상에 동작을 걸어 두고, 하면 다음 단계로 */
     function bindAction(step, el) {
@@ -342,7 +491,9 @@
             if (!el.contains(ev.target) && ev.target !== el) return;
             if (goalInfo && !reached(goalInfo)) return;          // 아직 「여기까지」 표시에 못 갔다
             unbind && unbind(); unbind = null;
-            setTimeout(success, type === "input" ? 250 : 350);
+            // 그 사이 이 단계가 저절로 넘어갔으면(done) 박수를 다음 단계에 잘못 붙이지 않는다
+            var at = idx, rid = runId;
+            setTimeout(function () { if (idx === at && rid === runId) success(); }, type === "input" ? 250 : 350);
         };
         doc.addEventListener(type, h, true);
         unbind = function () { doc.removeEventListener(type, h, true); };
@@ -382,6 +533,22 @@
                     lastScroll = Date.now();
                     try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { el.scrollIntoView(); }
                 }
+            }
+            // 정해진 값까지 (slider) — 「여기까지」 표시를 그 값 자리에
+            if (step.slider && el) {
+                var sl0 = sliderOf(el);
+                if (sl0) {
+                    var mn = parseFloat(sl0.min) || 0, mx = parseFloat(sl0.max), stp = parseFloat(sl0.step) || 1;
+                    var cur = parseFloat(sl0.value), to = step.slider.to;
+                    goalInfo = { sl: sl0, min: mn, max: mx, to: to, dir: to >= cur ? 1 : -1 };
+                    var tol = Math.max(stp / 2, (mx - mn) * 0.015);
+                    if (Math.abs(cur - to) <= tol) { place(el); success(); return; }
+                }
+            }
+            if (step.check && !step.slider) {
+                var okc = false;
+                try { okc = step.check(); } catch (e) {}
+                if (okc) { place(el); success(); return; }
             }
             place(el);
             placeGoal();
@@ -434,11 +601,11 @@
         card.appendChild(make("h3", null, fromMenu ? "어떤 튜토리얼을 진행할까요?" : "튜토리얼을 진행하겠습니까?"));
         card.appendChild(make("p", null, "처음 쓰시는 분을 위해 결과물을 만드는 과정을 직접 따라 해 봅니다. 눈썹과 입술 중 하나를 고르세요."));
         var pick = make("div", "tut-ask-pick");
-        [["brow", "눈썹 튜토리얼", COURSES.brow().length], ["lip", "입술 튜토리얼", COURSES.lip().length]].forEach(function (c) {
+        [["brow", "눈썹 튜토리얼", COURSES.brow().length, "10"], ["lip", "입술 튜토리얼", COURSES.lip().length, "3"]].forEach(function (c) {
             var b = make("button", "tut-course"); b.type = "button";
             b.appendChild(make("b", null, c[1]));
             var done = false; try { done = localStorage.getItem(KEY + "." + c[0]) === "done"; } catch (e) {}
-            b.appendChild(make("span", null, T(done ? "{n}단계 · 약 3분 · 완료함" : "{n}단계 · 약 3분", { n: c[2] })));
+            b.appendChild(make("span", null, T(done ? "{n}단계 · 약 {m}분 · 완료함" : "{n}단계 · 약 {m}분", { n: c[2], m: c[3] })));
             b.addEventListener("click", function () { box.remove(); start(c[0]); });
             pick.appendChild(b);
         });
