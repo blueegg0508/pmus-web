@@ -1972,6 +1972,9 @@ label.design-card { cursor: pointer; }
 .tut-root.is-editor .tut-shade { background: rgba(6, 4, 8, .28); }
 .tut-root.is-editor .tut-card { padding: 9px 12px 9px; width: min(400px, calc(100vw - 96px)); left: 8px; transform: none; border-radius: 12px; }
 .tut-root.is-editor .tut-card.is-center { left: 50%; transform: translate(-50%, -50%); }
+/* 세로 화면 편집 단계 · 칭찬 창은 가로 가운데 (2026-11-27 원장님) */
+@media (orientation: portrait) { .tut-root.is-editor .tut-card:not(.is-center) { left: 50%; transform: translateX(-50%); } }
+.tut-root .tut-card.is-yay:not(.is-center) { left: 50%; transform: translateX(-50%); }
 .tut-root.is-editor .tut-bar { margin: 6px 0 6px; height: 3px; }
 .tut-root.is-editor .tut-title { font-size: 14.5px; margin: 0 0 2px; }
 .tut-root.is-editor .tut-text { font-size: 12.5px; line-height: 1.45; }

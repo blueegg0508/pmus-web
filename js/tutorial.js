@@ -58,6 +58,19 @@
         return null;
     }
     /** 화면 좌표 (편집 화면 안이면 iframe 자리를 더한다) */
+    /** 스크롤 칸(조절 시트 등) 안에서 위아래로 가려져 있는지 */
+    function clipped(el) {
+        var r = el.getBoundingClientRect(), p = el.parentElement;
+        while (p && p !== el.ownerDocument.body) {
+            var oy = (p.ownerDocument.defaultView || window).getComputedStyle(p).overflowY;
+            if (oy === "auto" || oy === "scroll" || oy === "hidden") {
+                var pr = p.getBoundingClientRect();
+                if (r.height < pr.height && (r.top < pr.top - 2 || r.bottom > pr.bottom + 2)) return true;
+            }
+            p = p.parentElement;
+        }
+        return false;
+    }
     function rectOf(el) {
         var r = el.getBoundingClientRect(), x = r.left, y = r.top;
         if (el.ownerDocument !== document) {
@@ -243,7 +256,7 @@
               check: function () { var d = frameDoc(), i = d && d.getElementById("rngOpacity"); return !!i && i.dataset.locked === "1"; } },
             // 9 ~ 14
             sl("rngNatBrow", 10, "기존 눈썹 지우기 10%", "「기존 눈썹 진하기」를 10%까지 내려 고객님의 원래 눈썹을 지워 보세요.", true),
-            sl("rngSpacing", 40, "눈썹 간격 40", "「눈썹 간격」을 40까지 움직여 보세요.", true),
+            sl("rngSpacing", 15, "눈썹 간격 15", "「눈썹 간격」을 15까지 살짝 넓혀 보세요.", true),
             sl("rngWidth", 120, "눈썹 기장 120%", "「눈썹 기장」을 120%까지 늘려 보세요."),
             sl("rngWidth", 100, "다시 100%", "이번에는 「눈썹 기장」을 다시 100%까지 줄여 보세요.", true),
             sl("rngHeight", 110, "세로 두께 110%", "「세로 두께」를 110%까지 올려 보세요.", true),
@@ -254,7 +267,7 @@
             // 15. 오른쪽 눈썹만
             { ch: B, title: "오른쪽 눈썹만", target: "f:#btnBrowMoveRight", act: "click", text: "「오른쪽」을 눌러 보세요. 이제 조절바가 오른쪽 눈썹만 바꿉니다." },
             sl("rngTail", 2, "오른쪽 꼬리 내리기 2%", "오른쪽 눈썹의 「꼬리 내리기」를 2%까지 가 보세요."),
-            sl("rngSpacing", -55, "오른쪽 간격 −55", "「눈썹 간격」을 −55까지 가 보세요."),
+            sl("rngSpacing", -5, "오른쪽 간격 −5", "오른쪽 눈썹의 「눈썹 간격」을 −5까지 살짝 좁혀 보세요."),
             sl("rngHeight", 105, "오른쪽 세로 두께 105%", "「세로 두께」를 105%까지 가 보세요."),
             sl("rngPeak", 2, "오른쪽 눈썹산 위치 2%", "「눈썹산 위치」를 뒤로 2%까지 가 보세요.", true),
             // 16. 함께
@@ -362,7 +375,13 @@
         }
         ui.card.style.width = "";
         // 카드는 비춘 곳의 반대쪽 (위가 넓으면 위, 아니면 아래)
-        if (y + h / 2 > H / 2) { ui.card.style.top = ui.root.classList.contains("is-editor") ? "calc(env(safe-area-inset-top, 0px) + 6px)" : "calc(env(safe-area-inset-top, 0px) + 46px)"; ui.card.style.bottom = ""; }
+        // 편집 화면에서 아래 시트(조절바)를 비출 때 — 안내판은 화면 가운데, 단 비춘 곳 위로 비켜서 (2026-11-27 원장님)
+        if (ui.root.classList.contains("is-editor") && y + h / 2 > H / 2) {
+            var ch = ui.card.offsetHeight || 200;
+            var top = Math.min(Math.round(H / 2 - ch / 2), Math.round(y - ch - 10));
+            ui.card.style.top = Math.max(6, top) + "px"; ui.card.style.bottom = "";
+        }
+        else if (y + h / 2 > H / 2) { ui.card.style.top = "calc(env(safe-area-inset-top, 0px) + 46px)"; ui.card.style.bottom = ""; }
         else { ui.card.style.bottom = "max(12px, env(safe-area-inset-bottom))"; ui.card.style.top = ""; }
     }
 
@@ -387,7 +406,7 @@
 
     function render(step, el, waiting) {
         var c = ui.card;
-        c.classList.toggle("is-min", minimized && !!step.target);
+        c.classList.toggle("is-min", minimized && !!step.target); c.classList.remove("is-yay");
         // 편집 화면 안을 비출 때는 얼굴 사진이 보여야 한다 — 안내 창을 작게, 덮는 막을 옅게 (2026-11-24 원장님)
         var inEditor = !!(step.target && (typeof step.target === "function" || step.target.indexOf("f:") === 0));
         ui.root.classList.toggle("is-editor", inEditor);
@@ -425,9 +444,10 @@
             var ex = make("button", "tut-btn tut-extra", step.extra.label); ex.type = "button";
             ex.addEventListener("click", step.extra.run); row.appendChild(ex);
         }
-        if (idx > 0 && !step.act && !step.slider && !step.check) {
-            var back = make("button", "tut-btn tut-back", "이전"); back.type = "button";
-            back.addEventListener("click", function () { go(idx - 1); }); row.appendChild(back);
+        // 이전 단계 — 해 보는 단계에서도 「넘어가기」 왼쪽에 (2026-11-27 원장님)
+        if (idx > 0) {
+            var back = make("button", "tut-btn tut-back", "이전 단계"); back.type = "button";
+            back.addEventListener("click", function () { go(idx - 1, true); }); row.appendChild(back);
         }
         var last = idx === total - 1;
         var doing = !!(step.act || step.slider || step.check);
@@ -472,7 +492,7 @@
         if (ui.goal) ui.goal.style.display = "none";
         ui.ring.classList.add("is-done");
         var c = ui.card;
-        c.classList.remove("is-min");
+        c.classList.remove("is-min"); c.classList.add("is-yay");
         c.innerHTML = "";
         var st = STEPS[idx], clap = !!st.clap;
         var box = make("div", "tut-yay" + (clap ? " is-clap" : ""));
@@ -502,21 +522,23 @@
         unbind = function () { doc.removeEventListener(type, h, true); };
     }
 
-    function go(i) {
+    function go(i, back) {
         clearTimers();
         runId++;
         if (i >= STEPS.length) { finish("done"); return; }
         idx = Math.max(0, i);
         var step = STEPS[idx], my = runId, started = Date.now();
         if (step.before) { try { step.before(); } catch (e) {} }
-        if (step.done && step.done() && idx < STEPS.length - 1) { go(idx + 1); return; }
+        if (!back && step.done && step.done() && idx < STEPS.length - 1) { go(idx + 1); return; }
         var el = step.target ? find(step.target) : null, bound = false, lastWaiting = null, lastScroll = 0;
+        // 이전 단계로 돌아왔을 때 — 이미 해 둔 상태라고 바로 넘어가지 않게, 한 번 바뀐 뒤에야 칭찬한다
+        var armed = !back;
         goalInfo = null;
         if (ui.goal) ui.goal.style.display = "none";
         var tick = function () {
             if (my !== runId || celebrating) return;
             // 해야 할 일이 이미 됐으면 (사진을 넣었다 · 편집 화면이 열렸다) 저절로 다음 단계로
-            if (step.done && step.done()) { go(idx + 1); return; }
+            if (armed && step.done && step.done()) { go(idx + 1); return; }
             if (step.target) {
                 var cur = find(step.target);
                 if (cur && cur !== el) { el = cur; bound = false; }
@@ -532,7 +554,7 @@
             // 비출 곳이 화면 밖(아래 시트 속 등)이면 가운데로 끌어온다 — 1초에 한 번만
             if (el && Date.now() - (lastScroll || 0) > 1000) {
                 var rr = rectOf(el);
-                if (rr.y < 0 || rr.y + rr.h > window.innerHeight - 8) {
+                if (rr.y < 0 || rr.y + rr.h > window.innerHeight - 8 || clipped(el)) {
                     lastScroll = Date.now();
                     try { el.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { el.scrollIntoView(); }
                 }
@@ -545,13 +567,15 @@
                     var cur = parseFloat(sl0.value), to = step.slider.to;
                     goalInfo = { sl: sl0, min: mn, max: mx, to: to, dir: to >= cur ? 1 : -1 };
                     var tol = Math.max(stp / 2, (mx - mn) * 0.015);
-                    if (Math.abs(cur - to) <= tol) { place(el); success(); return; }
+                    if (Math.abs(cur - to) <= tol) { if (armed) { place(el); success(); return; } }
+                    else armed = true;
                 }
             }
             if (step.check && !step.slider) {
                 var okc = false;
                 try { okc = step.check(); } catch (e) {}
-                if (okc) { place(el); success(); return; }
+                if (okc && armed) { place(el); success(); return; }
+                if (!okc) armed = true;
             }
             place(el);
             placeGoal();
