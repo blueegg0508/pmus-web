@@ -207,8 +207,11 @@
                   if (on) seenTabs[on.getAttribute("data-tab")] = 1;
                   return !!(seenTabs.natural && seenTabs.gradation && seenTabs.combo && seenTabs.male);
               } },
-            { ch: B, title: "디자인 눌러 보기", target: "f:.mui-qdesigns", act: "click",
-              text: "마음에 드는 디자인을 하나 눌러 보세요. 얼굴 위에 바로 입혀집니다." },
+            // 탭과 디자인 줄을 함께 열어 둔다 — 어느 탭의 디자인이든 골라도 된다 (2026-11-27 원장님)
+            { ch: B, title: "디자인 눌러 보기", target: "f:.mui-idx",
+              text: "마음에 드는 탭을 골라 디자인을 하나 눌러 보세요. 얼굴 위에 바로 입혀집니다.",
+              before: function () { this._k = designKey(); },
+              check: function () { var k = designKey(); return !!k && k !== this._k; } },
             // 3. 오른쪽 점선 — 세로 두께까지 내렸다가 다시 올라오기
             { ch: B, title: "오른쪽 점선으로 내리기", target: "f:.mui-quick", text: "조절 칸 오른쪽의 점선을 따라 손가락으로 쓸어 「세로 두께」가 보일 때까지 내려 보세요.",
               wait: "편집 화면을 여는 중입니다…",
