@@ -3,7 +3,7 @@
  * 처음 켜면 "튜토리얼을 진행하겠습니까?" → 예 / 아니요. 예를 누르면 눈썹부터 입술까지
  * 실제 버튼 위에 빛을 비추고, 원장님이 직접 눌러 따라 하면 다음 단계로 넘어간다.
  *   - 위쪽에 「단계 n / 전체」와 지금 장(시작 · 눈썹 · 입술), 오른쪽 위에 작은 「건너뛰기」
- *   - 사진이 없으면 「예시 사진으로 하기」 (메뉴얼에 쓰는 시연 모델 사진 assets/tutorial/model.jpg)
+ *   - 사진이 없으면 「예시 사진으로 하기」 (AI 로 만든 예시 인물 assets/tutorial/model-2.jpg — 2026-11-28 원장님이 바꿈. 메뉴얼 촬영용 assets/기준사진.png 와는 별개)
  *   - 언제든 다시: 버전 화면 「튜토리얼 진행하기」 → window.PMUS_TUTORIAL.start()
  *   - 본 적이 있는지는 이 기기(localStorage "pmus.tutorial")에만 — "done" · "no"
  * 화면을 고치지 않는 덧씌우기라 앱 코드와는 선택자(id · class)로만 이어진다. 선택자가 바뀌면 여기 STEPS 도 고친다.
@@ -95,7 +95,7 @@
     function useSamplePhoto() {
         var inp = $("file-gallery");
         if (!inp) return;
-        fetch("assets/tutorial/model.jpg").then(function (r) { return r.blob(); }).then(function (b) {
+        fetch("assets/tutorial/model-2.jpg").then(function (r) { return r.blob(); }).then(function (b) {
             var f = new File([b], "PMUS_sample.jpg", { type: "image/jpeg" });
             var dt = new DataTransfer();
             dt.items.add(f);
